@@ -70,10 +70,9 @@ body {
     border: 1px solid #fffbfba4;
     border-radius: 15px;
     box-sizing: border-box;
-    font-size: 14px;
     background-color: #764e4eb4;
     color: white;
-    font-size: 15px;
+    font-size: 17px;
     font-weight: 900;
 }
 .title{
@@ -106,14 +105,7 @@ body {
     font-family: Verdana, Geneva, Tahoma, sans-serif;
 }
 
-.faculty{
-  color: white;
-  width: 100%;
-  position: relative;
-  bottom: 0%;
-  text-align: center;
-  padding: 10px;
-}
+
 #welcomeBack{
     font-size: 24px;
     font-weight: 900;
@@ -144,6 +136,19 @@ body {
     cursor: pointer;
     margin-top: 16px;
 }
+#signUpButton{
+    width: 100%;
+    background-color: white;
+    color: #780000;
+    padding-top:10px;
+    padding-bottom:10px;
+    border: 2px solid #780000;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 8px;
+}
 
 @media(max-width:730px){
     
@@ -167,7 +172,7 @@ body {
 }
 .container2 {
    
-    width: 90%; 
+    width: 60%; 
 }
 title{
    font-size: 10px;
@@ -187,10 +192,10 @@ title{
 /* Add these styles for the input field */
 input[type="text"] {
     width: 100%;
-    padding: 12px 20px;
-    margin: 8px 0;
+    padding: 20px 20px;
+    margin: 10px ;
     border: 1px solid #C4C4C4;
-    border-radius: 8px;
+    border-radius: 12px;
     box-sizing: border-box;
     font-size: 14px;
     background-color: #FFFFFF;
@@ -203,8 +208,259 @@ input[type="text"]::placeholder {
 }
 
 /* Optional: Add focus state styling */
-input[type="text"]:focus {
+input[type="text"]:focus, select:focus {
     outline: none;
     border-color: #780000;
     box-shadow: 0 0 5px rgba(120, 0, 0, 0.2);
+}
+
+/* Styles for select dropdowns */
+.input-field {
+    width: 100%;
+    padding: 15px;
+    margin: 10px 0;
+    border: 1px solid #C4C4C4;
+    border-radius: 12px;
+    box-sizing: border-box;
+    font-size: 14px;
+    background-color: #FFFFFF;
+    color: #666666;
+}
+
+/* Password strength indicator styles */
+#strength-indicator-container {
+    margin: 10px 0;
+    text-align: left;
+}
+
+#strength-bar {
+    height: 4px;
+    background-color: #e0e0e0;
+    border-radius: 2px;
+    transition: width 0.3s ease;
+}
+
+#strength-bar.weak { background-color: #dc3544; }
+#strength-bar.medium { background-color: #ffc107; }
+#strength-bar.strong { background-color: #28a745; }
+
+#strength-text {
+    font-size: 12px;
+    margin-top: 5px;
+    display: inline-block;
+}
+
+#forgotPassword {
+    display: block;
+    text-align: right;
+    margin: 8px 0;
+    font-size: 12px;
+}
+/* Container for the indicator bar and text */
+#strength-indicator-container {
+    width: 100%;
+    margin-top: 5px;
+    height: 10px; /* Height of the bar */
+    background-color: #bebebe;
+    border-radius: 5px;
+    overflow: hidden; /* Ensures the bar's color stays inside the rounded container */
+}
+
+/* The dynamic bar itself */
+#strength-bar {
+    height: 100%;
+    width: 0%; /* Starts empty */
+    transition: width 0.3s, background-color 0.3s; /* Smooth visual update */
+}
+
+/* Text display */
+#strength-text {
+    display: block;
+    margin-top: 5px;
+    font-size: 0.8rem;
+    font-weight: bold;
+    text-align: left;
+    color: #666;
+}
+
+/* CSS Classes that JavaScript will apply */
+
+.weak {
+    background-color: #dc3544; /* Red */
+}
+
+.medium {
+    background-color: #ffc107; /* Yellow/Orange */
+}
+
+.strong {
+    background-color: #28a745; /* Green */
+}
+input[type="password"]{
+  width: 100%;
+    padding: 20px 20px;
+    margin: 10px ;
+    border: 1px solid #C4C4C4;
+    border-radius: 12px;
+    box-sizing: border-box;
+    font-size: 14px;
+    background-color: #FFFFFF;
+    color: #666666;
+   text-align: left;
+    font-size: 14px;
+    font-weight: 600;
+    font-weight: 100;
+}
+input[type="password"]:focus{
+   color:#780000;
+    margin-bottom: 8px;
+    outline: none;
+    border-color: #780000;
+    box-shadow: 0 0 5px rgba(120, 0, 0, 0.2);
+}
+input[type="password"]::placeholder {
+    color: #A9A9A9;
+    font-size: 14px;
+}
+
+/* Ensure labels and form controls inside the form container align */
+.container2 p#UsernamePassword {
+    text-align: left;
+    margin: 0 0 6px;
+}
+.container2 input[type="text"],
+.container2 input[type="password"],
+.container2 textarea,
+.container2 select {
+    width: 100%;
+    display: block;
+    margin: 0 0 16px;
+    padding: 20px;
+    border: 1px solid #C4C4C4;
+    border-radius: 12px;
+    box-sizing: border-box;
+    font-size: 14px;
+    background-color: #FFFFFF;
+    color: #666666;
+}
+.container2 textarea {
+    padding: 12px 20px;
+    resize: vertical; /* allow vertical resizing only */
+    min-height: 100px;
+}
+
+#continue1{
+    background-color: #780000;
+    color: white;
+    padding: 15px;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 16px;
+}
+#previous{
+    background-color: white;
+    color: #780000;
+    padding: 15px;
+    border: 2px solid #780000;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 16px;
+}
+/* Disabled link appearance for Continue on signup */
+.disabled-link {
+    pointer-events: none !important;
+    opacity: 0.5 !important;
+    background-color: #cccccc !important;
+    cursor: not-allowed !important;
+    border-color: #cccccc !important;
+}
+
+/* Info tooltip for password requirements */
+.info-tooltip {
+    display: inline-block;
+    margin-left: 8px;
+    color: #780000;
+    font-weight: 700;
+    line-height: 1;
+    position: relative;
+    cursor: default;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    text-align: center;
+    background: #fff;
+    border: 1px solid #C4C4C4;
+    box-sizing: border-box;
+}
+.info-tooltip .tooltip-text {
+    visibility: hidden;
+    opacity: 0;
+    width: 260px;
+    background-color: #403e3e;
+    color: #fff;
+    text-align: left;
+    padding: 8px 10px;
+    border-radius: 6px;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: calc(100% + 8px);
+    z-index: 60;
+    transition: opacity 0.15s ease;
+    font-size: 13px;
+}
+.info-tooltip:hover .tooltip-text
+{
+    visibility: visible;
+    opacity: 1;
+}
+.info-tooltip .tooltip-text::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 6px;
+    border-style: solid;
+    border-color: #403e3e transparent transparent transparent;
+}
+textarea{
+    width: 100%;
+    padding: 40px 20px;
+    margin: 10px ;
+    border: 1px solid #C4C4C4;
+    border-radius: 12px;
+    box-sizing: border-box;
+    font-size: 14px;
+    background-color: #FFFFFF;
+    color: #666666;
+}
+#submitButton{
+    background-color: #780000;
+    width:50%;
+    color: white;
+    padding: 15px;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 16px;
+}
+  #submitButton:disabled {
+        cursor: not-allowed;
+        opacity: 0.6;
+    }
+    /* --- Custom Modal Styling --- */
+
+
+/* Optional: Animation for smooth appearance */
+@keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1); }
 }
