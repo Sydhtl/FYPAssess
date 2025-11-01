@@ -28,18 +28,45 @@
         <p id="desc">Sign in to access your account</p>
 
      <p id="UsernamePassword"> Staff ID or Student ID </p>
-        <input type="text" placeholder="Enter Staff or Student ID" />
+        <input type="text" placeholder="Enter Staff or Student ID" required >
         <p id="UsernamePassword"> Password </p>
-        <input type="text" placeholder="Enter Password">
-        <a href="" id="forgotPassword" style="text-decoration: none; color:#780000;font-weight: bold;">Forgot Password?</a><br> 
-        <button type ="submit" id="signInButton">Sign In To FYPAssess</button>
+        <input type="text" placeholder="Enter Password" required>
+        <button type ="submit" id="signInButton" class="disabled-link">Sign In To FYPAssess</button><br>
+        <p id="noAccount">Don't have an account?</p>
+        <a href="signup.html" id="signUpButton" style="text-decoration: none; display: block;">Sign Up</a>
     </div>
+
    
 </div>
 </div>
  <p class="faculty">
   FACULTY OF COMPUTER SCIENCE AND INFORMATION TECHNOLOGY
 </p>
-    
 </body>
+<script>
+    const ID=document.querySelector('input[placeholder="Enter Staff or Student ID"]');
+    const password=document.querySelector('input[placeholder="Enter Password"]');
+    const signInButton=document.getElementById('signInButton');
+
+    function checkForm(){
+        const idFilled=ID && ID.value.trim().length>5;
+        const passwordFilled=password && password.value.trim().length>0;
+        if(idFilled && passwordFilled){
+            signInButton.classList.remove('disabled-link');
+        }else{
+            signInButton.classList.add('disabled-link');
+        }
+    }
+
+    if(ID) ID.addEventListener('input',checkForm);
+    if(password) password.addEventListener('input',checkForm);
+
+    signInButton.addEventListener('click',function(event){
+        event.preventDefault();
+        if(!signInButton.classList.contains('disabled-link')){
+            window.location.href = '../student/dashboard/dashboard.html';
+        }
+    });
+    checkForm();
+</script>
 </html>
