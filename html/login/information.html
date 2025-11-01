@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FYPAssess - Additional Information</title>
+    <link rel="stylesheet" href="../../css/background.css">
+    <link rel="stylesheet" href="../../css/login.css">
+ 
+</head>
+<body>
+<div class="page">
+    <div class="left">
+        <div class="container1">
+            <img src="../../assets/UPM Logoo.jpg" alt="UPM" width="300px" height="200px"> <br>
+            <b class="title">FYPAsses</b>
+            <P class="fulltitle">Final Year Project Assessment System</P>
+            <div class="description">Student and Lecturers FYP Portal</div>
+        </div>
+    </div>
+    <div class="right"> 
+        <div class="container2" id="courseInfo">
+            <p id="welcomeBack">FYP Session Information</p>
+            <p id="desc">Please complete your profile</p>
+
+            <p id="UsernamePassword">Programme Name  <span class="info-tooltip" aria-hidden="true">
+                                ⓘ
+                                <span class="tooltip-text">Must select a programme from the list.</span>
+                        </span></p>
+            <select class="input-field" id="programme" required>
+                <option value="" disabled selected>Select your programme</option>
+                <option value="1">Bachelor of Computer Science</option>
+                <option value="2">Bachelor of Computer Science(Multimedia Computing)</option>
+                <option value="3">Bachelor of Computer Science (Computer Network)</option>
+                <option value="4">Bachelor of Software Engineering</option>
+            </select>
+              <p id="UsernamePassword">Course Name 
+                        <span class="info-tooltip" aria-hidden="true">
+                                ⓘ
+                                <span class="tooltip-text">PMust not be empty.</span>
+                        </span></p> 
+             
+            <input type="text" id="courseName" placeholder="Course Name" required>
+                <p id="UsernamePassword">Course Code 
+                     <span class="info-tooltip" aria-hidden="true">
+                                ⓘ
+                                <span class="tooltip-text">Must contain letters and numbers only (e.g., SKEM3991).</span>
+                        </span>
+             
+                </p>
+            <input type="text" id="courseCode" placeholder="Course Code" required>
+              <p id="UsernamePassword">Credit Hour
+                 <span class="info-tooltip" aria-hidden="true">
+                                ⓘ
+                                <span class="tooltip-text">Must be a whole number (integer) between 1 and 4 digits (e.g., 3).</span>
+                        </span>
+              </p>
+            <input type="text" id="creditHour" placeholder="Credit Hour" required>
+              <p id="UsernamePassword"> Semester
+                 <span class="info-tooltip" aria-hidden="true">
+                                ⓘ
+                                <span class="tooltip-text">Must be the single digit 1, 2, or 3.</span>
+                        </span>
+              </p>
+            <input type="text" id="semester" placeholder="Semester" required>
+              <p id="UsernamePassword">Session
+                 <span class="info-tooltip" aria-hidden="true">
+                                ⓘ
+                                <span class="tooltip-text">Must be in the format YYYY/YYYY or YY/YY (e.g., 2024/2025 or 24/25).</span>
+                        </span>
+              </p>
+            <input type="text" id="session" placeholder="Session" required>
+
+        <a href="signup.html" id="previous" style="text-decoration: none; display: inline-block; margin-right: 20px;">Previous</a>
+        <a href="#Studinfo" id="continue1" class= "disabled-link" style="text-decoration:none; display: inline-block;">Continue</a>    
+        </div>
+
+      <div class="container2" id="Studinfo" style="display: none;">
+  
+            <p id="welcomeBack">Student Information</p>
+            <p id="desc">Enter the  details</p>
+
+            <p id="UsernamePassword">Phone Number
+                 <span class="info-tooltip" aria-hidden="true">
+                                ⓘ
+                                <span class="tooltip-text">Must contain 10 to 15 digits only (no spaces, hyphens, or symbols).</span>
+                        </span>
+            </p>
+            <input type="text" id="phoneNumber" placeholder="Enter your phone number without -" required>
+         
+            <p id="UsernamePassword">Current Address
+                 <span class="info-tooltip" aria-hidden="true">
+                                ⓘ
+                                <span class="tooltip-text">Must not be empty.</span>
+                        </span>
+            </p>
+            <textarea id="currentAddress" placeholder="Enter project description" class="input-field" style="height: 100px; resize: none;" required></textarea>
+            <p id="UsernamePassword">Minor
+                 <span class="info-tooltip" aria-hidden="true">
+                                ⓘ
+                                <span class="tooltip-text">(Optional) Can be left blank.</span>
+                        </span>
+            </p>
+            <input type="text" id="minor" placeholder="Enter your minor if applicable">
+              <p id="UsernamePassword">CGPA
+                 <span class="info-tooltip" aria-hidden="true">
+                                ⓘ
+                                <span class="tooltip-text">Must be a number between 0.000 and 4.000 (up to three decimal places allowed).</span>
+                        </span>
+              </p>
+            <input type="text" id="cgpa" placeholder="CGPA" required>
+        
+            
+            <a href="#courseInfo" id="previous" style="text-decoration: none; display: inline-block; margin-right: 20px;">Previous</a>
+            <a href="#FYPinfo" id="continue1" style="text-decoration: none; display: inline-block;">Continue</a>   
+     
+        </div>
+            <div class="container2" id="FYPinfo" style="display: none;">
+                <p id="welcomeBack">FYP information</p>
+                <p id="desc">Enter the  details</p>
+                <p id="UsernamePassword">Supervisor Name
+                     <span class="info-tooltip" aria-hidden="true">
+                                ⓘ
+                                <span class="tooltip-text">Must select a supervisor from the list.</span>
+                        </span>
+                </p>
+                <select class="input-field" id="supervisor" required>
+                    <option value="" disabled selected>Select your supervisor</option>
+                    <option value="1">Dr. Ahmad Bin Abu</option>
+                    <option value="2">Prof. Siti Nurhaliza</option>
+                    <option value="3">Dr. John Doe</option>
+                    <option value="4">Prof. Jane Smith</option>
+                </select>
+                <p id="UsernamePassword"> Suggestion FYP Title 1
+                     <span class="info-tooltip" aria-hidden="true">
+                                ⓘ
+                                <span class="tooltip-text">Must not be empty.</span>
+                        </span>
+                </p>
+                <textarea id="fypTitle1" placeholder="Enter your first suggested FYP title" class="input-field" style="height: 60px; resize: none;" ></textarea>
+                <p id="UsernamePassword"> Suggestion FYP Title 2
+                     <span class="info-tooltip" aria-hidden="true">
+                                ⓘ
+                                <span class="tooltip-text">(Optional) Can be left blank.</span>
+                        </span>
+                </p>
+                <textarea id="fypTitle2" placeholder="Enter your second suggested FYP title" class="input-field" style="height: 60px; resize: none;" ></textarea>
+                <p id="UsernamePassword"> Suggestion FYP Title 3
+                     <span class="info-tooltip" aria-hidden="true">
+                                ⓘ
+                                <span class="tooltip-text">(Optional) Can be left blank. </span>
+                        </span>
+                </p>
+                <textarea id="fypTitle3" placeholder="Enter your third suggested FYP title" class="input-field" style="height: 60px; resize: none;" ></textarea>
+            <a href="#Studinfo" id="previous" style="text-decoration: none; display: inline-block; margin-right: 20px;">Previous</a>
+            <button type="submit" id="submitButton" style="display: inline-block;">Submit</button>
+                 </div>
+
+     
+        </div>    
+    </div>  
+    </div>
+</div>
+
+<p class="faculty">
+    FACULTY OF COMPUTER SCIENCE AND INFORMATION TECHNOLOGY
+</p>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // --- 1. Form Elements Configuration ---
+    const courseInfo = {
+        fields: {
+            programme: document.querySelector('#programme'),
+            courseName: document.querySelector('#courseName'),
+            courseCode: document.querySelector('#courseCode'),
+            creditHour: document.querySelector('#creditHour'),
+            semester: document.querySelector('#semester'),
+            session: document.querySelector('#session')
+        },
+        continue: document.querySelector('#courseInfo #continue1')
+    };
+
+    const studentInfo = {
+        fields: {
+            phoneNumber: document.querySelector('#phoneNumber'),
+            currentAddress: document.querySelector('#currentAddress'),
+            cgpa: document.querySelector('#cgpa'),
+            minor: document.querySelector('#minor') // Minor is optional, but included for listeners
+        },
+        continue: document.querySelector('#Studinfo #continue1')
+    };
+
+    const fypInfo = {
+        fields: {
+            supervisor: document.querySelector('#supervisor'),
+            fypTitle1: document.querySelector('#fypTitle1'),
+            fypTitle2: document.querySelector('#fypTitle2'),
+            fypTitle3: document.querySelector('#fypTitle3')
+        },
+        submit: document.querySelector('#submitButton')
+    };
+
+    // --- 2. Helper Validation Functions (Regex Definitions) ---
+
+    function isStringValid(str) {
+        // Checks if string is not null/undefined and not just whitespace
+        return str && str.trim().length > 0;
+    }
+
+    function isPhoneNumberValid(phone) {
+        // Allows 10 to 15 digits (10-15 digits only)
+        const phonePattern = /^\d{10,15}$/; 
+        return phonePattern.test(phone);
+    }
+
+    function isCreditHourValid(credit) {
+        // Allows 1 to 4 digits (e.g., "3")
+        const creditNumPattern = /^\d{1,4}$/; 
+        return creditNumPattern.test(credit);
+    }
+
+    function isSemesterValid(sem) {
+        // Allows only the characters '1', '2', or '3'
+        const semPattern = /^[123]$/; 
+        return semPattern.test(sem);
+    }
+
+    function isSessionValid(sess) {
+        // Allows YYYY/YYYY (2024/2025) or YY/YY (24/25)
+        const sessPattern = /^(\d{4}\/\d{4}|\d{2}\/\d{2})$/; 
+        return sessPattern.test(sess);
+    }
+    
+    function isCGPA(str) {
+        // Allows 0.000 up to 4.000 (up to 3 decimal places)
+        const cgpaPattern = /^([0-3](\.\d{1,3})?|4(\.0{1,3})?)$/;
+        return cgpaPattern.test(str) && parseFloat(str) >= 0.000 && parseFloat(str) <= 4.000;
+    }
+    
+    // --- 3. Main Validation Logic ---
+
+    function validateFields(sectionObject) {
+        const fields = sectionObject.fields;
+
+        if (sectionObject === courseInfo) {
+            return isStringValid(fields.programme.value) &&
+                   isStringValid(fields.courseName.value) &&
+                   isStringValid(fields.courseCode.value) &&
+                   isCreditHourValid(fields.creditHour.value) &&
+                   isSemesterValid(fields.semester.value) &&
+                   isSessionValid(fields.session.value);
+        }
+
+        if (sectionObject === studentInfo) {
+            // Note: currentAddress, phoneNumber, and cgpa are required
+            return isPhoneNumberValid(fields.phoneNumber.value) &&
+                   isStringValid(fields.currentAddress.value) &&
+                   isCGPA(fields.cgpa.value);
+        }
+
+        if (sectionObject === fypInfo) {
+            // All FYP fields (Supervisor and Titles 1, 2, 3) are checked for submission
+            return isStringValid(fields.supervisor.value) &&
+                   isStringValid(fields.fypTitle1.value);
+        }
+        
+        return false;
+    }
+
+
+    // --- 4. Button Update Functions ---
+
+    function updateButton(button, isValid) {
+        if (isValid) {
+            button.classList.remove('disabled-link');
+        } else {
+            button.classList.add('disabled-link');
+        }
+    }
+    
+    function updateSubmitButton(button, isValid) {
+        button.disabled = !isValid;
+    }
+
+
+    // --- 5. Event Listeners (Field Input) ---
+
+    // Add event listeners to course info section
+    Object.values(courseInfo.fields).forEach(field => {
+        field.addEventListener('input', () => {
+            const isValid = validateFields(courseInfo); 
+            updateButton(courseInfo.continue, isValid);
+        });
+    });
+
+    // Add event listeners to student info section
+    Object.values(studentInfo.fields).forEach(field => {
+        field.addEventListener('input', () => {
+            const isValid = validateFields(studentInfo); 
+            updateButton(studentInfo.continue, isValid);
+        });
+    });
+
+    // Add event listeners to FYP info section
+    Object.values(fypInfo.fields).forEach(field => {
+        field.addEventListener('input', () => {
+            const isValid = validateFields(fypInfo); 
+            updateSubmitButton(fypInfo.submit, isValid); 
+        });
+    });
+
+    // --- 6. Custom Modal/Submission Logic (NEW) ---
+    
+    // Get modal elements
+    const successModal = document.getElementById('submissionSuccessModal');
+    const closeBtn = document.querySelector('.close-btn');
+    const loginRedirectBtn = document.getElementById('modalLoginRedirect');
+
+    // Helper function for redirection
+    function redirectToLogin() {
+        // Redirect to the login page (ensure this URL is correct)
+        window.location.href = 'login.html'; 
+    }
+
+    // Submission Handler (Shows Modal and Redirects)
+    fypInfo.submit.addEventListener('click', function(event) {
+        event.preventDefault(); // Prevent page refresh/navigation initially
+
+        // 1. Check if validation passed (button is enabled)
+        if (this.disabled) {
+            // If validation fails, stop here.
+            return;
+        }
+        
+        // 2. Show the custom modal
+        successModal.style.display = 'block';
+    });
+
+    // Close the modal and redirect when the "Go to Login Page" button is clicked
+    loginRedirectBtn.addEventListener('click', () => {
+        successModal.style.display = 'none';
+        redirectToLogin();
+    });
+
+    // Close the modal and redirect when the 'X' (close button) is clicked
+    closeBtn.addEventListener('click', () => {
+        successModal.style.display = 'none';
+        redirectToLogin();
+    });
+
+    // Close the modal and redirect if the user clicks outside the modal content
+    window.addEventListener('click', (event) => {
+        if (event.target === successModal) {
+            successModal.style.display = 'none';
+            redirectToLogin();
+        }
+    });
+    // --- END Custom Modal/Submission Logic ---
+
+
+    // --- 7. Navigation and Utility Functions ---
+    
+    // Handle continue button clicks (prevents navigation if disabled)
+    courseInfo.continue.addEventListener('click', function(event) {
+        if (this.classList.contains('disabled-link')) {
+            event.preventDefault();
+            // Focus first empty field
+            for (const field of Object.values(courseInfo.fields)) {
+                if (!field.value.trim()) {
+                    field.focus();
+                    break;
+                }
+            }
+        }
+    });
+
+    studentInfo.continue.addEventListener('click', function(event) {
+        if (this.classList.contains('disabled-link')) {
+            event.preventDefault();
+            // Focus first empty required field
+            for (const field of Object.values(studentInfo.fields)) {
+                // Check if element has 'required' attribute OR is one of the strictly required fields
+                if ((field.required || field.id === 'phoneNumber' || field.id === 'currentAddress' || field.id === 'cgpa') && !field.value.trim()) { 
+                    field.focus();
+                    break;
+                }
+            }
+        }
+    });
+
+    // Navigation handler (for smooth scrolling/switching containers)
+    const links = document.querySelectorAll('#continue1, #previous');
+    links.forEach(link => {
+        link.addEventListener('click', function(e) {
+            const href = this.getAttribute('href');
+            if (href && href.startsWith('#')) {
+                // Don't navigate if continue button is disabled
+                if (this.classList.contains('disabled-link')) {
+                    e.preventDefault();
+                    return;
+                }
+                
+                e.preventDefault();
+                const targetId = href.substring(1);
+                const currentSection = document.querySelector('.container2:not([style*="display: none"])');
+                const targetSection = document.getElementById(targetId);
+                
+                if (targetSection && currentSection) {
+                    currentSection.style.display = 'none';
+                    targetSection.style.display = 'block';
+                    targetSection.scrollIntoView({ behavior: 'smooth' });
+                }
+            }
+        });
+    });
+
+    // Supervisor lists per programme
+    const supervisorsByProgramme = {
+        "1": [
+            { value: "a1", text: "Dr. Ahmad Bin Abu" },
+            { value: "a2", text: "Dr. Aishah Binti Ali" }
+        ],
+        "2": [
+            { value: "b1", text: "Prof. Siti Nurhaliza" },
+            { value: "b2", text: "Dr. Farid B. Omar" }
+        ],
+        "3": [
+            { value: "c1", text: "Dr. John Doe" },
+            { value: "c2", text: "Dr. Michael Tan" }
+        ],
+        "4": [
+            { value: "d1", text: "Prof. Jane Smith" },
+            { value: "d2", text: "Dr. Lim Wei" }
+        ]
+    };
+
+    function populateSupervisors(progValue) {
+        const supervisor = document.querySelector('#supervisor');
+        if (!supervisor) return;
+
+        supervisor.innerHTML = '';
+        const list = supervisorsByProgramme[progValue] || [];
+        
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.disabled = true;
+        placeholder.selected = true;
+        placeholder.textContent = 'Select your supervisor';
+        supervisor.appendChild(placeholder);
+
+        list.forEach(s => {
+            const opt = document.createElement('option');
+            opt.value = s.value;
+            opt.textContent = s.text;
+            supervisor.appendChild(opt);
+        });
+
+        // Revalidate FYP section after changing supervisors
+        const isValid = validateFields(fypInfo);
+        updateSubmitButton(fypInfo.submit, isValid); 
+    }
+
+    // Update supervisors when programme changes
+    const programme = courseInfo.fields.programme;
+    if (programme) {
+        programme.addEventListener('change', function() {
+            populateSupervisors(this.value);
+            // Re-validate courseInfo after changing a field
+            const isValid = validateFields(courseInfo);
+            updateButton(courseInfo.continue, isValid);
+        });
+        // Run initial population if a value is already selected (e.g., from browser memory)
+        if (programme.value) {
+             populateSupervisors(programme.value);
+        }
+    }
+
+    // Run initial validation for all sections (in case fields are pre-filled)
+    updateButton(courseInfo.continue, validateFields(courseInfo));
+    updateButton(studentInfo.continue, validateFields(studentInfo));
+    updateSubmitButton(fypInfo.submit, validateFields(fypInfo)); 
+
+});
+</script>
+
+</script>
+<div id="submissionSuccessModal" class="custom-modal">
+    <div class="modal-dialog">
+        <div class="modal-content-custom">
+            <span class="close-btn">&times;</span>
+            <div class="modal-icon">✅</div>
+            <h3 class="modal-title-custom">Submission Successful!</h3>
+            <p class="modal-message">
+                Your suggested FYP titles are now waiting for supervisor approval.
+                <br>
+                You can now log in to your account to access the FYP System.
+            </p>
+            <button id="modalLoginRedirect" class="modal-button">Go to Login Page</button>
+        </div>
+    </div>
+</div>
+</body>
+</html>

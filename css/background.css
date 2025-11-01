@@ -1,4 +1,391 @@
+/* --- Global & Font Styles --- */
 body {
-    background-color: #780000;
+    background-color: #780000; /* Changed body color for better contrast with sidebar */
+    font-family: Arial, sans-serif;
+}
+@font-face {
+    font-family: 'Montserrat';
+    src: url('../../assets/Montserrat.ttf') format('truetype');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: 'Overlock';
+    src: url('../../assets/OverlockSC-Regular.ttf') format('truetype');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+.faculty{
+    color: white;
+    width: 100%;
+    position: relative;
+    bottom: 0%;
+    text-align: center;
+    padding: 10px;
+}
+
+/* --- Modal Styling --- */
+.custom-modal {
+    display: none; /* Hidden by default */
+    position: fixed; /* Stay in place */
+    z-index: 1050; /* High z-index to cover everything */
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0, 0, 0, 0.6); /* Semi-transparent black overlay */
+}
+
+.modal-dialog {
+    display: flex;
+    align-items: center; /* Center vertically */
+    justify-content: center; /* Center horizontally */
+    min-height: 100vh;
+}
+
+.modal-content-custom {
+    background-color: #FDF0D5;
+    padding: 30px;
+    border-radius: 12px;
+    border-top: 25px solid #780000;
+    box-shadow: 0 30px 30px rgba(0, 0, 0, 0.2);
+    width: 90%;
+    max-width: 450px;
+    text-align: center;
+    position: relative;
+    animation: fadeIn 0.3s ease-out; 
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+.close-btn:hover {
+    color: #FDF0D5;
+}
+.close-btn {
+    color: #fff;
+    position: absolute;
+    top: -30px;
+    right: 5px;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: color 0.2s; 
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
+.modal-icon {
+    font-size: 3em;
+    color: #4CAF50; /* Green checkmark */
+    margin-bottom: 10px;
+}
+
+.modal-title-custom {
+    color: #333;
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-size: 1.6em;
+    font-family: Arial, sans-serif
+}
+
+.modal-message {
+    color: #000000;
+    line-height: 1.4;
+    margin-bottom: 25px;
+    font-family: Arial, sans-serif
+}
+
+.modal-button {
+    background-color: #ffffff;
+    color: black;
+    padding: 12px 25px;
+    border: 2px solid #780000;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1em;
+    font-weight: bold;
+    transition: background-color 0.3s;
+}
+
+.modal-button:hover {
+    background-color: #d3d3d3;
+}
+
+/* --- Sidebar Styling --- */
+
+.sidebar {
+    height: 100%;
+    width: 60px; /* Collapsed width */
+    position: fixed;
+    z-index: 10;
+    top: 0;
+    left: 0;
+    background-color: #780000; /* UPM Red */
+    overflow-x: hidden;
+    padding-top: 0;
+    transition: 0.5s; /* Smooth transition for opening/closing */
+}
+
+.menu-icon {
+    font-size: 24px;
+    cursor: pointer;
+    background: none;
+    color: white;
+    padding: 15px 18px; 
+    border: none;
+    width: 100%;
+    text-align: left;
+    display: block; /* Visible by default */
+}
+
+.menu-icon:hover {
+    background-color: #FDF0D5;
+    color: #780000;
+}
+
+/* Close button styled for flex alignment */
+#sidebarLinks #close {
+    justify-content: space-between; 
+    align-items: center; 
+    padding: 15px 20px; 
+    text-decoration: none;
+    font-size: 16px;
+    color: white;
+    position: relative;
+    margin-bottom: 30px !important;
+    font-weight: bold;
+    height: auto !important; 
+    display: none; 
+    transition: 0.3s;
+}
+
+.x-symbol {
+    margin: 0; 
+    font-size: 30px;
+    font-weight: bold;
+    display: block;
+    line-height: 1;
+}
+
+/* Sidebar Links Style */
+#sidebarLinks a{
+    font-family: 'Montserrat', Arial, sans-serif; 
+    font-weight: 600;
+    padding: 12px 20px;
+    text-decoration: none;
+    font-size: 15px;
+    color: white;
+    display: none; 
+    transition: 0.3s;
+    border: none; 
+}
+#sidebarLinks .focus{
+    background-color: rgb(255, 255, 255);
+    border-left: 5px solid #780000; /* Used border-left instead of full border */
+    color: #780000;
+}
+#sidebarLinks a:hover {
+    color: #780000 !important; 
+    background-color: #FDF0D5; 
+}
+
+/* LOGOUT FIX: Sticks to the bottom of the fixed sidebar */
+#sidebarLinks #logout {
+    text-decoration: none;
+    position: absolute; 
+    bottom: 0px; 
+    
+    font-size: 15px;
+    color: #780000 !important;
+    display: block;
+    padding: 15px 20px;
+    transition: 0.3s;
+    text-align: left;
+    background-color: #FDF0D5;
+    width: 100%;
+    box-sizing: border-box; 
+    z-index: 20; 
+}
+
+
+/* --- Header Area (.containerAtas) FIX --- */
+
+.containerAtas {
+    /* Set up for the sidebar movement */
+    margin-left: 60px; 
+    transition: margin-left .5s;
+    
+    /* CRITICAL FIX: Flexbox for horizontal layout */
+    display: flex;
+    align-items: center; 
+    justify-content: space-between; /* Pushes Username to the right */
+    
+    background-color: #ffffff;
+    box-shadow: 0 6px 8px rgba(0, 0, 0, 0.1);
+    padding: 15px 20px; 
+    height: auto;
+    position: relative; 
+}
+
+/* UPM Logo styling */
+#upm-logo {
+    width: 100px;
+}
+
+/* Group for the two title divs */
+.header-text-group {
+    display: flex;
+    flex-direction: column;
+    margin-left: 20px; 
+    flex-grow: 1; /* Allows this section to take up available middle space */
+    min-width: 0;
+    justify-content: center;
+}
+
+/* Title Styles (now managed by Flexbox) */
+#containerModule {
+    position: static; 
+    margin: 0;
+    font-family: Overlock;
+    font-size: 25px;
+    font-weight: 500;
+}
+#containerFYPAssess{
+    position: static; 
+    margin: 0;
+    font-family: Overlock;
+    font-size: 20px;
+} 
+
+/* Username FIX: No longer fixed/absolute, relies on Flexbox */
+#username{
+    position: static; 
+    margin: 0 0 0 20px;
+    
+    background-color:#FDF0D5;
+    padding: 10px 15px; 
+    border-radius: 30px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2); 
+    max-width: 400px;
+    
+    font-family: Montserrat;
+    font-size: 15px;
+    
+    flex-shrink: 0; 
+    overflow-wrap: break-word;
+    font-weight: bold;
+}
+#notificationCircle {
+  background-color: #780000;
+  border-radius: 50%;
+  padding: 6px 15px 6px 15px;
+  font-size: 27px;
+  margin:10px;
   
+}
+#logoutCircle {
+  background-color: #780000;
+  border-radius: 50%;
+  padding: 6px 15px 6px 15px;
+  font-size: 27px;
+  margin-right:10px;
+
+  
+}
+
+/* --- Main content styling --- */
+#main {
+    /* Initial margin matches the collapsed sidebar width (60px) */
+    margin-left: 60px; 
+    transition: margin-left .5s;
+    padding: 16px;
+    background-color: white; /* Added background for visibility */
+    min-height: 80vh;
+}
+@media(max-height:450px){
+   #sidebarLinks #logout {
+    position: relative;
+   }
+   
+}
+@media(max-width:960px){
+#containerModule {
+    font-size: 15px;
+  
+}
+#containerFYPAssess{
+    font-size: 15px;
+} 
+
+/* Username FIX: No longer fixed/absolute, relies on Flexbox */
+#username{
+    font-size: 10px;
+    width: 200px;
+  font-weight: bold;
+}
+#notificationCircle {
+  background-color: #780000;
+  border-radius: 50%;
+  padding: 6px 15px 6px 15px;
+  font-size: 20px;
+  margin:10px;
+  
+}
+#logoutCircle {
+  background-color: #780000;
+  border-radius: 50%;
+  padding: 6px 15px 6px 15px;
+  font-size: 20px;
+  margin-right:10px;
+
+  
+}
+
+}
+@media(max-width:700px){
+#containerModule {
+    font-size: 12px;
+  
+}
+#containerFYPAssess{
+    font-size: 12px;
+} 
+
+/* Username FIX: No longer fixed/absolute, relies on Flexbox */
+#username{
+    font-size: 8px;
+    font-weight: bold;
+    width: 100px;
+  
+}
+#notificationCircle {
+  background-color: #780000;
+  border-radius: 50%;
+  padding: 6px 12px 6px 12px;
+  font-size: 14px;
+  margin:10px;
+  
+}
+#logoutCircle {
+  background-color: #780000;
+  border-radius: 50%;
+  padding: 6px 12px 6px 12px;
+  font-size: 14px;
+  margin-right:10px;
+
+  
+}
+
 }
