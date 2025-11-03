@@ -1,0 +1,79 @@
+
+body {
+    font-family: 'Montserrat';
+    transition: margin-left .5s; /* Smooth transition for the main content shift */
+}
+#taskBox{
+    background-color: #FDF0D5;
+    width: 200px;
+    height: auto;
+    max-height: 200px;
+    font-family: Montserrat;
+    padding: 10px;
+    text-align: center;
+    font-weight: 900;
+    margin-left: 40px;
+    margin-top: 10px;
+    padding: 15px;
+    /* Add border or background for visibility */
+    
+    box-shadow: 3px 3px 5px rgba(0,0,0,0.1);
+}
+    
+
+#taskContainer {
+    /* Step 1: Enable Flexbox */
+    display: flex;
+    
+    /* Step 2: Control spacing */
+    /* This distributes space evenly between the boxes */
+    
+    /* Step 3: Optional: Allow boxes to wrap onto a new line if the screen is too small */
+    flex-wrap: wrap; 
+}
+#approvalStatus{
+font-size: 15px;
+padding-top: 10px;
+padding-bottom: 10px;
+text-align: center;
+    display: block;   /* Make it a block-level element */
+    margin-left: auto;  /* Automatically calculate left margin */
+    margin-right: auto;
+    font-weight: 900;
+}
+.status-approved {
+    color: #1dba42; /* Dark green text */
+    
+}
+
+.status-pending {
+    color: #856404; /* Dark yellow/amber text */
+    background-color: #fff3cd; /* Light yellow background */
+    border: 1px solid #ffeeba;
+}
+
+.status-rejected {
+    color: #721c24; /* Dark red text */
+    background-color: #f8d7da; /* Light red background */
+    border: 1px solid #f5c6cb;
+}
+
+
+@media (max-width: 600px) {
+    
+    #taskBox {
+        /* CRITICAL CHANGE: Decrease the font size */
+        font-size: 12px; /* Example: making font slightly smaller */
+        width: 150px;
+         margin-left:10px;
+        /* Optional: Make the boxes stack vertically for tiny screens */
+        /* width: 90%; 
+        margin: 10px auto; */
+    }
+
+    /* You may also want to reduce the font size of the status text */
+    #approvalStatus {
+        font-size: 12px; /* Example: reducing specific status text */
+        text-align: center;
+    }
+}
