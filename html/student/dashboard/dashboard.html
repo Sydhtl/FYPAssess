@@ -16,7 +16,7 @@
             <a href="javascript:void(0)" class="closebtn" id="close" onclick="closeNav()">
                 Close <span class="x-symbol">x</span>
             </a>
-        
+            <span id="nameSide">HI, NURUL SAIDAHTUL FATIHA BINTI SHAHARUDIN</span>
             <a href="#" id="dashboard" class="focus"> <i class="bi bi-house-fill" style="padding-right: 10px;"></i>Dashboard</a>
             <a href="#" id="fypInformation"><i class="bi bi-file-earmark-text-fill" style="padding-right: 10px;"></i>FYP Information</a>
             <a href="#" id="logbookSubmission"><i class="bi bi-file-earmark-text-fill" style="padding-right: 10px;"></i>Logbook Submission</a>
@@ -45,58 +45,98 @@
     </div>
 
     <div id="main">
-        <h1>FYP Assess Dashboard</h1>
-        <p>This content is shifted slightly to the right to clear the collapsed menu bar.</p>
-        <p>Click the hamburger icon (☰) on the left to expand the sidebar and see the content slide.</p>
+        <span id="yearChoose" style="padding-bottom: 20px;"">Year </span>
+         <select class="input-field" id="year"  style="margin-bottom: 20px;" required>
+                    <option value=""  >2024/2025</option>
+                    <option value="1">2025/2026 </option>
+                    
+                </select>
+     <div id="taskContainer">        
+      <div id="taskBox">
+            <span>Title Approval Status</span> <br>
+            <span id="approvalStatus"> APPROVED </span>
+      </div>
+         <div id="taskBox">
+            <span>Title Approval Status</span> <br>
+            <span id="approvalStatus"> APPROVED </span>
+      </div>
+      
+      </div>  
     </div>
 
     <script>
-        // --- JAVASCRIPT LOGIC ---
-        function openNav() {
-            var fullWidth = "220px"; 
-            
-            // 1. Expand the Sidebar
-            document.getElementById("mySidebar").style.width = fullWidth;
-            
-            // 2. Push the main content AND the header container to the right
-            document.getElementById("main").style.marginLeft = fullWidth;
-            document.getElementById("containerAtas").style.marginLeft = fullWidth;
-            
-            // 3. Show the links
-            var links = document.getElementById("sidebarLinks").getElementsByTagName("a");
-            for (var i = 0; i < links.length; i++) {
-                // Using flex for closebtn, block for others
-                links[i].style.display = (links[i].id === 'close' ? 'flex' : 'block');
-            }
-
-            // 4. Hide the open icon
-            document.getElementsByClassName("menu-icon")[0].style.display = "none";
+    // --- JAVASCRIPT LOGIC ---
+    function openNav() {
+        var fullWidth = "220px"; 
+        
+        // 1. Expand the Sidebar
+        document.getElementById("mySidebar").style.width = fullWidth;
+        
+        // 2. Push the main content AND the header container to the right
+        document.getElementById("main").style.marginLeft = fullWidth;
+        document.getElementById("containerAtas").style.marginLeft = fullWidth;
+        
+        // 3. Show the name and the links
+        document.getElementById("nameSide").style.display = "block"; // <-- SHOW THE NAME
+        
+        var links = document.getElementById("sidebarLinks").getElementsByTagName("a");
+        for (var i = 0; i < links.length; i++) {
+            // Using flex for closebtn, block for others
+            links[i].style.display = (links[i].id === 'close' ? 'flex' : 'block');
         }
 
-        function closeNav() {
-            var collapsedWidth = "60px";
+        // 4. Hide the open icon
+        document.getElementsByClassName("menu-icon")[0].style.display = "none";
+    }
 
-            // 1. Collapse the Sidebar
-            document.getElementById("mySidebar").style.width = collapsedWidth;
-            
-            // 2. Move the main content AND the header container back
-            document.getElementById("main").style.marginLeft = collapsedWidth;
-            document.getElementById("containerAtas").style.marginLeft = collapsedWidth;
+    function closeNav() {
+        var collapsedWidth = "60px";
 
-            // 3. Hide the links
-            var links = document.getElementById("sidebarLinks").getElementsByTagName("a");
-            for (var i = 0; i < links.length; i++) {
-                links[i].style.display = "none";
-            }
-            
-            // 4. Show the open icon
-            document.getElementsByClassName("menu-icon")[0].style.display = "block";
+        // 1. Collapse the Sidebar
+        document.getElementById("mySidebar").style.width = collapsedWidth;
+        
+        // 2. Move the main content AND the header container back
+        document.getElementById("main").style.marginLeft = collapsedWidth;
+        document.getElementById("containerAtas").style.marginLeft = collapsedWidth;
+
+        // 3. Hide the name and the links
+        document.getElementById("nameSide").style.display = "none"; // <-- HIDE THE NAME
+        
+        var links = document.getElementById("sidebarLinks").getElementsByTagName("a");
+        for (var i = 0; i < links.length; i++) {
+            links[i].style.display = "none";
         }
+        
+        // 4. Show the open icon
+        document.getElementsByClassName("menu-icon")[0].style.display = "block";
+    }
 
-        // Ensure the collapsed state is set immediately on page load
-        window.onload = function() {
-            closeNav();
-        };
-    </script>
+    // Ensure the collapsed state is set immediately on page load
+   
+    function updateApprovalStatusColor(){
+        const status=document.getElementById('approvalStatus');
+        if(!status)
+        return;
+    const statusText=status.textContent.trim();
+    status.className='';
+
+    if(statusText.includes('APPROVED')){
+        status.classList.add('status-approved');
+    }
+    else if(statusText.includes('rejected')){
+        status.classList.add('status-rejected');
+
+    }
+    else{
+        status.classList.add('status-pending');
+    }
+    }
+     window.onload = function() {
+        // We need to set the initial style for #nameSide here
+        document.getElementById("nameSide").style.display = "none";
+        closeNav();
+        updateApprovalStatusColor();
+    };
+</script>
 </body>
 </html>
