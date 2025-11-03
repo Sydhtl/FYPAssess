@@ -272,11 +272,11 @@ body {
 /* Group for the two title divs */
 .header-text-group {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     margin-left: 20px; 
     flex-grow: 1; /* Allows this section to take up available middle space */
     min-width: 0;
-    justify-content: center;
+    justify-content: space-between;
 }
 
 /* Title Styles (now managed by Flexbox) */
