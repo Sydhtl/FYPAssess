@@ -3,77 +3,182 @@ body {
     font-family: 'Montserrat';
     transition: margin-left .5s; /* Smooth transition for the main content shift */
 }
-#taskBox{
+#contentWrapper {
+    display: flex;
+    flex-wrap: wrap; /* Allows stacking on small screens */
+    gap: 20px; /* Space between the two main columns */
+    padding: 20px 0;
+}
+#leftTaskArea {
+    /* Sets the container width to 60% of the available space */
+    flex-basis: 60%; 
+    flex-grow: 1; 
+    /* CRITICAL CHANGE: Temporarily reduce min-width slightly to allow more horizontal room 
+       for the four boxes to compress/flow horizontally before the entire layout stacks. */
+    min-width: 380px; 
+}
+#graphContainer {
+    /* 1. Set font and initial appearance */
+    font-family: 'Montserrat', sans-serif;
+    padding: 20px;
+    background-color: #ffffff; /* White background for visibility */
+   box-shadow: 10px 10px 10px rgba(0, 0, 0, 0.245);
+
+    
+    /* 3. Add vertical spacing */
+  
+    margin-bottom: 20px;
+    
+    /* Optional: If you want content like a chart to be centered */
+    text-align: center;
+    min-height: 300px;
+}
+
+#rightReminderArea {
+    /* Sets the container width to 40% of the available space */
+    flex-basis: 35%;
+    flex-grow: 1; 
+    min-width: 250px;
+    
+    display: flex;
+    flex-direction: column; /* Stacks title above box */
+    
+    /* CRITICAL FIX: Aligns all stacked children (title and container) to the right */
+    align-items: flex-end;
+    
+    /* CRITICAL ADDITION: Push all stacked elements to the right */
+
+}
+#reminderHeaderTitle {
+    font-family: 'Montserrat';
+    font-size: 20px;
+ 
+    font-weight: bold;
+    color: #333; 
+    background-color: #1dba42;
+    
+    /* CRITICAL FIX 1: Set explicit width to match the reminder container width */
+    width: 300px; 
+    
+    /* CRITICAL FIX 2: Align text to the left */
+   
+    
+    /* Remove conflicting margin-left: auto; which interferes with flex-end */
+    margin-left: 0;
+}
+#taskBox {
     background-color: #FDF0D5;
-    width: 200px;
-    height: auto;
-    max-height: 200px;
-    font-family: Montserrat;
-    padding: 10px;
+    
+    /* Reduced to 90px to ensure four 100px items fit with gaps */
+    flex-basis: 90px; 
+    flex-grow: 1; /* Allows growth */
+    
+    /* Removed max-width to allow the boxes to fill the 60% space evenly */
+    max-width: 250px; 
+    min-width: 90px; /* NEW: Sets the hard minimum size for the box */
+    margin-left: 2px;
+    /* ... other styles remain ... */
+    height: 100px;
+    max-height: 200px; 
+    box-shadow: 10px 10px 10px rgba(0, 0, 0, 0.245);
+    align-self: flex-start; 
     text-align: center;
     font-weight: 900;
-    margin-left: 40px;
-    margin-top: 10px;
-    padding: 15px;
-    /* Add border or background for visibility */
-    
-    box-shadow: 3px 3px 5px rgba(0,0,0,0.1);
 }
-    
 
+/* --- Task Container --- */
 #taskContainer {
-    /* Step 1: Enable Flexbox */
     display: flex;
-    
-    /* Step 2: Control spacing */
-    /* This distributes space evenly between the boxes */
-    
-    /* Step 3: Optional: Allow boxes to wrap onto a new line if the screen is too small */
     flex-wrap: wrap; 
+    justify-content: flex-start; 
+    padding: 10px 0;
+    gap: 10px; 
 }
-#approvalStatus{
-font-size: 15px;
-padding-top: 10px;
-padding-bottom: 10px;
-text-align: center;
-    display: block;   /* Make it a block-level element */
-    margin-left: auto;  /* Automatically calculate left margin */
-    margin-right: auto;
-    font-weight: 900;
-}
+
 .status-approved {
     color: #1dba42; /* Dark green text */
     
 }
 
 .status-pending {
-    color: #856404; /* Dark yellow/amber text */
-    background-color: #fff3cd; /* Light yellow background */
-    border: 1px solid #ffeeba;
+    color: #f1b606; /* Dark yellow/amber text */
+  
 }
 
 .status-rejected {
-    color: #721c24; /* Dark red text */
+    color: #df0319; /* Dark red text */
     background-color: #f8d7da; /* Light red background */
     border: 1px solid #f5c6cb;
 }
 
-
-@media (max-width: 600px) {
+#graphContainer{
+    width: 120%;
+    height: 294px;
+    background-color: #FDF0D5;
+        box-shadow: 10px 10px 10px rgba(0, 0, 0, 0.245);
+}
+#reminderContainer{
+    position: relative; 
     
-    #taskBox {
-        /* CRITICAL CHANGE: Decrease the font size */
-        font-size: 12px; /* Example: making font slightly smaller */
-        width: 150px;
-         margin-left:10px;
-        /* Optional: Make the boxes stack vertically for tiny screens */
-        /* width: 90%; 
-        margin: 10px auto; */
+    /* Set fixed width to match the calculated two-box size (2 * 120px + 10px gap) */
+    width: 300px; 
+    top: 30px; /* Keep vertical adjustment */
+    max-height: 4550;
+    height: 460px; 
+    
+    /* CRITICAL FIX: To push the container to the right of the available 35% area */
+    margin-left: auto; 
+    
+    /* Styling */
+    padding: 15px; 
+    overflow-y: auto; 
+    overflow-x: hidden; 
+    background-color: #FDF0D5; 
+ box-shadow: 10px 10px 10px rgba(0, 0, 0, 0.245);
+}
+@media (max-width: 1270px) {
+    #leftTaskArea, 
+    #rightReminderArea {
+        /* CRITICAL: Force both main columns to stack vertically */
+        flex-basis: 100%; 
+        min-width: 100%;
+        font-size: 16px
     }
-
-    /* You may also want to reduce the font size of the status text */
-    #approvalStatus {
-        font-size: 12px; /* Example: reducing specific status text */
-        text-align: center;
+    #rightReminderArea {
+    /* Sets the container width to 40% of the available space */
+    display: flex;
+    justify-content: start;
+    
+}
+#taskBox{
+   max-width: none; 
+}
+#reminderContainer{
+    position: relative; 
+   top: 0;
+    /* REMOVED fixed width, now relies on parent width (35%) */
+    width: 100%; 
+    max-height: 200px;
+    height: auto; /* Height should be auto to fit content or max-height */
+    
+    /* Removed all positioning margins (right: 0, margin-left: auto) 
+       as the parent (#rightReminderArea) now handles the alignment. */
+    margin: 0; 
+    padding: 15px; 
+    overflow-y: auto; 
+    overflow-x: hidden; 
+    background-color: #FDF0D5; 
+  box-shadow: 10px 10px 10px rgba(0, 0, 0, 0.245);
+}
+#graphContainer{
+    width: 100%;
+    height: 294px;
+    background-color: #FDF0D5;
+        box-shadow: 10px 10px 10px rgba(0, 0, 0, 0.245);
+}
+#reminderHeaderTitle {
+        /* In stacked view, take full width and align text left */
+        width: 100%; 
+        text-align: left;
     }
 }

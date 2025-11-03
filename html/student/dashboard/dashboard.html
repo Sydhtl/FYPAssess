@@ -44,25 +44,174 @@
        <span id="logoutCircle"><i class="bi bi-box-arrow-left"style="color: white;"></i></span>
     </div>
 
-    <div id="main">
-        <span id="yearChoose" style="padding-bottom: 20px;"">Year </span>
-         <select class="input-field" id="year"  style="margin-bottom: 20px;" required>
-                    <option value=""  >2024/2025</option>
-                    <option value="1">2025/2026 </option>
-                    
-                </select>
-     <div id="taskContainer">        
-      <div id="taskBox">
-            <span>Title Approval Status</span> <br>
-            <span id="approvalStatus"> APPROVED </span>
-      </div>
-         <div id="taskBox">
-            <span>Title Approval Status</span> <br>
-            <span id="approvalStatus"> APPROVED </span>
-      </div>
-      
-      </div>  
+<div id="main">
+    <div id="contentWrapper"> 
+        
+        <div id="leftTaskArea"> 
+            <span id="yearChoose" style="padding-bottom: 20px;">Year </span>
+            <select class="input-field" id="year" style="margin-bottom: 20px;" required>
+                <option value="">2024/2025</option>
+                <option value="1">2025/2026</option>
+            </select>
+            
+            <div id="taskContainer"> 
+                <div id="taskBox">
+                    <span>Title Approval Status</span> <br>
+                    <span id="approvalStatus"> APPROVED </span>
+                </div>
+                <div id="taskBox">
+                    <span>Logbook Progress</span> <br>
+                    <span id="logbookProgress"> 4/10 </span>
+                </div>
+             
+             
+            </div>
+       <br>
+             <div id="leftContainerBelow">
+                  <Span style="font-weight: 900;font-size: 20px;">Logbook Submission Graph</Span>
+           <div id="graphContainer">
+              <canvas id="barChart"></canvas>
+            
+          <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0/dist/chartjs-plugin-datalabels.min.js"></script>
+            <script>
+  const ctx = document.getElementById('barChart');
+
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+        // --- 1. Update Labels ---
+        labels: ['Submitted', 'Waiting for approval', 'Not submitted'], // Added 'Total Submission' label for the last bar
+        datasets: [{
+            label: 'Logbook Progress (%)', 
+            
+            // Percentage Data (Used for bar height)
+           data: [50, 33, 17 ], 
+            
+            // --- 2. Raw Counts (Used for tooltips) ---
+            // The raw submission counts are [Submitted, Waiting, Not Submitted, Total]
+            raw_data: [3, 2, 1], 
+            
+            // Raw Total (Used for the total submission count in the tooltip)
+            total_count: 6,
+            
+            backgroundColor: [
+                '#4CAF50', 
+                '#FF9800',
+                '#F44336',
+                'transparent'
+            ],
+            borderColor: 'transparent', 
+            borderWidth: 0,
+            barPercentage: 0.8,
+            categoryPercentage: 0.8
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        
+        scales: {
+            x: {
+                grid: { display: false },
+                ticks: { font: { size: 12 } },
+                border: { display: true, color: 'black', width: 1 },
+                title: {
+                    display: true,
+                    text: 'Submission',
+                    color: 'black',
+                    font: { size: 14, weight: 'bold' }
+                },
+            },
+            y: {
+                beginAtZero: true,
+                max: 100, 
+                ticks: { display: false },
+                border: { display: true, color: 'black', width: 1 },
+                grid: { display: false },
+                title: {
+                    display: true,
+                    text: 'Total(%)',
+                    color: 'black',
+                    font: { size: 14, weight: 'bold' }
+                },
+            }
+        },
+        
+        plugins: {
+            legend: { display: false },
+            
+            // --- 5. Data Labels (Values 73, 17, 10 inside the bars) ---
+            datalabels: {
+        anchor: 'center',
+        align: 'center',
+        color: 'white',
+        font: { weight: 'bold' },
+        formatter: (value, context) => {
+            // This displays the number inside the bar
+            return value > 0 ? value : '';
+                }
+            },
+            
+            // --- NEW: Tooltip Configuration ---
+            tooltip: {
+                enabled: true, // CRITICAL: Re-enable tooltips
+                callbacks: {
+                    // Title for the tooltip (e.g., "Submitted")
+                    title: function(tooltipItems) {
+                        return tooltipItems[0].label;
+                    },
+                    // Label (Content) for the tooltip
+                    label: function(context) {
+                        const dataset = context.dataset;
+                        const dataIndex = context.dataIndex;
+                        const percentage = dataset.data[dataIndex];
+                        const totalSubmissions = dataset.total_count;
+
+                        if (dataIndex < 3) {
+                            // Raw count is stored in the 'raw_data' array
+                            const rawCount = dataset.raw_data[dataIndex].toFixed(2); 
+
+                            return [
+                                `Percentage: ${percentage}%`,
+                                `Count: ${rawCount} logs` 
+                            ];
+                        } else {
+                            // Total Submission column
+                            return `Total Submissions: ${totalSubmissions} logs`;
+                        }
+                    }
+                }
+            }
+        }
+    }
+});
+</script>
+           </div>
+       </div>
+              </div>
+             
+             
+        <div id="rightReminderArea">
+    
+    <h3 id="reminderHeaderTitle">Reminder</h3> 
+    
+    <div id="reminderContainer">
+        4 August 2025 <br>
+        1. Mark entry process starts for all supervisors and assessors.
+        <hr>
+        22 August 2025 <br>
+        1. Mark entry process ends for all supervisors and assessors.
+        <hr>
+        Reminder Item 1 <br>
+        Reminder Item 2 <br>
+        Reminder Item 3 <br>
+        </div>
+</div>
+        
+    </div> 
     </div>
+    
 
     <script>
     // --- JAVASCRIPT LOGIC ---
