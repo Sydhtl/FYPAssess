@@ -1,0 +1,23 @@
+
+body {
+    font-family: 'Montserrat', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    transition: margin-left .5s; /* Smooth transition for the main content shift */
+}  
+
+#courseCode, #courseSession {
+    margin-left: auto; /* CRITICAL: Pushes this element to the far right of the flex container */
+    /* Text Styles */
+    font-family: 'Montserrat';
+    text-align: right;
+    line-height: 1.2;
+    /* padding-left: 10px;  */
+    /* Add padding to prevent text collision */
+    color: #333; 
+    position: static; 
+    margin: 0;
+}
+
+#courseCode {
+font-size: 30px;
+}
+
