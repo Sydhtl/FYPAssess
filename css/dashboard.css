@@ -33,7 +33,19 @@ body {
     text-align: center;
     min-height: 300px;
 }
-
+#approvalStatus, #logbookProgress {
+    font-size: 15px;
+    padding-top: 5px; /* Use padding or margin for spacing */
+    padding-bottom: 5px;
+    text-align: center;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    font-weight: 900;
+    
+    /* CRITICAL ADDITION: Add space above the status value */
+    margin-top: 10px; 
+}
 #rightReminderArea {
     /* Sets the container width to 40% of the available space */
     flex-basis: 35%;
@@ -76,7 +88,6 @@ body {
     /* Removed max-width to allow the boxes to fill the 60% space evenly */
     max-width: 250px; 
     min-width: 90px; /* NEW: Sets the hard minimum size for the box */
-    margin-left: 2px;
     /* ... other styles remain ... */
     height: 100px;
     max-height: 200px; 
@@ -84,6 +95,7 @@ body {
     align-self: flex-start; 
     text-align: center;
     font-weight: 900;
+    margin-left:30px;
 }
 
 /* --- Task Container --- */
@@ -136,7 +148,7 @@ body {
     background-color: #FDF0D5; 
  box-shadow: 10px 10px 10px rgba(0, 0, 0, 0.245);
 }
-@media (max-width: 1270px) {
+@media (max-width: 1400px) {
     #leftTaskArea, 
     #rightReminderArea {
         /* CRITICAL: Force both main columns to stack vertically */
@@ -152,6 +164,11 @@ body {
 }
 #taskBox{
    max-width: none; 
+   font-size: 12px;
+   margin: 0;
+}
+#approvalStatus ,#logbookProgress{
+    font-size: 12px;
 }
 #reminderContainer{
     position: relative; 
