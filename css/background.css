@@ -339,6 +339,7 @@ body {
     padding: 16px;
     background-color: white; /* Added background for visibility */
     min-height: 80vh;
+    overflow-x: auto;
 }
 @media(max-height:450px){
    #sidebarLinks #logout {
