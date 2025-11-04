@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="../../../css/dashboard.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 </head>
 
 <body>
@@ -22,22 +23,15 @@
 
             <span id="nameSide">HI, SAZLINAH BINTI HASSAN</span>
 
-            <a href="#coordinatorMenu" class="role-header" data-role="coordinator">
-                <span class="role-text">Coordinator</span>
-                <span class="arrow-container">
-                    <i class="bi bi-chevron-right arrow-icon"></i>
-                </span>
-            </a>
-
-            <a href="#supervisorMenu" class="role-header active-role" data-role="supervisor">
+            <a href="#supervisorMenu" class="role-header" data-role="supervisor">
                 <span class="role-text">Supervisor</span>
                 <span class="arrow-container">
                     <i class="bi bi-chevron-right arrow-icon"></i>
                 </span>
             </a>
 
-            <div id="supervisorMenu" class="menu-items expanded">
-                <a href="#" id="dashboard" class="focus"><i class="bi bi-house-fill icon-padding"></i> Dashboard</a>
+            <div id="supervisorMenu" class="menu-items">
+                <a href="#" id="dashboard"><i class="bi bi-house-fill icon-padding"></i> Dashboard</a>
                 <a href="#" id="Notification"><i class="bi bi-bell-fill icon-padding"></i> Notification</a>
                 <a href="#" id="industryCollaboration"><i class="bi bi-file-earmark-text-fill icon-padding"></i>
                     Industry
@@ -94,49 +88,206 @@
 
     </div>
 
-    <div id="main">
-        <h1>FYP Assess Dashboard</h1>
-        <p>This content is shifted slightly to the right to clear the collapsed menu bar.</p>
-        <p>Click the hamburger icon (☰) on the left to expand the sidebar and see the content slide.</p>
+   <!-- CRITICAL FIX: Added id="main" here to match the JavaScript code -->
+    <div id="main" class="main-grid">
+        <!-- Top widgets would go here, maintaining vertical alignment with the section below -->
+        <div class="metrics-grid">
+            <div class="widget">
+                <span class="widget-icon"><i class="fa-solid fa-bars-progress"></i></span>
+                <div class="widget-content">
+                    <span class="widget-title">In-progress task</span>
+                    <span id="in-progress-count" class="widget-value">0</span>
+                </div>
+            </div>
+            <div class="widget due-widget">
+                <span class="widget-icon"><i class="fa-solid fa-arrow-right"></i></span>
+                <div class="widget-content due-content">
+                    <span class="widget-title">Upcoming task</span>
+                    <span id="due-soon-count" class="widget-value">2</span>
+                </div>
+            </div>
+            <div class="widget">
+                <span class="widget-icon"><i class="fa-solid fa-clock"></i></span>
+                <div class="widget-content">
+                    <span class="widget-title">Evaluation due</span>
+                    <span id="completed-count" class="widget-value">10 days</span>
+                </div>
+            </div>
+        </div>
+        <!-- New Two-Column Layout Section -->
+        <div class="task-reminder-section">
+
+            <!-- LEFT COLUMN: Evaluation Task List -->
+            <div class="evaluation-area">
+                <h1 class="card-title">Evaluation task</h1>
+
+                <div class="evaluation-task-card">
+                    <div class="tab-buttons">
+                        <button class="task-tab active-tab" data-tab="inprogress">In-progress</button>
+                        <button class="task-tab" data-tab="upcoming">Upcoming</button>
+                        <button class="task-tab" data-tab="completed">Completed</button>
+                    </div>
+                    <div class="task-list-area">
+
+                        <!-- In-progress View (Active by default in JS) -->
+                        <div class="task-group active" data-group="inprogress">
+                            <div class="no-tasks">
+                                <i class="far fa-thumbs-up"></i> No pending tasks at the moment
+                            </div>
+                        </div>
+
+                        <!-- Upcoming View -->
+                        <div class="task-group" data-group="upcoming">
+                            <!-- header 1 -->
+                            <div class="task-group-header" data-target="#list-aug-9">
+                                <i class="fas fa-chevron-down toggle-icon"></i>
+                                9 Aug 2025, Wed - Bilik Kuliah A
+                            </div>
+                            <div id="list-aug-9" class="task-list-details">
+                                <div class="task-row header-row">
+                                    <span class="col-student">Student</span>
+                                    <span class="col-time">Time</span>
+                                    <span class="col-title">Project title</span>
+                                    <span class="col-assessor">Assessor</span>
+                                </div>
+                                <div class="task-row data-row">
+                                    <span class="col-student">Siti Athirah Binti Othman</span>
+                                    <span class="col-time">9.00 am</span>
+                                    <span class="col-title">Development of an Automated Assessment and Evaluation for Bachelor
+                                        Projects</span>
+                                    <span class="col-assessor"><i class="fas fa-user-tie"></i></span>
+                                </div>
+                            </div>
+
+                            <!-- header 2 -->
+                            <div class="task-group-header" data-target="#list-aug-10">
+                                <i class="fas fa-chevron-down toggle-icon"></i>
+                                10 Aug 2025, Thu - Bilik Kuliah A
+                            </div>
+                            <div id="list-aug-10" class="task-list-details">
+                                <div class="task-row header-row">
+                                    <span class="col-student">Student</span>
+                                    <span class="col-time">Time</span>
+                                    <span class="col-title">Project title</span>
+                                    <span class="col-assessor">Assessor</span>
+                                </div>
+                                <div class="task-row data-row">
+                                    <span class="col-student">Atiya Aisya Binti Aiman</span>
+                                    <span class="col-time">9.30 am</span>
+                                    <span class="col-title">Virtual Reality Mobile Application for Interactive Museum Viewing
+                                        Experience</span>
+                                    <span class="col-assessor"><i class="fas fa-user-tie"></i></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Completed View -->
+                        <div class="task-group" data-group="completed">
+                            <!-- header 3 -->
+                            <div class="task-group-header" data-target="#list-aug-8">
+                                <i class="fas fa-chevron-down toggle-icon"></i>
+                                8 Aug 2025, Tue - Bilik Kuliah A
+                            </div>
+                            <div id="list-aug-8" class="task-list-details">
+                                <div class="task-row header-row">
+                                    <span class="col-student">Student</span>
+                                    <span class="col-time">Time</span>
+                                    <span class="col-title">Project title</span>
+                                    <span class="col-assessor">Assessor</span>
+                                </div>
+                                <div class="task-row data-row">
+                                    <span class="col-student">Siti Amirah Binti Othman</span>
+                                    <span class="col-time">9.00 am</span>
+                                    <span class="col-title">Development of a AI integrated Learning Platform</span>
+                                    <span class="col-assessor"><i class="fas fa-user-tie"></i></span>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+            <!-- RIGHT COLUMN: Reminder Section -->
+            <div class="reminder-area">
+                <h1 class="card-title">Reminder</h1>
+                <div class="reminder-card">
+                    <div class="reminder-card-content">
+                        <div class="reminder-item">
+                            <p class="reminder-date">28 October 2025</p>
+                            <ul>
+                                <li>Assessment rubric for Seminar Demonstration (Assessor) has been updated</li>
+                            </ul>
+                        </div>
+                        <hr class="reminder-separator">
+                        <div class="reminder-item">
+                            <p class="reminder-date">29 October 2025</p>
+                            <ul>
+                                <li>Supervisor may modify submitted marks before 12 November 2025</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
     </div>
 
     <script>
         // --- JAVASCRIPT LOGIC ---
         function openNav() {
             var fullWidth = "220px";
+            var sidebar = document.getElementById("mySidebar");
+            var header = document.getElementById("containerAtas");
+            // CRITICAL FIX: Targets the main content area (now with id="main")
+            var mainContent = document.getElementById("main"); 
+            var menuIcon = document.querySelector(".menu-icon");
 
             // 1. Expand the Sidebar
             document.getElementById("mySidebar").style.width = fullWidth;
 
             // 2. Push the main content AND the header container to the right
-            document.getElementById("main").style.marginLeft = fullWidth;
-            document.getElementById("containerAtas").style.marginLeft = fullWidth;
+            if (mainContent) mainContent.style.marginLeft = fullWidth;
+            if (header) header.style.marginLeft = fullWidth;
 
             // 3. Show the links
-            document.getElementById("nameSide").style.display = "block"; // <-- SHOW THE NAME
+            document.getElementById("nameSide").style.display = "block";
 
             var links = document.getElementById("sidebarLinks").getElementsByTagName("a");
             for (var i = 0; i < links.length; i++) {
-                // Using flex for closebtn, block for others
-                links[i].style.display = (links[i].id === 'close' ? 'flex' : 'block');
+                // Show role headers and other links
+                if (links[i].classList.contains('role-header') || links[i].id === 'logout') {
+                    links[i].style.display = 'flex';
+                } else if (links[i].id === 'close') {
+                    links[i].style.display = 'flex';
+                }
             }
+            
+            // Show currently expanded menu items
+            document.querySelectorAll('.menu-items.expanded a').forEach(a => a.style.display = 'block');
+
 
             // 4. Hide the open icon
-            document.getElementsByClassName("menu-icon")[0].style.display = "none";
+            if (menuIcon) menuIcon.style.display = "none";
         }
 
         function closeNav() {
             var collapsedWidth = "60px";
+            var sidebar = document.getElementById("mySidebar");
+            var header = document.getElementById("containerAtas");
+            // CRITICAL FIX: Targets the main content area (now with id="main")
+            var mainContent = document.getElementById("main"); 
+            var menuIcon = document.querySelector(".menu-icon");
 
             // 1. Collapse the Sidebar
-            document.getElementById("mySidebar").style.width = collapsedWidth;
+            sidebar.style.width = collapsedWidth;
 
             // 2. Move the main content AND the header container back
-            document.getElementById("main").style.marginLeft = collapsedWidth;
-            document.getElementById("containerAtas").style.marginLeft = collapsedWidth;
+            if (mainContent) mainContent.style.marginLeft = collapsedWidth;
+            if (header) header.style.marginLeft = collapsedWidth;
 
-            // 3. Hide the name and the links
-            document.getElementById("nameSide").style.display = "none"; // <-- HIDE THE NAME
+            // 3. Hide the name and the links (except for the open menu icon)
+            document.getElementById("nameSide").style.display = "none";
 
             var links = document.getElementById("sidebarLinks").getElementsByTagName("a");
             for (var i = 0; i < links.length; i++) {
@@ -144,7 +295,7 @@
             }
 
             // 4. Show the open icon
-            document.getElementsByClassName("menu-icon")[0].style.display = "block";
+            if (menuIcon) menuIcon.style.display = "block";
         }
 
         // Ensure the collapsed state is set immediately on page load
@@ -152,48 +303,140 @@
             closeNav();
         };
 
-        // --- NEW ROLE TOGGLE LOGIC (Handles clicking Coordinator/Supervisor/Assessor) ---
+        // --- Role Toggle Logic ---
         document.addEventListener('DOMContentLoaded', () => {
             const arrowContainers = document.querySelectorAll('.arrow-container');
+            
+            // Function to handle the role menu toggle
+            const handleRoleToggle = (header) => {
+                const menuId = header.getAttribute('href');
+                const targetMenu = document.querySelector(menuId);
+                const arrowIcon = header.querySelector('.arrow-icon');
+                
+                if (!targetMenu) return;
+
+                const isExpanded = targetMenu.classList.contains('expanded');
+
+                // Collapse all other menus and reset their arrows
+                document.querySelectorAll('.menu-items').forEach(menu => {
+                    if (menu !== targetMenu) {
+                        menu.classList.remove('expanded');
+                        menu.querySelectorAll('a').forEach(a => a.style.display = 'none');
+                    }
+                });
+                document.querySelectorAll('.role-header').forEach(h => {
+                     if (h !== header) h.classList.remove('active-role');
+                });
+                document.querySelectorAll('.arrow-icon').forEach(icon => {
+                    if (icon !== arrowIcon) {
+                        icon.classList.remove('bi-chevron-down');
+                        icon.classList.add('bi-chevron-right');
+                    }
+                });
+
+                // Toggle current menu
+                targetMenu.classList.toggle('expanded', !isExpanded);
+                header.classList.toggle('active-role', !isExpanded);
+                
+                // Show/hide child links for the current menu (only when sidebar is expanded)
+                const sidebar = document.getElementById("mySidebar");
+                const isSidebarExpanded = sidebar.style.width === "220px";
+
+                targetMenu.querySelectorAll('a').forEach(a => {
+                    if(isSidebarExpanded) {
+                         a.style.display = targetMenu.classList.contains('expanded') ? 'block' : 'none';
+                    } else {
+                        a.style.display = 'none';
+                    }
+                });
+
+                // Toggle arrow direction
+                if (isExpanded) {
+                    arrowIcon.classList.remove('bi-chevron-down');
+                    arrowIcon.classList.add('bi-chevron-right');
+                } else {
+                    arrowIcon.classList.remove('bi-chevron-right');
+                    arrowIcon.classList.add('bi-chevron-down');
+                }
+            }
+
 
             arrowContainers.forEach(container => {
-                container.addEventListener('click', (event) => {
-                    event.stopPropagation(); // Prevents triggering parent anchor click
-                    const header = container.closest('.role-header');
-                    const menuId = header.getAttribute('href');
-                    const targetMenu = document.querySelector(menuId);
-                    const arrowIcon = container.querySelector('.arrow-icon');
+                // Attach event listener to the role header itself
+                const header = container.closest('.role-header');
+                header.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    handleRoleToggle(header);
+                });
+            });
 
-                    if (targetMenu) {
-                        const isExpanded = targetMenu.classList.contains('expanded');
 
-                        // Collapse other menus
-                        document.querySelectorAll('.menu-items').forEach(menu => {
-                            if (menu !== targetMenu) menu.classList.remove('expanded');
-                        });
+            // --- Task List Accordion Logic ---
+            const tabs = document.querySelectorAll('.task-tab');
+            const taskGroups = document.querySelectorAll('.task-group');
+            const groupHeaders = document.querySelectorAll('.task-group-header');
 
-                        // Reset other arrows
-                        document.querySelectorAll('.arrow-icon').forEach(icon => {
-                            icon.classList.remove('bi-chevron-down');
-                            icon.classList.add('bi-chevron-right');
-                        });
+            // --- Tab Switching Logic (Client-side simulation) ---
+            tabs.forEach(tab => {
+                tab.addEventListener('click', (e) => {
+                    const tabName = e.target.getAttribute('data-tab');
 
-                        // Toggle current menu
-                        targetMenu.classList.toggle('expanded');
-                        header.classList.toggle('active-role');
+                    // 1. Update active tab style
+                    tabs.forEach(t => t.classList.remove('active-tab'));
+                    e.target.classList.add('active-tab');
 
-                        // Toggle arrow direction
-                        if (isExpanded) {
-                            arrowIcon.classList.remove('bi-chevron-down');
-                            arrowIcon.classList.add('bi-chevron-right');
+                    // 2. Switch active task group
+                    taskGroups.forEach(group => {
+                        if (group.getAttribute('data-group') === tabName) {
+                            group.classList.add('active');
                         } else {
-                            arrowIcon.classList.remove('bi-chevron-right');
-                            arrowIcon.classList.add('bi-chevron-down');
+                            group.classList.remove('active');
                         }
+                    });
+                });
+            });
+
+            // --- Task Group Expand/Collapse Logic (Accordion) ---
+            groupHeaders.forEach(header => {
+                header.addEventListener('click', () => {
+                    const targetId = header.getAttribute('data-target');
+                    const targetList = document.querySelector(targetId);
+                    const toggleIcon = header.querySelector('.toggle-icon');
+
+                    if (targetList) {
+                        const isExpanded = targetList.classList.contains('expanded');
+
+                        // Toggle CSS classes
+                        targetList.classList.toggle('expanded', !isExpanded);
+                        toggleIcon.classList.toggle('fa-chevron-right', !targetList.classList.contains('expanded'));
+                        toggleIcon.classList.toggle('fa-chevron-down', targetList.classList.contains('expanded'));
                     }
                 });
             });
+
+            // Default to 'inprogress' tab view on load
+            document.querySelector('.task-group[data-group="inprogress"]').classList.add('active');
+            
+            // Initial setting of the menu state
+            // Find the default active role header and expand its menu
+            const defaultHeader = document.querySelector('.role-header.active-role');
+            if (defaultHeader) {
+                // Ensure the initial arrow is correct for the default expanded menu
+                defaultHeader.querySelector('.arrow-icon').classList.remove('bi-chevron-right');
+                defaultHeader.querySelector('.arrow-icon').classList.add('bi-chevron-down');
+                
+                const menuId = defaultHeader.getAttribute('href');
+                const defaultMenu = document.querySelector(menuId);
+                if (defaultMenu) {
+                    defaultMenu.classList.add('expanded');
+                }
+            }
         });
+
+        // Ensure the collapsed state is set immediately on page load
+        window.onload = function () {
+            closeNav();
+        };
 
     </script>
 </body>
