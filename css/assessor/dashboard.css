@@ -1,78 +1,233 @@
 body {
-    font-family: "Montserrat", system-ui, -apple-system, "Segoe UI", Roboto,
-        "Helvetica Neue", Arial, sans-serif;
-    transition: margin-left 0.5s;
-    /* Smooth transition for the main content shift */
+  font-family: "Montserrat";
+  transition: margin-left 0.5s;
+  /* Smooth transition for the main content shift */
 }
 
 #courseCode,
 #courseSession {
-    margin-left: auto;
-    /* CRITICAL: Pushes this element to the far right of the flex container */
-    /* Text Styles */
-    font-family: "Montserrat";
-    text-align: right;
-    line-height: 1.2;
-    /* padding-left: 10px;  */
-    /* Add padding to prevent text collision */
-    color: #333;
-    position: static;
-    margin: 0;
+  margin-left: auto;
+  /* CRITICAL: Pushes this element to the far right of the flex container */
+  /* Text Styles */
+  font-family: "Montserrat";
+  text-align: right;
+  line-height: 1.2;
+  /* padding-left: 10px;  */
+  /* Add padding to prevent text collision */
+  color: #333;
+  position: static;
+  margin: 0;
 }
 
 #courseCode {
-    font-size: 30px;
+  font-size: 30px;
 }
 
-/* Styling for the role header (Supervisor, Coordinator, Assessor) */
-.role-header {
-    display: flex;
-    width: 100%;
-    justify-content: space-between;
-    /* Pushes the arrow to the right */
-    align-items: center;
-    padding: 10px 15px;    
-    /* Adjust padding to match other links */
-    text-decoration: none;
-    color: #fff;
-    /* White text */
-    background-color: var(--sidebar-color);
-    /* Your default sidebar color */
+/* --- DASHBOARD GRID STYLES --- */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+  margin-bottom: 30px;
 }
 
-.arrow-container {
-    margin-left: auto;
-    cursor: pointer;
-    /* Makes only the arrow area clickable */
+.widget {
+  background-color: #fdf0d5;
+  border-radius: 12px;
+  padding: 10px 20px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  display: flex;
+  align-items: center;
+  gap: 15px;
 }
 
-/* Style for the active/selected role header */
-.active-role {
-    background-color: #a00000 !important;
-    /* Slightly lighter red for the active role */
+.widget-icon {
+  font-size: 30px;
+  color: #666;
+  /* background-color: #ffffff; */
+  padding: 1px;
+  border-radius: 8px;
 }
 
-/* Styling for the nested menu items */
-.menu-items {
-    /* Set initial state: Hidden and no height */
-    max-height: 0;
-    overflow: hidden;
-    transition: max-height 0.3s ease-out;
-    /* Smooth collapse transition */
-    display: flex;
+.widget-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.widget-title {
+  font-size: 16px;
+  color: #666;
+  font-weight: 500;
+}
+
+.widget-value {
+  font-size: 23px;
+  font-weight: bold;
+  color: #333;
+}
+
+/* --- TASK & REMINDER SECTION --- */
+.task-reminder-section {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 20px;
+}
+
+@media (max-width: 1024px) {
+  .task-reminder-section {
+    grid-template-columns: 1fr;
+  }
+}
+
+.card-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 15px;
+}
+
+.evaluation-task-card,
+.reminder-card {
+  background-color: #fdf0d5;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  padding: 10px;
+  margin-top: 10px;
+}
+
+/* Task Tab Styles */
+.tab-buttons {
+  display: flex;
+  border-bottom: 2px solid #e0e0e0;
+  margin-bottom: 15px;
+}
+
+.task-tab {
+  padding: 10px 20px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #666;
+  border-bottom: 3px solid transparent;
+  transition: all 0.2s;
+}
+
+/* .task-tab:hover {
+            color: #0077b6;
+        } */
+
+.task-tab.active-tab {
+  color: #780000;
+  border-bottom-color: #780000;
+}
+
+/* Task List Styles */
+.task-group {
+  display: none;
+}
+
+.task-group.active {
+  display: block;
+}
+
+.no-tasks {
+  text-align: center;
+  padding: 40px 20px;
+  color: #999;
+  font-style: italic;
+}
+
+.task-group-header {
+  background-color: #780000;
+  color: white;
+  padding: 12px 15px;
+  margin-bottom: 5px;
+  border-radius: 8px;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+.toggle-icon {
+  margin-right: 10px;
+  transition: transform 0.2s;
+}
+
+.task-list-details {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease-out;
+  padding: 0 15px 10px;
+}
+
+.task-list-details.expanded {
+  max-height: 1000px; /* Use a large number for smooth expand/collapse */
+}
+
+.task-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 3fr 0.5fr;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px dashed #eee;
+  font-size: 16px;
+  align-items: center;
+}
+
+.task-row.header-row {
+  font-weight: 700;
+  color: #333;
+  border-bottom: 2px solid #ccc;
+  margin-bottom: 5px;
+  padding-top: 5px;
+}
+
+.task-row.data-row {
+  color: #555;
+}
+
+/* Reminder Card Specific Styles */
+.reminder-card-content {
+  background-color: #fdf0d5;
+  padding: 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.reminder-date {
+  font-weight: bold;
+  margin-bottom: 10px;
+  font-size: 16px;
+  padding-top: 5px; /* Spacing for the first reminder */
+}
+
+.reminder-item ul {
+  list-style-type: disc;
+  margin: 0;
+  padding-left: 20px;
+}
+
+.reminder-item ul li {
+  margin-bottom: 5px;
+  font-size: 16px;
+}
+
+.reminder-separator {
+  border: 0;
+  height: 1px;
+  background: #333;
+  margin: 20px 0;
+}
+
+/* Responsive adjustments for smaller screens */
+@media (max-width: 600px) {
+  .evaluation-task-card,
+.reminder-card {
     flex-direction: column;
-}
-
-/* Styling for the menu items when expanded */
-.menu-items.expanded {
-    /* Set height to allow content to show (use a value larger than max content height) */
-    max-height: 500px;
-}
-
-/* Style for links inside the menu (Dashboard, Notification, etc.) */
-.menu-items a {
-    padding-left: 30px;
-    /* Indent the links under the role header */
-    background-color: #b50000;
-    /* Darker background to differentiate */
+    align-items: stretch;
+  }
 }

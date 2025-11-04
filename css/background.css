@@ -244,6 +244,59 @@ body {
     z-index: 20; 
 }
 
+/* Styling for the role header (Supervisor, Coordinator, Assessor) */
+.role-header {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  /* Pushes the arrow to the right */
+  align-items: center;
+  padding: 10px 15px;
+  /* Adjust padding to match other links */
+  text-decoration: none;
+  color: #fff;
+  /* White text */
+  background-color: var(--sidebar-color);
+  /* Your default sidebar color */
+}
+
+.arrow-container {
+  margin-left: auto;
+  cursor: pointer;
+  /* Makes only the arrow area clickable */
+}
+
+/* Style for the active/selected role header */
+.active-role {
+  background-color: #780000;
+  /* Slightly lighter red for the active role */
+}
+
+/* Styling for the nested menu items */
+.menu-items {
+  /* Set initial state: Hidden and no height */
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease-out;
+  /* Smooth collapse transition */
+  display: flex;
+  flex-direction: column;
+}
+
+/* Styling for the menu items when expanded */
+.menu-items.expanded {
+  /* Set height to allow content to show (use a value larger than max content height) */
+  max-height: 500px;
+}
+
+/* Style for links inside the menu (Dashboard, Notification, etc.) */
+.menu-items a {
+  padding-left: 30px;
+  /* Indent the links under the role header */
+  background-color: #780000;
+  /* Darker background to differentiate */
+}
+
 
 /* --- Header Area (.containerAtas) FIX --- */
 
@@ -262,6 +315,25 @@ body {
     padding: 15px 20px; 
     height: auto;
     position: relative; 
+}
+
+#courseCode,
+#courseSession {
+  margin-left: auto;
+  /* CRITICAL: Pushes this element to the far right of the flex container */
+  /* Text Styles */
+  font-family: "Montserrat";
+  text-align: right;
+  line-height: 1.2;
+  /* padding-left: 10px;  */
+  /* Add padding to prevent text collision */
+  color: #333;
+  position: static;
+  margin: 0;
+}
+
+#courseCode {
+  font-size: 30px;
 }
 
 /* UPM Logo styling */
