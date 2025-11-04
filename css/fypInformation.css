@@ -1,0 +1,149 @@
+/* Page-specific styles for FYP Information */
+
+#segmentTabs{
+	margin: 10px 0 20px 0;
+	display: inline-flex;
+	border: 2px solid #000;
+	border-radius: 6px;
+	overflow: hidden;
+	background-color: #e9e9e9;
+}
+
+.segment{
+	font-family: Montserrat;
+	font-weight: 700;
+	font-size: 14px; /* keep compact */
+	padding: 8px 14px; /* small size as requested */
+	border: none;
+	background: transparent;
+	cursor: pointer;
+}
+.segment:not(.active){
+	color: #000;
+}
+.segment.active{
+	background-color: #ffffff;
+	border-left: 1px solid #000;
+	border-right: 1px solid #000;
+}
+
+.section-title{
+	text-align: center;
+	font-weight: 800;
+	margin-bottom: 16px;
+}
+
+/* Read-only fields should look non-editable */
+.readonly-field[readonly]{
+	background-color: #E6E6E6;
+	color: #333;
+	cursor: not-allowed;
+    border: 2px solid #ffffff; /* white border */
+}
+
+/* Keep the same grey color when clicked/focused and remove bootstrap glow */
+.readonly-field[readonly]:focus,
+.readonly-field[readonly]:active,
+input.form-control.readonly-field:focus,
+textarea.form-control.readonly-field:focus{
+	background-color: #E6E6E6 !important;
+	box-shadow: none !important;
+	outline: none !important;
+	border-color: #ffffff !important; /* keep white border on focus */
+}
+
+/* Editable field for title stands out slightly */
+.editable-field{
+	background-color: #ffffff;
+}
+
+.past-list{
+	background: #FDF0D5;
+	padding: 12px;
+	box-shadow: 10px 10px 10px rgba(0,0,0,0.245);
+}
+
+/* Supervisor dropdown styling */
+.supervisor-item{
+	margin-bottom: 8px;
+	border: 1px solid #ddd;
+	border-radius: 4px;
+	overflow: hidden;
+	background: white;
+}
+
+.supervisor-btn{
+	width: 100%;
+	padding: 12px 16px;
+	background: #ffffff;
+	border: none;
+	text-align: left;
+	cursor: pointer;
+	font-family: 'Montserrat', Arial, sans-serif;
+	font-weight: 600;
+	font-size: 15px;
+	color: #333;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	transition: background-color 0.2s;
+}
+
+.supervisor-btn:hover{
+	background-color: #f5f5f5;
+}
+
+.supervisor-btn i{
+	transition: transform 0.3s;
+	font-size: 14px;
+}
+
+.supervisor-btn[aria-expanded="true"] i{
+	transform: rotate(180deg);
+}
+
+.supervisor-content{
+	background: #f9f9f9;
+}
+
+.students-list{
+	padding: 12px 16px;
+}
+
+.student-item{
+	padding: 10px 0;
+	border-bottom: 1px solid #e0e0e0;
+	font-family: 'Montserrat', Arial, sans-serif;
+	font-size: 14px;
+	color: #333;
+}
+
+.student-item:last-child{
+	border-bottom: none;
+}
+
+.student-item strong{
+	color: #780000;
+	margin-right: 8px;
+}
+
+/* Small note to show pending state after change */
+.status-note{
+	font-size: 12px;
+	font-weight: 700;
+	margin-left: 10px;
+	color: #a56a00;
+}
+
+/* Beige container to match Past Title */
+.info-card{
+	background: #FDF0D5;
+	padding: 16px;
+	box-shadow: 10px 10px 10px rgba(0,0,0,0.245);
+	border-radius: 4px;
+}
+
+#changeTitleBtn{
+    background-color: white;
+    
+}
