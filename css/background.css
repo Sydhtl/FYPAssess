@@ -31,13 +31,14 @@ body {
 .custom-modal {
     display: none; /* Hidden by default */
     position: fixed; /* Stay in place */
-    z-index: 1050; /* High z-index to cover everything */
+    z-index: 99999; /* Ensure on top of all page elements */
     left: 0;
     top: 0;
     width: 100%;
     height: 100%;
     overflow: auto;
     background-color: rgba(0, 0, 0, 0.6); /* Semi-transparent black overlay */
+    pointer-events: auto; /* Ensure overlay accepts clicks */
 }
 
 .modal-dialog {
@@ -58,6 +59,7 @@ body {
     text-align: center;
     position: relative;
     animation: fadeIn 0.3s ease-out; 
+    pointer-events: auto; /* Ensure clicks inside modal work */
 }
 
 @keyframes fadeIn {
@@ -97,14 +99,14 @@ body {
     margin-top: 0;
     margin-bottom: 15px;
     font-size: 1.6em;
-    font-family: Arial, sans-serif
+    font-family: 'Montserrat', Arial, sans-serif
 }
 
 .modal-message {
     color: #000000;
-    line-height: 1.4;
+    line-height: 1.5;
     margin-bottom: 25px;
-    font-family: Arial, sans-serif
+    font-family: 'Montserrat', Arial, sans-serif
 }
 
 .modal-button {
@@ -117,10 +119,23 @@ body {
     font-size: 1em;
     font-weight: bold;
     transition: background-color 0.3s;
+    font-family: 'Montserrat', Arial, sans-serif
 }
 
 .modal-button:hover {
     background-color: #d3d3d3;
+}
+
+/* System-wide button sizing (excluding login folder) */
+body:not(.login-page) .btn:not(.btn-sm):not(.btn-xs):not(.btn-lg):not(.btn-xl) {
+    padding: 10px 20px;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+/* Ensure buttons in student pages are not small */
+body .btn:not(.btn-xs):not(.btn-sm) {
+    min-height: 38px;
 }
 
 /* --- Sidebar Styling --- */
@@ -307,13 +322,13 @@ body {
     
     /* CRITICAL FIX: Flexbox for horizontal layout */
     display: flex;
-    align-items: center; 
-    justify-content: space-between; /* Pushes Username to the right */
+    align-items: flex-start; /* Changed to flex-start to align content to top */
+    justify-content: space-between;
     
     background-color: #ffffff;
     box-shadow: 0 6px 8px rgba(0, 0, 0, 0.1);
     padding: 15px 20px; 
-    height: auto;
+    min-height: 80px; /* Ensure minimum height */
     position: relative; 
 }
 
@@ -345,10 +360,28 @@ body {
 .header-text-group {
     display: flex;
     flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-start;
     margin-left: 20px; 
     flex-grow: 1; /* Allows this section to take up available middle space */
     min-width: 0;
-    justify-content: space-between;
+}
+
+/* Module titles wrapper (Student Module, FYPAssess) */
+#module-titles {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+/* Course session wrapper (courseCode, courseSession) */
+#course-session {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: flex-start;
+    margin-left: auto;
+    align-self: flex-start; /* Ensures it starts from the top */
 }
 
 /* Title Styles (now managed by Flexbox) */
@@ -422,10 +455,15 @@ body {
 @media(max-width:960px){
 #containerModule {
     font-size: 15px;
-  
 }
 #containerFYPAssess{
     font-size: 15px;
+}
+#courseCode {
+    font-size: 15px;
+}
+#courseSession {
+    font-size: 10px;
 } 
 
 /* Username FIX: No longer fixed/absolute, relies on Flexbox */
@@ -456,9 +494,14 @@ body {
 @media(max-width:700px){
 #containerModule {
     font-size: 12px;
-  
 }
 #containerFYPAssess{
+    font-size: 12px;
+}
+#courseCode {
+    font-size: 12px;
+}
+#courseSession {
     font-size: 12px;
 } 
 
@@ -487,4 +530,23 @@ body {
   
 }
 
+}
+#courseCode,
+#courseSession {
+    font-family: "Montserrat";
+    text-align: right;
+    line-height: 1.2;
+    color: #333;
+    margin: 0;
+    padding: 0;
+}
+
+#courseCode {
+    font-size: 20px;
+    font-weight: 600;
+}
+
+#courseSession {
+    font-size: 16px;
+    font-weight: 400;
 }
