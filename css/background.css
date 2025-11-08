@@ -126,6 +126,18 @@ body {
     background-color: #d3d3d3;
 }
 
+/* System-wide button sizing (excluding login folder) */
+body:not(.login-page) .btn:not(.btn-sm):not(.btn-xs):not(.btn-lg):not(.btn-xl) {
+    padding: 10px 20px;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+/* Ensure buttons in student pages are not small */
+body .btn:not(.btn-xs):not(.btn-sm) {
+    min-height: 38px;
+}
+
 /* --- Sidebar Styling --- */
 
 .sidebar {
@@ -257,13 +269,13 @@ body {
     
     /* CRITICAL FIX: Flexbox for horizontal layout */
     display: flex;
-    align-items: center; 
-    justify-content: space-between; /* Pushes Username to the right */
+    align-items: flex-start; /* Changed to flex-start to align content to top */
+    justify-content: space-between;
     
     background-color: #ffffff;
     box-shadow: 0 6px 8px rgba(0, 0, 0, 0.1);
     padding: 15px 20px; 
-    height: auto;
+    min-height: 80px; /* Ensure minimum height */
     position: relative; 
 }
 
@@ -275,11 +287,29 @@ body {
 /* Group for the two title divs */
 .header-text-group {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-start;
     margin-left: 20px; 
     flex-grow: 1; /* Allows this section to take up available middle space */
     min-width: 0;
+}
+
+/* Module titles wrapper (Student Module, FYPAssess) */
+#module-titles {
+    display: flex;
+    flex-direction: column;
     justify-content: center;
+}
+
+/* Course session wrapper (courseCode, courseSession) */
+#course-session {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: flex-start;
+    margin-left: auto;
+    align-self: flex-start; /* Ensures it starts from the top */
 }
 
 /* Title Styles (now managed by Flexbox) */
@@ -353,10 +383,15 @@ body {
 @media(max-width:960px){
 #containerModule {
     font-size: 15px;
-  
 }
 #containerFYPAssess{
     font-size: 15px;
+}
+#courseCode {
+    font-size: 15px;
+}
+#courseSession {
+    font-size: 10px;
 } 
 
 /* Username FIX: No longer fixed/absolute, relies on Flexbox */
@@ -387,9 +422,14 @@ body {
 @media(max-width:700px){
 #containerModule {
     font-size: 12px;
-  
 }
 #containerFYPAssess{
+    font-size: 12px;
+}
+#courseCode {
+    font-size: 12px;
+}
+#courseSession {
     font-size: 12px;
 } 
 
@@ -418,4 +458,23 @@ body {
   
 }
 
+}
+#courseCode,
+#courseSession {
+    font-family: "Montserrat";
+    text-align: right;
+    line-height: 1.2;
+    color: #333;
+    margin: 0;
+    padding: 0;
+}
+
+#courseCode {
+    font-size: 20px;
+    font-weight: 600;
+}
+
+#courseSession {
+    font-size: 16px;
+    font-weight: 400;
 }
