@@ -3,7 +3,6 @@
 
 <head>
     <title>FYPAssess</title>
-    <link rel="stylesheet" href="../../../css/assessor/dashboard.css">
     <link rel="stylesheet" href="../../../css/assessor/evaluationForm.css">
     <link rel="stylesheet" href="../../../css/background.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -12,7 +11,7 @@
 
 <body>
 
-    <div id="mySidebar" class="sidebar">
+        <div id="mySidebar" class="sidebar">
         <button class="menu-icon" onclick="openNav()">☰</button>
 
         <div id="sidebarLinks">
@@ -22,14 +21,7 @@
 
             <span id="nameSide">HI, SAZLINAH BINTI HASSAN</span>
 
-            <!-- <a href="#coordinatorMenu" class="role-header" data-role="coordinator">
-                <span class="role-text">Coordinator</span>
-                <span class="arrow-container">
-                    <i class="bi bi-chevron-right arrow-icon"></i>
-                </span>
-            </a> -->
-
-            <a href="#supervisorMenu" class="role-header active-role" data-role="supervisor">
+            <a href="#supervisorMenu" class="role-header" data-role="supervisor">
                 <span class="role-text">Supervisor</span>
                 <span class="arrow-container">
                     <i class="bi bi-chevron-right arrow-icon"></i>
@@ -224,7 +216,7 @@
                         <input type="text" class="marks-input" placeholder="">/5
                     </div>
                 </div>
-
+                
 
             </div>
         </div>
@@ -235,39 +227,57 @@
         // --- JAVASCRIPT LOGIC ---
         function openNav() {
             var fullWidth = "220px";
+            var sidebar = document.getElementById("mySidebar");
+            var header = document.getElementById("containerAtas");
+            // CRITICAL FIX: Targets the main content area (now with id="main")
+            var mainContent = document.getElementById("main"); 
+            var menuIcon = document.querySelector(".menu-icon");
 
             // 1. Expand the Sidebar
             document.getElementById("mySidebar").style.width = fullWidth;
 
             // 2. Push the main content AND the header container to the right
-            document.getElementById("main").style.marginLeft = fullWidth;
-            document.getElementById("containerAtas").style.marginLeft = fullWidth;
+            if (mainContent) mainContent.style.marginLeft = fullWidth;
+            if (header) header.style.marginLeft = fullWidth;
 
             // 3. Show the links
-            document.getElementById("nameSide").style.display = "block"; // <-- SHOW THE NAME
+            document.getElementById("nameSide").style.display = "block";
 
             var links = document.getElementById("sidebarLinks").getElementsByTagName("a");
             for (var i = 0; i < links.length; i++) {
-                // Using flex for closebtn, block for others
-                links[i].style.display = (links[i].id === 'close' ? 'flex' : 'block');
+                // Show role headers and other links
+                if (links[i].classList.contains('role-header') || links[i].id === 'logout') {
+                    links[i].style.display = 'flex';
+                } else if (links[i].id === 'close') {
+                    links[i].style.display = 'flex';
+                }
             }
+            
+            // Show currently expanded menu items
+            document.querySelectorAll('.menu-items.expanded a').forEach(a => a.style.display = 'block');
+
 
             // 4. Hide the open icon
-            document.getElementsByClassName("menu-icon")[0].style.display = "none";
+            if (menuIcon) menuIcon.style.display = "none";
         }
 
         function closeNav() {
             var collapsedWidth = "60px";
+            var sidebar = document.getElementById("mySidebar");
+            var header = document.getElementById("containerAtas");
+            // CRITICAL FIX: Targets the main content area (now with id="main")
+            var mainContent = document.getElementById("main"); 
+            var menuIcon = document.querySelector(".menu-icon");
 
             // 1. Collapse the Sidebar
-            document.getElementById("mySidebar").style.width = collapsedWidth;
+            sidebar.style.width = collapsedWidth;
 
             // 2. Move the main content AND the header container back
-            document.getElementById("main").style.marginLeft = collapsedWidth;
-            document.getElementById("containerAtas").style.marginLeft = collapsedWidth;
+            if (mainContent) mainContent.style.marginLeft = collapsedWidth;
+            if (header) header.style.marginLeft = collapsedWidth;
 
-            // 3. Hide the name and the links
-            document.getElementById("nameSide").style.display = "none"; // <-- HIDE THE NAME
+            // 3. Hide the name and the links (except for the open menu icon)
+            document.getElementById("nameSide").style.display = "none";
 
             var links = document.getElementById("sidebarLinks").getElementsByTagName("a");
             for (var i = 0; i < links.length; i++) {
@@ -275,7 +285,7 @@
             }
 
             // 4. Show the open icon
-            document.getElementsByClassName("menu-icon")[0].style.display = "block";
+            if (menuIcon) menuIcon.style.display = "block";
         }
 
         // Ensure the collapsed state is set immediately on page load
@@ -283,48 +293,75 @@
             closeNav();
         };
 
-        // --- NEW ROLE TOGGLE LOGIC (Handles clicking Coordinator/Supervisor/Assessor) ---
+
+     // --- Role Toggle Logic ---
         document.addEventListener('DOMContentLoaded', () => {
             const arrowContainers = document.querySelectorAll('.arrow-container');
+            
+            // Function to handle the role menu toggle
+            const handleRoleToggle = (header) => {
+                const menuId = header.getAttribute('href');
+                const targetMenu = document.querySelector(menuId);
+                const arrowIcon = header.querySelector('.arrow-icon');
+                
+                if (!targetMenu) return;
+
+                const isExpanded = targetMenu.classList.contains('expanded');
+
+                // Collapse all other menus and reset their arrows
+                document.querySelectorAll('.menu-items').forEach(menu => {
+                    if (menu !== targetMenu) {
+                        menu.classList.remove('expanded');
+                        menu.querySelectorAll('a').forEach(a => a.style.display = 'none');
+                    }
+                });
+                document.querySelectorAll('.role-header').forEach(h => {
+                     if (h !== header) h.classList.remove('active-role');
+                });
+                document.querySelectorAll('.arrow-icon').forEach(icon => {
+                    if (icon !== arrowIcon) {
+                        icon.classList.remove('bi-chevron-down');
+                        icon.classList.add('bi-chevron-right');
+                    }
+                });
+
+                // Toggle current menu
+                targetMenu.classList.toggle('expanded', !isExpanded);
+                header.classList.toggle('active-role', !isExpanded);
+                
+                // Show/hide child links for the current menu (only when sidebar is expanded)
+                const sidebar = document.getElementById("mySidebar");
+                const isSidebarExpanded = sidebar.style.width === "220px";
+
+                targetMenu.querySelectorAll('a').forEach(a => {
+                    if(isSidebarExpanded) {
+                         a.style.display = targetMenu.classList.contains('expanded') ? 'block' : 'none';
+                    } else {
+                        a.style.display = 'none';
+                    }
+                });
+
+                // Toggle arrow direction
+                if (isExpanded) {
+                    arrowIcon.classList.remove('bi-chevron-down');
+                    arrowIcon.classList.add('bi-chevron-right');
+                } else {
+                    arrowIcon.classList.remove('bi-chevron-right');
+                    arrowIcon.classList.add('bi-chevron-down');
+                }
+            }
+
 
             arrowContainers.forEach(container => {
-                container.addEventListener('click', (event) => {
-                    event.stopPropagation(); // Prevents triggering parent anchor click
-                    const header = container.closest('.role-header');
-                    const menuId = header.getAttribute('href');
-                    const targetMenu = document.querySelector(menuId);
-                    const arrowIcon = container.querySelector('.arrow-icon');
-
-                    if (targetMenu) {
-                        const isExpanded = targetMenu.classList.contains('expanded');
-
-                        // Collapse other menus
-                        document.querySelectorAll('.menu-items').forEach(menu => {
-                            if (menu !== targetMenu) menu.classList.remove('expanded');
-                        });
-
-                        // Reset other arrows
-                        document.querySelectorAll('.arrow-icon').forEach(icon => {
-                            icon.classList.remove('bi-chevron-down');
-                            icon.classList.add('bi-chevron-right');
-                        });
-
-                        // Toggle current menu
-                        targetMenu.classList.toggle('expanded');
-                        header.classList.toggle('active-role');
-
-                        // Toggle arrow direction
-                        if (isExpanded) {
-                            arrowIcon.classList.remove('bi-chevron-down');
-                            arrowIcon.classList.add('bi-chevron-right');
-                        } else {
-                            arrowIcon.classList.remove('bi-chevron-right');
-                            arrowIcon.classList.add('bi-chevron-down');
-                        }
-                    }
+                // Attach event listener to the role header itself
+                const header = container.closest('.role-header');
+                header.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    handleRoleToggle(header);
                 });
             });
         });
+
 
     </script>
 </body>
