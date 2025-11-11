@@ -49,83 +49,85 @@
     </div>
 
 <div id="main">
-    <div id="segmentTabs">
-        <button id="tabSweA" class="segment active">SWE4949A</button>
-        <button id="tabSweB" class="segment">SWE4949B</button>
-    </div>
-
-    <div id="sweASection" class="section">
-        <div class="logbook-container">
-            <h4 class="section-title" id="sectionTitleA">Logbook Submission SWE4949A</h4>
-            
-            <div class="name-section">
-                <div class="name-field-wrapper">
-                    <label class="form-label">Name</label>
-                    <input type="text" class="form-control readonly-field" value="NURUL SAIDAHTUL FATIHA BINTI SHAHARUDIN" readonly>
+    <div class="logbook-container">
+        <div class="tab-buttons">
+            <button id="tabSweA" class="task-tab active-tab">SWE4949A</button>
+            <button id="tabSweB" class="task-tab">SWE4949B</button>
+        </div>
+        
+        <div id="sweASection" class="task-group active">
+            <div style="margin-top: 15px;">
+                <h4 class="section-title" id="sectionTitleA">Logbook Submission SWE4949A</h4>
+                
+                <div class="name-section">
+                    <div class="name-field-wrapper">
+                        <label class="form-label">Name</label>
+                        <input type="text" class="form-control readonly-field" value="NURUL SAIDAHTUL FATIHA BINTI SHAHARUDIN" readonly>
+                    </div>
+                    <button type="button" id="addNewRowBtnA" class="btn btn-outline-dark add-row-btn" style="background-color: white; color: black;">
+                        <i class="bi bi-plus-circle" style="margin-right: 8px; color: black;"></i>Add new row
+                    </button>
                 </div>
-                <button type="button" id="addNewRowBtnA" class="btn btn-outline-dark add-row-btn" style="background-color: white; color: black;">
-                    <i class="bi bi-plus-circle" style="margin-right: 8px; color: black;"></i>Add new row
-                </button>
-            </div>
 
-            <div class="table-wrapper">
-                <table class="table logbook-table">
-                    <thead>
-                        <tr>
-                            <th>No.</th>
-                            <th>Logbook Entry</th>
-                            <th>Status</th>
-                            <th>Logbook Uploaded</th>
-                            <th>Delete</th>
-                        </tr>
-                    </thead>
-                    <tbody id="logbookTableBodyA">
-                        <!-- Table rows will be populated by JavaScript -->
-                    </tbody>
-                </table>
-            </div>
+                <div class="table-wrapper">
+                    <table class="table logbook-table">
+                        <thead>
+                            <tr>
+                                <th>No.</th>
+                                <th>Logbook Entry</th>
+                                <th>Status</th>
+                                <th>Logbook Uploaded</th>
+                                <th>Delete</th>
+                            </tr>
+                        </thead>
+                        <tbody id="logbookTableBodyA">
+                            <!-- Table rows will be populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
 
-            <div class="remaining-logbook">
-                <span>Remaining Logbook</span>
-                <div class="remaining-box" id="remainingCountA">10</div>
+                <div class="remaining-logbook">
+                    <span>Remaining Logbook</span>
+                    <div class="remaining-box" id="remainingCountA">10</div>
+                </div>
             </div>
         </div>
-    </div>
 
-    <div id="sweBSection" class="section" style="display:none;">
-        <div class="logbook-container">
-            <h4 class="section-title" id="sectionTitleB">Logbook Submission SWE4949B</h4>
-            
-            <div class="name-section">
-                <div class="name-field-wrapper">
-                    <label class="form-label">Name</label>
-                    <input type="text" class="form-control readonly-field" value="NURUL SAIDAHTUL FATIHA BINTI SHAHARUDIN" readonly>
+        <div id="sweBSection" class="task-group">
+            <div style="margin-top: 15px;">
+                <h4 class="section-title" id="sectionTitleB">Logbook Submission SWE4949B</h4>
+                
+                <div class="name-section">
+                    <div class="name-field-wrapper">
+                        <label class="form-label">Name</label>
+                        <input type="text" class="form-control readonly-field" value="NURUL SAIDAHTUL FATIHA BINTI SHAHARUDIN" readonly>
+                    </div>
+                    <button type="button" id="addNewRowBtnB" class="btn btn-outline-dark add-row-btn" style="background-color: white; color: black;">
+                        <i class="bi bi-plus-circle" style="margin-right: 8px; color: black;"></i>Add new row
+                    </button>
                 </div>
-                <button type="button" id="addNewRowBtnB" class="btn btn-outline-dark add-row-btn" style="background-color: white; color: black;">
-                    <i class="bi bi-plus-circle" style="margin-right: 8px; color: black;"></i>Add new row
-                </button>
-            </div>
 
-            <div class="table-wrapper">
-                <table class="table logbook-table">
-                    <thead>
-                        <tr>
-                            <th>No.</th>
-                            <th>Logbook Entry</th>
-                            <th>Status</th>
-                            <th>Logbook Uploaded</th>
-                            <th>Delete</th>
-                        </tr>
-                    </thead>
-                    <tbody id="logbookTableBodyB">
-                        <!-- Table rows will be populated by JavaScript -->
-                    </tbody>
-                </table>
-            </div>
+                <div class="table-wrapper">
+                    <table class="table logbook-table">
+                        <thead>
+                            <tr>
+                                <th>No.</th>
+                                <th>Logbook Entry</th>
+                                <th>Status</th>
+                                <th>Logbook Uploaded</th>
+                                <th>Delete</th>
+                            </tr>
+                        </thead>
+                        <tbody id="logbookTableBodyB">
+                            <!-- Table rows will be populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
 
-            <div class="remaining-logbook">
-                <span>Remaining Logbook</span>
-                <div class="remaining-box" id="remainingCountB">10</div>
+                <div class="remaining-logbook">
+                    <span>Remaining Logbook</span>
+                    <div class="remaining-box" id="remainingCountB">10</div>
+                </div>
             </div>
         </div>
     </div>
@@ -304,18 +306,18 @@
     var sweBSection = document.getElementById('sweBSection');
 
     tabSweA.addEventListener('click', function(){
-        tabSweA.classList.add('active');
-        tabSweB.classList.remove('active');
-        sweASection.style.display = 'block';
-        sweBSection.style.display = 'none';
+        tabSweA.classList.add('active-tab');
+        tabSweB.classList.remove('active-tab');
+        sweASection.classList.add('active');
+        sweBSection.classList.remove('active');
         currentSection = 'A';
     });
 
     tabSweB.addEventListener('click', function(){
-        tabSweB.classList.add('active');
-        tabSweA.classList.remove('active');
-        sweBSection.style.display = 'block';
-        sweASection.style.display = 'none';
+        tabSweB.classList.add('active-tab');
+        tabSweA.classList.remove('active-tab');
+        sweBSection.classList.add('active');
+        sweASection.classList.remove('active');
         currentSection = 'B';
     });
 
