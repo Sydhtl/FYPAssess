@@ -281,11 +281,8 @@ body .btn:not(.btn-xs):not(.btn-sm) {
   /* Makes only the arrow area clickable */
 }
 
-/* Style for the active/selected role header */
-.active-role {
-  background-color: #780000;
-  /* Slightly lighter red for the active role */
-}
+/* Coordinator active role styling is handled in coordinator/dashboard.css */
+/* Removed from here to avoid conflicts with menu-expanded state */
 
 /* Styling for the nested menu items */
 .menu-items {

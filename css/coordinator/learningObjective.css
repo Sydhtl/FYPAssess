@@ -1,0 +1,707 @@
+/* Learning Objective Page Styles */
+
+.page-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 20px;
+  font-family: 'Montserrat', Arial, sans-serif;
+}
+
+/* Filters Section */
+.filters-section {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 20px;
+  align-items: flex-end;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.filter-group label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  font-family: 'Montserrat', Arial, sans-serif;
+}
+
+.filter-select {
+  padding: 8px 12px;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: 'Montserrat', Arial, sans-serif;
+  background-color: white;
+  min-width: 150px;
+  cursor: pointer;
+}
+
+.filter-select:focus {
+  outline: none;
+  border-color: #780000;
+}
+
+/* Learning Objective Container */
+.learning-objective-container {
+  background-color: #fdf0d5;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 400px);
+  min-height: 600px;
+  max-height: 800px;
+}
+
+.container-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #780000;
+  margin-bottom: 15px;
+  font-family: 'Montserrat', Arial, sans-serif;
+}
+
+/* Top Action Bar */
+.top-action-bar {
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-start;
+  margin-bottom: 15px;
+  gap: 10px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.right-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+  flex: 1 1 auto;
+}
+
+/* Scrollable Table Container */
+.table-scroll-container {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: auto;
+  border-radius: 8px;
+  background-color: white;
+  margin-bottom: 15px;
+  min-height: 0;
+  border: 1px solid #e0e0e0;
+}
+
+/* Custom scrollbar styling - Grey like logbook */
+.table-scroll-container {
+  scrollbar-width: thin;
+  scrollbar-color: #c0c0c0 #f1f1f1;
+}
+
+.table-scroll-container::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.table-scroll-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.table-scroll-container::-webkit-scrollbar-thumb {
+  background: #c0c0c0;
+  border-radius: 4px;
+}
+
+.table-scroll-container::-webkit-scrollbar-thumb:hover {
+  background: #a0a0a0;
+}
+
+/* Learning Objective Table */
+.learning-objective-table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: white;
+}
+
+.learning-objective-table thead {
+  background-color: #780000;
+  color: white;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.learning-objective-table th {
+  padding: 15px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 14px;
+  font-family: 'Montserrat', Arial, sans-serif;
+}
+
+.learning-objective-table td {
+  padding: 15px;
+  border-bottom: 1px solid #eee;
+  font-family: 'Montserrat', Arial, sans-serif;
+}
+
+.learning-objective-table tbody tr:hover {
+  background-color: #ffffff;
+}
+
+/* Learning Objective Cell Wrapper */
+.learning-objective-cell-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Learning Objective Input Wrapper */
+.learning-objective-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.learning-objective-input {
+  flex: 1;
+  padding: 8px 30px 8px 12px;
+  border: 2px solid #ddd;
+  border-radius: 5px;
+  font-size: 14px;
+  font-family: 'Montserrat', Arial, sans-serif;
+  background-color: #f5f5f5;
+  cursor: pointer;
+  min-width: 200px;
+}
+
+.learning-objective-input:focus {
+  outline: none;
+  border-color: #780000;
+  background-color: white;
+}
+
+.learning-objective-input::placeholder {
+  color: #999;
+}
+
+/* Delete Learning Objective Button */
+.btn-delete-objective {
+  background: none;
+  border: none;
+  color: #dc3545;
+  cursor: pointer;
+  font-size: 18px;
+  padding: 5px 8px;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.btn-delete-objective:hover {
+  color: #c82333;
+  background-color: rgba(220, 53, 69, 0.1);
+}
+
+.dropdown-arrow-icon {
+  position: absolute;
+  right: 8px;
+  color: #666;
+  font-size: 14px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Task Input */
+.task-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 2px solid #ddd;
+  border-radius: 5px;
+  font-size: 14px;
+  font-family: 'Montserrat', Arial, sans-serif;
+  background-color: white;
+}
+
+.task-input:focus {
+  outline: none;
+  border-color: #780000;
+}
+
+/* Add Learning Objective Button */
+.btn-add-objective {
+  background-color: transparent;
+  color: #780000;
+  border: 2px dashed #780000;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.3s;
+  font-family: 'Montserrat', Arial, sans-serif;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-add-objective:hover {
+  background-color: #780000;
+  color: white;
+  border-color: #780000;
+}
+
+.add-objective-row {
+  background-color: transparent;
+}
+
+.add-objective-row:hover {
+  background-color: transparent !important;
+}
+
+.add-objective-row td {
+  padding: 12px 15px;
+  border-bottom: none;
+}
+
+.add-objective-cell {
+  text-align: left;
+}
+
+.add-objective-spacer {
+  border-bottom: none;
+}
+
+/* Learning Objective Dropdown */
+.learning-objective-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background-color: white;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  display: none;
+  margin-top: 5px;
+  max-height: 300px;
+  overflow: hidden;
+}
+
+.learning-objective-dropdown.show {
+  display: block;
+}
+
+.dropdown-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  border-bottom: 1px solid #e0e0e0;
+  background-color: #f8f9fa;
+}
+
+.dropdown-search i {
+  color: #666;
+  font-size: 16px;
+}
+
+.dropdown-search input {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  font-family: 'Montserrat', Arial, sans-serif;
+}
+
+.dropdown-search input:focus {
+  outline: none;
+  border-color: #780000;
+}
+
+.dropdown-options {
+  max-height: 250px;
+  overflow-y: auto;
+}
+
+.dropdown-option {
+  padding: 10px 15px;
+  cursor: pointer;
+  font-size: 14px;
+  font-family: 'Montserrat', Arial, sans-serif;
+  color: #333;
+  transition: background-color 0.2s;
+}
+
+.dropdown-option:hover {
+  background-color: #f8f9fa;
+}
+
+.dropdown-option.selected {
+  background-color: #780000;
+  color: white;
+}
+
+.dropdown-option.disabled {
+  color: #999;
+  cursor: not-allowed;
+}
+
+/* Marks Input */
+.marks-input {
+  width: 80px;
+  padding: 8px;
+  border: 2px solid #ddd;
+  border-radius: 5px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: 'Montserrat', Arial, sans-serif;
+}
+
+.marks-input:focus {
+  outline: none;
+  border-color: #780000;
+}
+
+/* Delete Button */
+.btn-delete {
+  background: none;
+  border: none;
+  color: #dc3545;
+  cursor: pointer;
+  font-size: 18px;
+  padding: 5px;
+  transition: color 0.2s;
+}
+
+.btn-delete:hover {
+  color: #c82333;
+}
+
+/* Add Row Button */
+.btn-add-row {
+  background-color: white;
+  color: #333;
+  border: 2px solid #ddd;
+  padding: 10px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.3s;
+  font-family: 'Montserrat', Arial, sans-serif;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+.btn-add-row:hover {
+  background-color: #f8f9fa;
+  border-color: #780000;
+  color: #780000;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.btn-add-row i {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+/* Download Button */
+.btn-download {
+  background-color: #28a745;
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.3s;
+  font-family: 'Montserrat', Arial, sans-serif;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+.btn-download:hover {
+  background-color: #218838;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.btn-download.active {
+  background-color: #218838;
+}
+
+.btn-download i {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.btn-download .dropdown-arrow {
+  font-size: 12px;
+  transition: transform 0.3s;
+  margin-left: 2px;
+}
+
+.btn-download.active .dropdown-arrow {
+  transform: rotate(180deg);
+}
+
+/* Download Dropdown */
+.download-dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.download-dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background-color: white;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  display: none;
+  min-width: 200px;
+  margin-top: 5px;
+  overflow: hidden;
+}
+
+.download-dropdown-menu.show {
+  display: block;
+}
+
+.download-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  color: #333;
+  text-decoration: none;
+  font-family: 'Montserrat', Arial, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background-color 0.2s;
+  border-bottom: 1px solid #f0f0f0;
+  cursor: pointer;
+}
+
+.download-option:last-child {
+  border-bottom: none;
+}
+
+.download-option:hover {
+  background-color: #f8f9fa;
+  color: #780000;
+}
+
+.download-option i {
+  font-size: 18px;
+  color: #780000;
+  flex-shrink: 0;
+}
+
+.download-option:hover i {
+  color: #5a0000;
+}
+
+/* Sticky Footer */
+.table-footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 15px 20px;
+  background-color: transparent;
+  margin-top: auto;
+  flex-shrink: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.table-footer .actions {
+  display: flex;
+  gap: 10px;
+}
+
+/* Responsive Design */
+@media (max-width: 992px) {
+  .top-action-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .right-actions {
+    width: 100%;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .btn-add-row,
+  .btn-download {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 10px 10px;
+    font-size: 12px;
+    gap: 5px;
+  }
+
+  .download-dropdown {
+    width: 100%;
+    display: block;
+  }
+
+  .btn-download {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .download-dropdown-menu {
+    width: 100%;
+    left: 0 !important;
+    right: 0;
+    position: absolute;
+    min-width: unset;
+  }
+}
+
+@media (max-width: 768px) {
+  .filters-section {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .filter-group {
+    width: 100%;
+  }
+
+  .filter-select {
+    width: 100%;
+  }
+
+  .learning-objective-container {
+    height: calc(100vh - 350px);
+    min-height: 500px;
+  }
+
+  .learning-objective-table th,
+  .learning-objective-table td {
+    padding: 10px 6px;
+    font-size: 11px;
+  }
+
+  .learning-objective-table th {
+    font-size: 12px;
+  }
+
+  .learning-objective-input {
+    min-width: 150px;
+    font-size: 12px;
+    padding: 6px 25px 6px 10px;
+  }
+
+  .marks-input {
+    width: 60px;
+    padding: 6px 4px;
+    font-size: 11px;
+  }
+
+  .right-actions {
+    width: 100%;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .btn-add-row,
+  .btn-download {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 10px 10px;
+    font-size: 12px;
+    gap: 5px;
+  }
+}
+
+@media (max-width: 576px) {
+  .page-title {
+    font-size: 20px;
+  }
+
+  .learning-objective-container {
+    padding: 15px;
+    height: calc(100vh - 300px);
+    min-height: 400px;
+  }
+
+  .learning-objective-table th,
+  .learning-objective-table td {
+    padding: 8px 4px;
+    font-size: 10px;
+  }
+
+  .learning-objective-input {
+    min-width: 120px;
+    font-size: 11px;
+    padding: 5px 20px 5px 8px;
+  }
+
+  .marks-input {
+    width: 50px;
+    padding: 5px 3px;
+    font-size: 10px;
+  }
+
+  .btn-add-row,
+  .btn-download {
+    padding: 9px 8px;
+    font-size: 11px;
+    border-radius: 6px;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .btn-add-row i,
+  .btn-download i {
+    font-size: 14px;
+  }
+
+  .btn-add-row span,
+  .btn-download span {
+    display: inline;
+    font-size: 10px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .download-option {
+    padding: 10px 12px;
+    font-size: 12px;
+  }
+}
+

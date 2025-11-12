@@ -20,12 +20,6 @@
   /* Makes only the arrow area clickable */
 }
 
-/* Style for the active/selected role header */
-.active-role {
-  background-color: #780000;
-  /* Slightly lighter red for the active role */
-}
-
 /* Styling for the nested menu items */
 .menu-items {
   /* Set initial state: Hidden and no height */

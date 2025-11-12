@@ -248,9 +248,45 @@ body {
   background-color: rgba(255, 255, 255, 0.1);
 }
 
-.role-header.active-role {
-  background-color: #ffffff;
-  color: #780000;
+/* Coordinator header is white with #780000 when menu is COLLAPSED (not expanded) */
+/* IMPORTANT: This applies to coordinator on coordinator pages when menu is collapsed */
+.role-header.active-role:not(.menu-expanded),
+.role-header[data-role="coordinator"].active-role:not(.menu-expanded) {
+  background-color: white !important;
+  color: #780000 !important;
+  border-radius: 20px;
+  border: 4px solid #780000 !important;
+}
+
+.role-header.active-role:not(.menu-expanded) .arrow-icon,
+.role-header[data-role="coordinator"].active-role:not(.menu-expanded) .arrow-icon {
+  color: #780000 !important;
+}
+
+.role-header.active-role:not(.menu-expanded) .role-text,
+.role-header[data-role="coordinator"].active-role:not(.menu-expanded) .role-text {
+  color: #780000 !important;
+}
+
+/* When menu is expanded, coordinator header goes back to normal */
+.role-header.active-role.menu-expanded {
+  background-color: transparent !important;
+  color: white !important;
+  border: none !important;
+}
+
+.role-header.active-role.menu-expanded:hover {
+  
+  border: none !important;
+  color: white !important;
+}
+
+.role-header.active-role.menu-expanded .arrow-icon {
+  color: white !important;
+}
+
+.role-header.active-role.menu-expanded .role-text {
+  color: white !important;
 }
 
 .role-text {
@@ -282,13 +318,27 @@ body {
   color: white;
   text-decoration: none;
   display: block;
-  transition: background-color 0.2s;
+  transition: background-color 0.2s, color 0.2s;
   font-family: 'Montserrat', Arial, sans-serif;
 }
 
 .menu-items a:hover {
   background-color: rgba(255, 255, 255, 0.1);
   border-radius: 4px;
+}
+
+/* Active menu item when coordinator menu is expanded */
+.menu-items.expanded a.active-menu-item {
+  background-color: white !important;
+  color: #780000 !important;
+  border-radius: 20px;
+  border: 4px solid #780000 !important;
+}
+
+.menu-items.expanded a.active-menu-item .icon-padding,
+.menu-items.expanded a.active-menu-item i {
+  color: #780000 !important;
+  
 }
 
 .icon-padding {

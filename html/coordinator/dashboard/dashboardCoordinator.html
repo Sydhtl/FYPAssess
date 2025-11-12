@@ -2,8 +2,8 @@
 <html>
 <head>
     <title>FYPAssess - Coordinator</title>
-    <link rel="stylesheet" href="../../css/coordinator/dashboard.css">
-    <link rel="stylesheet" href="../../css/background.css">
+    <link rel="stylesheet" href="../../../css/background.css">
+    <link rel="stylesheet" href="../../../css/coordinator/dashboard.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
@@ -50,7 +50,7 @@
                 <a href="#" id="EvaluationForm"><i class="bi bi-file-earmark-text-fill icon-padding"></i> Evaluation Form</a>
             </div>
 
-            <a href="#coordinatorMenu" class="role-header active-role" data-role="coordinator">
+            <a href="#coordinatorMenu" class="role-header active-role menu-expanded" data-role="coordinator">
                 <span class="role-text">Coordinator</span>
                 <span class="arrow-container">
                     <i class="bi bi-chevron-down arrow-icon"></i>
@@ -58,16 +58,16 @@
             </a>
 
             <div id="coordinatorMenu" class="menu-items expanded">
-                <a href="#" id="coordinatorDashboard"><i class="bi bi-house-fill icon-padding"></i> Dashboard</a>
-                <a href="#" id="studentAssignation"><i class="bi bi-people-fill icon-padding"></i> Student Assignation</a>
-                <a href="#" id="learningObjective"><i class="bi bi-book-fill icon-padding"></i> Learning Objective</a>
+                <a href="dashboardCoordinator.html" id="coordinatorDashboard" class="active-menu-item"><i class="bi bi-house-fill icon-padding"></i> Dashboard</a>
+                <a href="../studentAssignation/studentAssignation.html" id="studentAssignation"><i class="bi bi-people-fill icon-padding"></i> Student Assignation</a>
+                <a href="../learningObjective/learningObjective.html" id="learningObjective"><i class="bi bi-book-fill icon-padding"></i> Learning Objective</a>
                 <a href="#" id="markSubmission"><i class="bi bi-clipboard-check-fill icon-padding"></i> Mark Submission</a>
-                <a href="#" id="coordinatorNotification"><i class="bi bi-bell-fill icon-padding"></i> Notification</a>
+                <a href="../notification/notification.html" id="coordinatorNotification"><i class="bi bi-bell-fill icon-padding"></i> Notification</a>
                 <a href="#" id="signatureSubmission"><i class="bi bi-pen-fill icon-padding"></i> Signature Submission</a>
                 <a href="#" id="dateTimeAllocation"><i class="bi bi-calendar-event-fill icon-padding"></i> Date and Time Allocation</a>
             </div>
 
-            <a href="../../login/login.html" id="logout">
+            <a href="../../../login/login.html" id="logout">
                 <i class="bi bi-box-arrow-left" style="padding-right: 10px;"></i> Logout
             </a>
         </div>
@@ -75,7 +75,7 @@
 
     <div id="containerAtas" class="containerAtas">
         <a href="dashboardCoordinator.html">
-            <img src="../../assets/UPMLogo.png" alt="UPM logo" width="100px" id="upm-logo">
+            <img src="../../../assets/UPMLogo.png" alt="UPM logo" width="100px" id="upm-logo">
         </a>
 
         <div class="header-text-group">
@@ -523,15 +523,8 @@
                 }
             }
             
-            // Show currently expanded menu items (coordinator menu should be expanded by default)
-            const coordinatorMenu = document.querySelector('#coordinatorMenu');
-            if (coordinatorMenu && coordinatorMenu.classList.contains('expanded')) {
-                coordinatorMenu.querySelectorAll('a').forEach(a => {
-                    if (sidebar.style.width === "220px") {
-                        a.style.display = 'block';
-                    }
-                });
-            }
+            // Show currently expanded menu items
+            document.querySelectorAll('.menu-items.expanded a').forEach(a => a.style.display = 'block');
 
             // 4. Hide the open icon
             if (menuIcon) menuIcon.style.display = "none";
@@ -570,6 +563,85 @@
 
         // --- Role Toggle Logic ---
         document.addEventListener('DOMContentLoaded', () => {
+            // Store the active menu item ID to restore when menu expands again
+            let activeMenuItemId = null;
+            
+            // Function to set active menu item based on current page
+            function setActiveMenuItemBasedOnPage() {
+                const currentPage = window.location.pathname;
+                const fileName = currentPage.split('/').pop();
+                
+                // Map page files to menu item IDs
+                const pageToMenuItemMap = {
+                    'dashboardCoordinator.html': 'coordinatorDashboard',
+                    'studentAssignation.html': 'studentAssignation',
+                    'learningObjective/learningObjective.html': 'learningObjective',
+                    'notification/notification.html': 'coordinatorNotification',
+                    'markSubmission.html': 'markSubmission',
+                    'signatureSubmission.html': 'signatureSubmission',
+                    'dateTimeAllocation.html': 'dateTimeAllocation'
+                };
+                
+                // Check if we're in a subdirectory
+                if (currentPage.includes('dashboard/')) {
+                    return 'coordinatorDashboard';
+                } else if (currentPage.includes('studentAssignation/')) {
+                    return 'studentAssignation';
+                } else if (currentPage.includes('learningObjective/')) {
+                    return 'learningObjective';
+                } else if (currentPage.includes('notification/')) {
+                    return 'coordinatorNotification';
+                }
+                
+                // Get the menu item ID for current page, default to dashboard
+                return pageToMenuItemMap[fileName] || 'coordinatorDashboard';
+            }
+            
+            // Initialize active menu item based on current page
+            activeMenuItemId = setActiveMenuItemBasedOnPage();
+            
+            // Function to set active menu item
+            function setActiveMenuItem(menuItemId) {
+                const coordinatorMenuItems = document.querySelectorAll('#coordinatorMenu a');
+                coordinatorMenuItems.forEach(item => {
+                    item.classList.remove('active-menu-item');
+                });
+                
+                const activeItem = document.querySelector(`#${menuItemId}`);
+                if (activeItem) {
+                    activeItem.classList.add('active-menu-item');
+                    activeMenuItemId = menuItemId;
+                }
+            }
+            
+            // Ensure coordinator header always has active-role class on coordinator pages
+            // And ensure other roles do NOT have active-role on coordinator pages
+            const allRoleHeaders = document.querySelectorAll('.role-header');
+            const coordinatorHeader = document.querySelector('.role-header[data-role="coordinator"]');
+            const coordinatorMenu = document.querySelector('#coordinatorMenu');
+            
+            // Remove active-role from all non-coordinator roles (since we're on coordinator pages)
+            allRoleHeaders.forEach(header => {
+                const roleType = header.getAttribute('data-role');
+                if (roleType !== 'coordinator') {
+                    header.classList.remove('active-role');
+                    header.classList.remove('menu-expanded');
+                }
+            });
+            
+            if (coordinatorHeader && coordinatorMenu) {
+                coordinatorHeader.classList.add('active-role');
+                
+                // If coordinator menu is expanded, add menu-expanded class to header and set active item
+                if (coordinatorMenu.classList.contains('expanded')) {
+                    coordinatorHeader.classList.add('menu-expanded');
+                    // Set active menu item based on current page
+                    setActiveMenuItem(activeMenuItemId);
+                } else {
+                    coordinatorHeader.classList.remove('menu-expanded');
+                }
+            }
+            
             const arrowContainers = document.querySelectorAll('.arrow-container');
             
             // Function to handle the role menu toggle
@@ -577,49 +649,51 @@
                 const menuId = header.getAttribute('href');
                 const targetMenu = document.querySelector(menuId);
                 const arrowIcon = header.querySelector('.arrow-icon');
-                const role = header.getAttribute('data-role');
+                const isCoordinator = header.getAttribute('data-role') === 'coordinator';
                 
                 if (!targetMenu) return;
 
                 const isExpanded = targetMenu.classList.contains('expanded');
-                const isCoordinator = role === 'coordinator';
 
-                // Only allow toggling if it's the coordinator role (current active role)
-                // For other roles, just expand/collapse menu without activating
-                if (!isCoordinator) {
-                    // For non-coordinator roles, just toggle menu visibility
-                    // Don't add active-role class or remove it from coordinator
-                    targetMenu.classList.toggle('expanded', !isExpanded);
-                    
-                    // Show/hide child links for the current menu (only when sidebar is expanded)
-                    const sidebar = document.getElementById("mySidebar");
-                    const isSidebarExpanded = sidebar.style.width === "220px";
-
-                    targetMenu.querySelectorAll('a').forEach(a => {
-                        if(isSidebarExpanded) {
-                             a.style.display = targetMenu.classList.contains('expanded') ? 'block' : 'none';
-                        } else {
-                            a.style.display = 'none';
-                        }
-                    });
-
-                    // Toggle arrow direction
-                    if (isExpanded) {
-                        arrowIcon.classList.remove('bi-chevron-down');
-                        arrowIcon.classList.add('bi-chevron-right');
-                    } else {
-                        arrowIcon.classList.remove('bi-chevron-right');
-                        arrowIcon.classList.add('bi-chevron-down');
-                    }
-                    return; // Exit early for non-coordinator roles
-                }
-
-                // For coordinator role, allow full toggle behavior
                 // Collapse all other menus and reset their arrows
                 document.querySelectorAll('.menu-items').forEach(menu => {
                     if (menu !== targetMenu) {
                         menu.classList.remove('expanded');
                         menu.querySelectorAll('a').forEach(a => a.style.display = 'none');
+                    }
+                });
+                
+                // CRITICAL: Always ensure coordinator header state is correct
+                const coordinatorHeader = document.querySelector('.role-header[data-role="coordinator"]');
+                const coordinatorMenu = document.querySelector('#coordinatorMenu');
+                
+                if (coordinatorHeader && coordinatorMenu) {
+                    // Coordinator header ALWAYS has active-role on coordinator pages
+                    coordinatorHeader.classList.add('active-role');
+                    
+                    // If coordinator menu is collapsed, ensure it shows white (remove menu-expanded)
+                    if (!coordinatorMenu.classList.contains('expanded')) {
+                        coordinatorHeader.classList.remove('menu-expanded');
+                    } else {
+                        // If coordinator menu is expanded, ensure it shows normal (add menu-expanded)
+                        coordinatorHeader.classList.add('menu-expanded');
+                        // Restore active menu item if menu is expanded
+                        if (activeMenuItemId) {
+                            setTimeout(() => {
+                                setActiveMenuItem(activeMenuItemId);
+                            }, 10);
+                        }
+                    }
+                }
+                
+                // Remove active-role from all non-coordinator roles (they shouldn't be highlighted on coordinator pages)
+                document.querySelectorAll('.role-header').forEach(h => {
+                    const roleType = h.getAttribute('data-role');
+                    // Only keep active-role for coordinator on coordinator pages
+                    if (roleType !== 'coordinator') {
+                        h.classList.remove('active-role');
+                        // Also remove menu-expanded class from other roles
+                        h.classList.remove('menu-expanded');
                     }
                 });
                 document.querySelectorAll('.arrow-icon').forEach(icon => {
@@ -631,7 +705,55 @@
 
                 // Toggle current menu
                 targetMenu.classList.toggle('expanded', !isExpanded);
-                // Coordinator always stays active (don't toggle active-role)
+                
+                // Handle coordinator header styling based on menu state
+                if (isCoordinator) {
+                    // Coordinator header always has active-role on coordinator pages
+                    header.classList.add('active-role');
+                    
+                    // Check menu state AFTER toggle
+                    const isNowExpanded = targetMenu.classList.contains('expanded');
+                    
+                    // Add/remove menu-expanded class based on menu state AFTER toggle
+                    if (isNowExpanded) {
+                        // Menu is now expanded - remove white background from header
+                        header.classList.add('menu-expanded');
+                        // Restore active menu item when menu expands (ensure it's visible and styled)
+                        if (activeMenuItemId) {
+                            // Small delay to ensure menu is fully expanded before setting active item
+                            setTimeout(() => {
+                                setActiveMenuItem(activeMenuItemId);
+                            }, 10);
+                        }
+                    } else {
+                        // Menu is now collapsed - add white background to header
+                        header.classList.remove('menu-expanded');
+                        // Keep active menu item class for when menu expands again
+                        // The activeMenuItemId variable already stores the current active item
+                    }
+                } else {
+                    // For other roles, DO NOT add active-role class
+                    // Other roles should only be highlighted when actually on their pages
+                    // Just toggle the menu, but don't highlight the header
+                    header.classList.remove('active-role');
+                    header.classList.remove('menu-expanded');
+                    
+                    // IMPORTANT: After toggling other roles, ensure coordinator header state is maintained
+                    // This ensures coordinator stays white when its menu is collapsed, even when other roles are clicked
+                    if (coordinatorHeader && coordinatorMenu) {
+                        coordinatorHeader.classList.add('active-role');
+                        if (!coordinatorMenu.classList.contains('expanded')) {
+                            coordinatorHeader.classList.remove('menu-expanded');
+                        } else {
+                            coordinatorHeader.classList.add('menu-expanded');
+                            if (activeMenuItemId) {
+                                setTimeout(() => {
+                                    setActiveMenuItem(activeMenuItemId);
+                                }, 10);
+                            }
+                        }
+                    }
+                }
                 
                 // Show/hide child links for the current menu (only when sidebar is expanded)
                 const sidebar = document.getElementById("mySidebar");
@@ -664,6 +786,25 @@
                 });
             });
 
+            // --- Menu Item Click Handlers ---
+            // Handle clicks on coordinator menu items
+            const coordinatorMenuItems = document.querySelectorAll('#coordinatorMenu a');
+            coordinatorMenuItems.forEach(menuItem => {
+                menuItem.addEventListener('click', (event) => {
+                    const coordinatorMenu = document.querySelector('#coordinatorMenu');
+                    const coordinatorHeader = document.querySelector('.role-header[data-role="coordinator"]');
+                    
+                    // Only set active menu item if coordinator menu is expanded
+                    if (coordinatorMenu && coordinatorMenu.classList.contains('expanded')) {
+                        // Store the clicked menu item ID
+                        const menuItemId = menuItem.getAttribute('id');
+                        if (menuItemId) {
+                            setActiveMenuItem(menuItemId);
+                        }
+                    }
+                });
+            });
+
             // --- Tab Switching Logic ---
             const tabs = document.querySelectorAll('.task-tab');
             const taskGroups = document.querySelectorAll('.task-group');
@@ -689,12 +830,6 @@
 
             // Default to 'title' tab view on load
             document.querySelector('.task-group[data-group="title"]').classList.add('active');
-            
-            // Ensure coordinator role header always has active-role class (should not be removed)
-            const coordinatorHeader = document.querySelector('.role-header[data-role="coordinator"]');
-            if (coordinatorHeader) {
-                coordinatorHeader.classList.add('active-role');
-            }
         });
     </script>
 </body>
