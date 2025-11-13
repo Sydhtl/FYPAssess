@@ -63,10 +63,10 @@
                 <a href="../dashboard/dashboardCoordinator.html" id="coordinatorDashboard"><i class="bi bi-house-fill icon-padding"></i> Dashboard</a>
                 <a href="../studentAssignation/studentAssignation.html" id="studentAssignation"><i class="bi bi-people-fill icon-padding"></i> Student Assignation</a>
                 <a href="learningObjective.html" id="learningObjective" class="active-menu-item"><i class="bi bi-book-fill icon-padding"></i> Learning Objective</a>
-                <a href="#" id="markSubmission"><i class="bi bi-clipboard-check-fill icon-padding"></i> Mark Submission</a>
+                <a href="../markSubmission/markSubmission.html" id="markSubmission"><i class="bi bi-clipboard-check-fill icon-padding"></i> Mark Submission</a>
                 <a href="../notification/notification.html" id="coordinatorNotification"><i class="bi bi-bell-fill icon-padding"></i> Notification</a>
                 <a href="../signatureSubmission/signatureSubmission.html" id="signatureSubmission"><i class="bi bi-pen-fill icon-padding"></i> Signature Submission</a>
-                <a href="#" id="dateTimeAllocation"><i class="bi bi-calendar-event-fill icon-padding"></i> Date and Time Allocation</a>
+                <a href="../dateTimeAllocation/dateTimeAllocation.html" id="dateTimeAllocation"><i class="bi bi-calendar-event-fill icon-padding"></i> Date and Time Allocation</a>
             </div>
 
             <a href="../../../login/login.html" id="logout">
@@ -319,16 +319,15 @@
                 const maxRows = learningObjectivesList.length;
                 
                 // Create rows for each learning objective (or one empty row if none)
-                for (let i = 0; i < maxRows; i++) {
+                learningObjectivesList.forEach((obj, i) => {
                     const row = document.createElement('tr');
-                    const obj = learningObjectivesList[i];
                     const isFirstRow = i === 0;
-                    const rowspan = maxRows + 1; // +1 for the "Add Learning Objective" button row
-                    
-                    row.innerHTML = `
-                        <td ${isFirstRow ? `rowspan="${rowspan}"` : 'style="display:none;"'}>${index + 1}.</td>
-                        <td ${isFirstRow ? `rowspan="${rowspan}"` : 'style="display:none;"'}>
-                            ${isFirstRow ? `
+                    const rowspan = maxRows;
+
+                    if (isFirstRow) {
+                        row.innerHTML += `
+                            <td rowspan="${rowspan}">${index + 1}.</td>
+                            <td rowspan="${rowspan}">
                                 <input type="text" 
                                        class="task-input" 
                                        value="${(item.task || '').replace(/"/g, '&quot;')}" 
@@ -336,34 +335,32 @@
                                        data-id="${item.id}"
                                        data-tab="${tabName}"
                                        onchange="updateTask(${item.id}, '${tabName}', this.value)" />
-                            ` : ''}
-                        </td>
+                            </td>
+                        `;
+                    }
+
+                    row.innerHTML += `
                         <td>
-                            <div class="learning-objective-cell-wrapper">
-                                <div class="learning-objective-input-wrapper">
-                                    <input type="text" 
-                                           class="learning-objective-input" 
-                                           value="${obj.objective}" 
-                                           placeholder="Select learning objective..."
-                                           data-id="${item.id}"
-                                           data-obj-index="${i}"
-                                           data-tab="${tabName}"
-                                           onclick="showLearningObjectiveDropdown(${item.id}, ${i}, '${tabName}')"
-                                           readonly />
-                                    <div class="learning-objective-dropdown" id="dropdown-${tabName}-${item.id}-${i}">
-                                        <div class="dropdown-search">
-                                            <i class="bi bi-search"></i>
-                                            <input type="text" placeholder="Search learning objective..." oninput="filterLearningObjectives(${item.id}, ${i}, '${tabName}', this.value)" />
-                                        </div>
-                                        <div class="dropdown-options" id="options-${tabName}-${item.id}-${i}">
-                                            ${generateLearningObjectiveOptions(obj.objective, item.id, i, tabName)}
-                                        </div>
+                            <div class="learning-objective-input-wrapper">
+                                <input type="text" 
+                                       class="learning-objective-input" 
+                                       value="${obj.objective}" 
+                                       placeholder="Select learning objective..."
+                                       data-id="${item.id}"
+                                       data-obj-index="${i}"
+                                       data-tab="${tabName}"
+                                       onclick="showLearningObjectiveDropdown(${item.id}, ${i}, '${tabName}')"
+                                       readonly />
+                                <div class="learning-objective-dropdown" id="dropdown-${tabName}-${item.id}-${i}">
+                                    <div class="dropdown-search">
+                                        <i class="bi bi-search"></i>
+                                        <input type="text" placeholder="Search learning objective..." oninput="filterLearningObjectives(${item.id}, ${i}, '${tabName}', this.value)" />
                                     </div>
-                                    <i class="bi bi-chevron-down dropdown-arrow-icon"></i>
+                                    <div class="dropdown-options" id="options-${tabName}-${item.id}-${i}">
+                                        ${generateLearningObjectiveOptions(obj.objective, item.id, i, tabName)}
+                                    </div>
                                 </div>
-                                <button class="btn-delete-objective" onclick="removeLearningObjective(${item.id}, ${i}, '${tabName}')" title="Delete learning objective">
-                                    <i class="bi bi-x-circle"></i>
-                                </button>
+                                <i class="bi bi-chevron-down dropdown-arrow-icon"></i>
                             </div>
                         </td>
                         <td>
@@ -378,28 +375,31 @@
                                    data-tab="${tabName}"
                                    onchange="updateMarks(${item.id}, ${i}, '${tabName}', this.value)" />
                         </td>
-                        <td ${isFirstRow ? `rowspan="${rowspan}"` : 'style="display:none;"'}>
-                            ${isFirstRow ? `
-                                <button class="btn-delete" onclick="deleteRow(${item.id}, '${tabName}')">
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                            ` : ''}
+                        <td class="delete-cell">
+                            <button class="btn-delete-allocation" onclick="removeLearningObjective(${item.id}, ${i}, '${tabName}')" title="Delete learning objective">
+                                <i class="bi bi-x-circle"></i>
+                            </button>
                         </td>
                     `;
                     tbody.appendChild(row);
-                }
-                
-                // Always add "Add Learning Objective" button row
+                });
+
+                // Add row for adding learning objectives / deleting task
                 const addRow = document.createElement('tr');
                 addRow.className = 'add-objective-row';
                 addRow.innerHTML = `
-                    <td class="add-objective-cell">
-                        <button class="btn-add-objective" onclick="addLearningObjective(${item.id}, '${tabName}')">
-                            <i class="bi bi-plus-circle"></i>
-                            <span>Add Learning Objective</span>
-                        </button>
+                    <td colspan="5">
+                        <div class="allocation-row-actions">
+                            <button class="btn-add-allocation" onclick="addLearningObjective(${item.id}, '${tabName}')">
+                                <i class="bi bi-plus-circle"></i>
+                                <span>Add Learning Objective</span>
+                            </button>
+                            <button class="btn-delete-task" onclick="deleteRow(${item.id}, '${tabName}')">
+                                <i class="bi bi-trash"></i>
+                                <span>Delete Task</span>
+                            </button>
+                        </div>
                     </td>
-                    <td class="add-objective-spacer"></td>
                 `;
                 tbody.appendChild(addRow);
             });

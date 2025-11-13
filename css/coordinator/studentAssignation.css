@@ -49,9 +49,7 @@
   margin-top: 20px;
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 450px);
-  min-height: 600px;
-  max-height: 800px;
+  gap: 15px;
 }
 
 /* Top Action Bar */
@@ -114,14 +112,13 @@
 
 /* Scrollable Table Container */
 .table-scroll-container {
-  flex: 1;
-  overflow-y: auto;
+  width: 100%;
+  overflow-y: visible;
   overflow-x: auto;
   border-radius: 8px;
   background-color: white;
-  margin-bottom: 15px;
-  min-height: 0;
   border: 1px solid #e0e0e0;
+  padding: 10px;
 }
 
 /* Custom scrollbar styling - Grey like logbook */
@@ -180,6 +177,44 @@
   background-color: #f9f9f9;
 }
 
+/* Student Distribution Table - Sticky No. and Name Columns */
+#studentDistributionTable th:nth-child(1),
+#studentDistributionTable td:nth-child(1) {
+  position: sticky;
+  left: 0;
+  background-color: white;
+  z-index: 5;
+  width: 60px;
+  min-width: 60px;
+}
+
+#studentDistributionTable thead th:nth-child(1) {
+  background-color: #780000;
+  z-index: 15;
+}
+
+#studentDistributionTable th:nth-child(2),
+#studentDistributionTable td:nth-child(2) {
+  position: sticky;
+  left: 60px; /* Width of No. column */
+  background-color: white;
+  z-index: 5;
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);
+  min-width: 150px;
+  width: 200px;
+}
+
+#studentDistributionTable thead th:nth-child(2) {
+  background-color: #780000;
+  z-index: 15;
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);
+}
+
+#studentDistributionTable tbody tr:hover td:nth-child(1),
+#studentDistributionTable tbody tr:hover td:nth-child(2) {
+  background-color: #f9f9f9;
+}
+
 .quota-input {
   width: 80px;
   padding: 8px;
@@ -207,11 +242,11 @@
   justify-content: space-between;
   align-items: center;
   padding: 15px 20px;
-  background-color: #f9f9f9;
+  background-color: transparent;
   border-radius: 8px;
   margin-top: auto;
   flex-shrink: 0;
-  border: 1px solid #e0e0e0;
+  border: none;
   width: 100%;
   box-sizing: border-box;
 }

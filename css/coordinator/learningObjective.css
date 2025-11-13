@@ -54,9 +54,7 @@
   margin-top: 20px;
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 400px);
-  min-height: 600px;
-  max-height: 800px;
+  gap: 15px;
 }
 
 .container-title {
@@ -89,14 +87,13 @@
 
 /* Scrollable Table Container */
 .table-scroll-container {
-  flex: 1;
-  overflow-y: auto;
+  width: 100%;
   overflow-x: auto;
+  overflow-y: visible;
   border-radius: 8px;
-  background-color: white;
-  margin-bottom: 15px;
-  min-height: 0;
+  background-color: #ffffff;
   border: 1px solid #e0e0e0;
+  padding: 12px;
 }
 
 /* Custom scrollbar styling - Grey like logbook */
@@ -128,7 +125,8 @@
 .learning-objective-table {
   width: 100%;
   border-collapse: collapse;
-  background-color: white;
+  background-color: #ffffff;
+  min-width: 900px;
 }
 
 .learning-objective-table thead {
@@ -147,14 +145,50 @@
   font-family: 'Montserrat', Arial, sans-serif;
 }
 
+.learning-objective-table th:nth-child(1) {
+  width: 60px;
+  min-width: 60px;
+}
+
+.learning-objective-table th:nth-child(2) {
+  width: 150px;
+  min-width: 150px;
+  max-width: 200px;
+}
+
+.learning-objective-table th:nth-child(3) {
+  min-width: 300px;
+}
+
+.learning-objective-table th:nth-child(4) {
+  width: 120px;
+  min-width: 120px;
+}
+
+.learning-objective-table th:nth-child(5) {
+  width: 80px;
+  min-width: 80px;
+}
+
 .learning-objective-table td {
   padding: 15px;
   border-bottom: 1px solid #eee;
   font-family: 'Montserrat', Arial, sans-serif;
 }
 
+.learning-objective-table td:nth-child(2) {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .learning-objective-table tbody tr:hover {
   background-color: #ffffff;
+}
+
+.delete-cell {
+  text-align: center;
+  width: 80px;
 }
 
 /* Learning Objective Cell Wrapper */
@@ -195,23 +229,19 @@
   color: #999;
 }
 
-/* Delete Learning Objective Button */
-.btn-delete-objective {
+/* Delete Learning Objective Button (per row) */
+.btn-delete-allocation {
   background: none;
   border: none;
   color: #dc3545;
   cursor: pointer;
   font-size: 18px;
-  padding: 5px 8px;
-  transition: all 0.2s;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  padding: 4px 6px;
   border-radius: 4px;
-  flex-shrink: 0;
+  transition: all 0.2s ease;
 }
 
-.btn-delete-objective:hover {
+.btn-delete-allocation:hover {
   color: #c82333;
   background-color: rgba(220, 53, 69, 0.1);
 }
@@ -228,12 +258,14 @@
 /* Task Input */
 .task-input {
   width: 100%;
+  max-width: 200px;
   padding: 8px 12px;
   border: 2px solid #ddd;
   border-radius: 5px;
   font-size: 14px;
   font-family: 'Montserrat', Arial, sans-serif;
   background-color: white;
+  box-sizing: border-box;
 }
 
 .task-input:focus {
@@ -241,48 +273,47 @@
   border-color: #780000;
 }
 
-/* Add Learning Objective Button */
-.btn-add-objective {
-  background-color: transparent;
-  color: #780000;
-  border: 2px dashed #780000;
-  padding: 8px 16px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 600;
-  transition: all 0.3s;
-  font-family: 'Montserrat', Arial, sans-serif;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.btn-add-objective:hover {
-  background-color: #780000;
-  color: white;
-  border-color: #780000;
-}
-
-.add-objective-row {
-  background-color: transparent;
-}
-
-.add-objective-row:hover {
-  background-color: transparent !important;
-}
-
+/* Add/Delete Learning Objective Row */
 .add-objective-row td {
   padding: 12px 15px;
   border-bottom: none;
 }
 
-.add-objective-cell {
-  text-align: left;
+.allocation-row-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
-.add-objective-spacer {
-  border-bottom: none;
+.btn-add-allocation,
+.btn-delete-task {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  color: #fff;
+}
+
+.btn-add-allocation {
+  background-color: #780000;
+}
+
+.btn-add-allocation:hover {
+  background-color: #5a0000;
+}
+
+.btn-delete-task {
+  background-color: #dc3545;
+}
+
+.btn-delete-task:hover {
+  background-color: #c82333;
 }
 
 /* Learning Objective Dropdown */
@@ -534,12 +565,14 @@
   display: flex;
   justify-content: flex-end;
   align-items: center;
-  padding: 15px 20px;
+  padding: 15px 0;
   background-color: transparent;
-  margin-top: auto;
+  margin-top: 15px;
   flex-shrink: 0;
   width: 100%;
   box-sizing: border-box;
+  border-radius: 8px;
+  border: none;
 }
 
 .table-footer .actions {
@@ -604,8 +637,11 @@
   }
 
   .learning-objective-container {
-    height: calc(100vh - 350px);
     min-height: 500px;
+  }
+
+  .learning-objective-table {
+    min-width: 800px;
   }
 
   .learning-objective-table th,
@@ -616,6 +652,12 @@
 
   .learning-objective-table th {
     font-size: 12px;
+  }
+
+  .learning-objective-table th:nth-child(2) {
+    width: 120px;
+    min-width: 120px;
+    max-width: 150px;
   }
 
   .learning-objective-input {
@@ -654,14 +696,23 @@
 
   .learning-objective-container {
     padding: 15px;
-    height: calc(100vh - 300px);
     min-height: 400px;
+  }
+
+  .learning-objective-table {
+    min-width: 700px;
   }
 
   .learning-objective-table th,
   .learning-objective-table td {
     padding: 8px 4px;
     font-size: 10px;
+  }
+
+  .learning-objective-table th:nth-child(2) {
+    width: 100px;
+    min-width: 100px;
+    max-width: 120px;
   }
 
   .learning-objective-input {

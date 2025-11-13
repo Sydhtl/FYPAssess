@@ -1,0 +1,727 @@
+/* Mark Submission Page Styles */
+
+.mark-submission-page {
+  background-color: #f7f7f7;
+  min-height: 100vh;
+}
+
+.page-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 20px;
+  font-family: 'Montserrat', Arial, sans-serif;
+}
+
+/* Filters Section */
+.filters-section {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 20px;
+  align-items: flex-end;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.filter-group label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  font-family: 'Montserrat', Arial, sans-serif;
+}
+
+.filter-select {
+  padding: 8px 12px;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: 'Montserrat', Arial, sans-serif;
+  background-color: white;
+  min-width: 150px;
+  cursor: pointer;
+}
+
+.filter-select:focus {
+  outline: none;
+  border-color: #780000;
+}
+
+/* Mark Submission Container */
+.mark-submission-container {
+  background-color: #fdf0d5;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  margin-top: 20px;
+}
+
+.tab-buttons {
+  display: flex;
+  border-bottom: 2px solid #e0e0e0;
+  margin-bottom: 20px;
+}
+
+.task-tab {
+  padding: 10px 20px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #666;
+  border-bottom: 3px solid transparent;
+  transition: all 0.2s;
+  font-family: Montserrat, Arial, sans-serif;
+}
+
+.task-tab.active-tab {
+  color: #780000;
+  border-bottom-color: #780000;
+}
+
+.task-group {
+  display: none;
+}
+
+.task-group.active {
+  display: block;
+}
+
+.mark-content-container {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.container-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.view-dropdown-wrapper {
+  flex: 0 0 auto;
+}
+
+.view-dropdown {
+  padding: 8px 12px;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: 'Montserrat', Arial, sans-serif;
+  background-color: white;
+  min-width: 220px;
+  cursor: pointer;
+}
+
+.view-dropdown:focus {
+  outline: none;
+  border-color: #780000;
+}
+
+.download-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.download-dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.btn-download {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.3s;
+  font-family: 'Montserrat', Arial, sans-serif;
+  border: none;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+.btn-download-pdf {
+  background-color: #dc3545;
+  color: white;
+}
+
+.btn-download-pdf:hover {
+  background-color: #c82333;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.btn-download-excel {
+  background-color: #28a745;
+  color: white;
+}
+
+.btn-download-excel:hover {
+  background-color: #218838;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.btn-download i {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.btn-download .dropdown-arrow {
+  font-size: 12px;
+  transition: transform 0.3s;
+  margin-left: 2px;
+}
+
+.download-dropdown-menu {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 5px;
+  background-color: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  min-width: 250px;
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.download-dropdown-menu.show {
+  display: block;
+}
+
+.download-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  color: #333;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background-color 0.2s;
+  font-family: 'Montserrat', Arial, sans-serif;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.download-option:last-child {
+  border-bottom: none;
+}
+
+.download-option:hover {
+  background-color: #f8f9fa;
+  color: #780000;
+}
+
+.download-option i {
+  font-size: 18px;
+  color: #666;
+  flex-shrink: 0;
+}
+
+.download-option:hover i {
+  color: #780000;
+}
+
+.download-option.pdf-option i {
+  color: #dc3545;
+}
+
+.download-option.pdf-option:hover i {
+  color: #c82333;
+}
+
+.download-option.excel-option i {
+  color: #28a745;
+}
+
+.download-option.excel-option:hover i {
+  color: #218838;
+}
+
+.download-option.notify-option i {
+  color: #ffc107;
+}
+
+.download-option.notify-option:hover i {
+  color: #d39e00;
+}
+
+/* Scrollable Table Container */
+.table-scroll-container {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: visible;
+  border-radius: 8px;
+  background-color: #ffffff;
+  border: 1px solid #e0e0e0;
+  padding: 12px;
+}
+
+.table-scroll-container {
+  scrollbar-width: thin;
+  scrollbar-color: #c0c0c0 #f1f1f1;
+}
+
+.table-scroll-container::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.table-scroll-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.table-scroll-container::-webkit-scrollbar-thumb {
+  background: #c0c0c0;
+  border-radius: 4px;
+}
+
+.table-scroll-container::-webkit-scrollbar-thumb:hover {
+  background: #a0a0a0;
+}
+
+/* Mark Submission Table */
+.mark-submission-table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: #ffffff;
+  min-width: 900px;
+}
+
+.mark-submission-table thead {
+  background-color: #780000;
+  color: white;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.mark-submission-table th {
+  padding: 15px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 14px;
+  font-family: 'Montserrat', Arial, sans-serif;
+}
+
+.mark-submission-table td {
+  padding: 15px;
+  border-bottom: 1px solid #eee;
+  font-family: 'Montserrat', Arial, sans-serif;
+  color: #333;
+}
+
+.mark-submission-table td a {
+  color: #333;
+  text-decoration: none;
+}
+
+.mark-submission-table td a:hover {
+  color: #333;
+  text-decoration: none;
+}
+
+.mark-submission-table tbody tr:hover {
+  background-color: #f9f9f9;
+}
+
+/* Ensure sticky columns maintain white background on hover */
+.mark-submission-table:not(.lecturer-view) tbody tr:hover td:nth-child(1),
+.mark-submission-table:not(.lecturer-view) tbody tr:hover td:nth-child(2),
+.mark-submission-table:not(.lecturer-view) tbody tr:hover td:nth-child(3),
+.mark-submission-table.lecturer-view tbody tr:hover td:nth-child(1),
+.mark-submission-table.lecturer-view tbody tr:hover td:nth-child(2),
+.mark-submission-table.lecturer-view tbody tr:hover td:last-child {
+  background-color: #ffffff;
+}
+
+/* Sticky Columns - Student Marks Overview */
+.mark-submission-table:not(.lecturer-view) th:nth-child(1),
+.mark-submission-table:not(.lecturer-view) td:nth-child(1) {
+  position: sticky;
+  left: 0;
+  background-color: #ffffff;
+  z-index: 10;
+  width: 60px;
+  min-width: 60px;
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);
+}
+
+.mark-submission-table:not(.lecturer-view) th:nth-child(2),
+.mark-submission-table:not(.lecturer-view) td:nth-child(2) {
+  position: sticky;
+  left: 60px;
+  background-color: #ffffff;
+  z-index: 10;
+  width: 120px;
+  min-width: 120px;
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);
+}
+
+.mark-submission-table:not(.lecturer-view) th:nth-child(3),
+.mark-submission-table:not(.lecturer-view) td:nth-child(3) {
+  position: sticky;
+  left: 180px;
+  background-color: #ffffff;
+  z-index: 10;
+  width: 150px;
+  min-width: 150px;
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);
+}
+
+.mark-submission-table:not(.lecturer-view) thead tr th:nth-child(1),
+.mark-submission-table:not(.lecturer-view) thead tr th:nth-child(2),
+.mark-submission-table:not(.lecturer-view) thead tr th:nth-child(3) {
+  background-color: #780000;
+  color: #fff;
+  z-index: 11;
+}
+
+/* Sticky Columns - Lecturer Progress */
+.mark-submission-table.lecturer-view th:nth-child(1),
+.mark-submission-table.lecturer-view td:nth-child(1) {
+  position: sticky;
+  left: 0;
+  background-color: #ffffff;
+  z-index: 10;
+  width: 60px;
+  min-width: 60px;
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);
+}
+
+.mark-submission-table.lecturer-view th:nth-child(2),
+.mark-submission-table.lecturer-view td:nth-child(2) {
+  position: sticky;
+  left: 60px;
+  background-color: #ffffff;
+  z-index: 10;
+  width: 200px;
+  min-width: 200px;
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);
+}
+
+.mark-submission-table.lecturer-view thead tr th:nth-child(1),
+.mark-submission-table.lecturer-view thead tr th:nth-child(2) {
+  background-color: #780000;
+  color: #fff;
+  z-index: 11;
+}
+
+.mark-submission-table.lecturer-view thead tr:nth-child(2) th:nth-child(1),
+.mark-submission-table.lecturer-view thead tr:nth-child(2) th:nth-child(2) {
+  background-color: #8c2f2f;
+  color: #fff;
+  z-index: 11;
+}
+
+/* Notify column sticky on right for lecturer view */
+.mark-submission-table.lecturer-view th:last-child,
+.mark-submission-table.lecturer-view td:last-child {
+  position: sticky;
+  right: 0;
+  background-color: #ffffff;
+  z-index: 10;
+  width: 100px;
+  min-width: 100px;
+  box-shadow: -2px 0 4px rgba(0, 0, 0, 0.1);
+}
+
+.mark-submission-table.lecturer-view thead tr:first-child th:last-child {
+  background-color: #780000;
+  color: #fff;
+  z-index: 11;
+}
+
+.mark-submission-table.lecturer-view thead tr:nth-child(2) th:last-child {
+  background-color: #8c2f2f;
+  color: #fff;
+  z-index: 11;
+}
+
+.mark-submission-table thead tr:nth-child(2) th {
+  background-color: #8c2f2f;
+  color: #fff;
+  font-size: 12px;
+  text-align: center;
+}
+
+/* Equal column widths for non-sticky columns - Student Marks Overview */
+.mark-submission-table:not(.lecturer-view) th:nth-child(4),
+.mark-submission-table:not(.lecturer-view) td:nth-child(4),
+.mark-submission-table:not(.lecturer-view) th:nth-child(5),
+.mark-submission-table:not(.lecturer-view) td:nth-child(5),
+.mark-submission-table:not(.lecturer-view) th:nth-child(6),
+.mark-submission-table:not(.lecturer-view) td:nth-child(6) {
+  width: 16.67%;
+}
+
+/* Equal column widths for task columns - Lecturer Progress */
+.mark-submission-table.lecturer-view th:nth-child(n+3):not(:last-child),
+.mark-submission-table.lecturer-view td:nth-child(n+3):not(:last-child) {
+  width: 12%;
+  min-width: 120px;
+}
+
+.mark-submission-table.lecturer-view tbody td {
+  vertical-align: middle;
+  text-align: center;
+}
+
+.status-badge {
+  display: inline;
+  font-weight: 600;
+  font-size: 14px;
+  text-transform: capitalize;
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+.status-completed {
+  color: #28a745;
+}
+
+.status-incomplete {
+  color: #dc3545;
+}
+
+/* Sticky Footer */
+.table-footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 15px 0;
+  background-color: transparent;
+  margin-top: 15px;
+  flex-shrink: 0;
+  width: 100%;
+  box-sizing: border-box;
+  border-radius: 8px;
+  border: none;
+}
+
+.table-footer .actions {
+  display: flex;
+  gap: 10px;
+}
+
+/* Notify Button */
+.btn-notify {
+  background-color: #d4af37;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: 'Montserrat', Arial, sans-serif;
+  transition: all 0.2s ease;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.btn-notify:hover {
+  background-color: #b8941f;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.btn-download.active .dropdown-arrow {
+  transform: rotate(180deg);
+}
+
+.btn-notify-group {
+  background-color: #ffc107;
+  color: #333;
+}
+
+.btn-notify-group:hover {
+  background-color: #e0a800;
+  color: #212529;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.empty-state {
+  text-align: center;
+  padding: 30px 10px;
+  color: #777;
+  font-style: italic;
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 999;
+}
+
+.modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #fff;
+  border-radius: 12px;
+  padding: 25px 30px;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  width: 340px;
+  max-width: 90%;
+}
+
+.modal-content {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  text-align: center;
+}
+
+.modal-content h2 {
+  margin: 0;
+  font-size: 20px;
+  color: #333;
+}
+
+.modal-content p {
+  margin: 0;
+  color: #555;
+  font-size: 14px;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+/* Responsive Design */
+@media (max-width: 992px) {
+  .container-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .view-dropdown-wrapper {
+    width: 100%;
+  }
+
+  .view-dropdown {
+    width: 100%;
+  }
+
+  .download-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .btn-download {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 10px 10px;
+    font-size: 12px;
+    gap: 5px;
+  }
+
+  .btn-notify {
+    width: 100%;
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 768px) {
+  .filters-section {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .filter-group {
+    width: 100%;
+  }
+
+  .filter-select {
+    width: 100%;
+  }
+
+  .mark-submission-table {
+    min-width: 800px;
+  }
+
+  .mark-submission-table th,
+  .mark-submission-table td {
+    padding: 10px 6px;
+    font-size: 11px;
+  }
+
+  .mark-submission-table th {
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 576px) {
+  .page-title {
+    font-size: 20px;
+  }
+
+  .mark-submission-container {
+    padding: 15px;
+  }
+
+  .mark-submission-table {
+    min-width: 700px;
+  }
+
+  .mark-submission-table th,
+  .mark-submission-table td {
+    padding: 8px 4px;
+    font-size: 10px;
+  }
+
+  .btn-download {
+    padding: 9px 8px;
+    font-size: 11px;
+    border-radius: 6px;
+    gap: 4px;
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .btn-download i {
+    font-size: 14px;
+  }
+
+  .btn-download span {
+    display: inline;
+    font-size: 10px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .btn-notify {
+    width: 100%;
+    padding: 8px 6px;
+    font-size: 11px;
+  }
+}
+
