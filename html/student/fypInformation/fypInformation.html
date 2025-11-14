@@ -49,18 +49,18 @@
     </div>
 
 <div id="main">
-    <div id="segmentTabs">
-        <button id="tabInfo" class="segment active">FYP Information</button>
-        <button id="tabPast" class="segment">Past Student's Title</button>
-    </div>
-
-    <div id="fypInfoSection" class="section">
-        <h4 class="section-title">FYP Project Information</h4>
-
-        <div class="info-card">
+    <div class="info-card">
+        <div class="tab-buttons">
+            <button id="tabInfo" class="task-tab active-tab">FYP Information</button>
+            <button id="tabPast" class="task-tab">Past Student's Title</button>
+        </div>
+        
+        <div id="fypInfoSection" class="task-group active">
         <form id="fypInfoForm">
             <div class="row g-3">
+                <h4 class="section-title">FYP Information</h4>
                 <div class="col-md-6">
+                    
                     <label class="form-label">Name</label>
                     <input type="text" class="form-control readonly-field" value="NURUL SAIDAHTUL FATIHA BINTI SHAHARUDIN" readonly>
                 </div>
@@ -95,12 +95,28 @@
             </div>
         </form>
         </div>
-    </div>
 
-    <div id="pastTitlesSection" class="section" style="display:none;">
-        <h4 class="section-title">Past Student's Title</h4>
-        <div class="past-list">
-            <div class="accordion" id="pastAccordion"></div>
+        <div id="pastTitlesSection" class="task-group">
+            <div class="past-list">
+                <h4 class="section-title">Past Student's Title</h4>
+                
+                <!-- Search and Sort Controls -->
+                <div class="past-title-controls">
+                    <div class="search-box">
+                        <i class="bi bi-search"></i>
+                        <input type="text" id="pastTitleSearch" class="search-input" placeholder="Search by name or title...">
+                    </div>
+                    <div class="sort-controls">
+                        <label for="sortBySession" class="sort-label">Sort by:</label>
+                        <select id="sortBySession" class="sort-select">
+                            <option value="latest">Latest Session First</option>
+                            <option value="oldest">Oldest Session First</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="accordion" id="pastAccordion"></div>
+            </div>
         </div>
     </div>
     </div>
@@ -163,19 +179,34 @@
     	var tabPast = document.getElementById('tabPast');
     	var infoSection = document.getElementById('fypInfoSection');
     	var pastSection = document.getElementById('pastTitlesSection');
+        
+        // Declare renderPastTitlesNow function variable (will be defined later)
+        var renderPastTitlesNow;
 
-    	tabInfo.addEventListener('click', function(){
-    		tabInfo.classList.add('active');
-    		tabPast.classList.remove('active');
-    		infoSection.style.display = 'block';
-    		pastSection.style.display = 'none';
-    	});
-    	tabPast.addEventListener('click', function(){
-    		tabPast.classList.add('active');
-    		tabInfo.classList.remove('active');
-    		pastSection.style.display = 'block';
-    		infoSection.style.display = 'none';
-    	});
+    	// Function to switch to FYP Information tab
+    	function showFYPInfo() {
+    		tabInfo.classList.add('active-tab');
+    		tabPast.classList.remove('active-tab');
+    		infoSection.classList.add('active');
+    		pastSection.classList.remove('active');
+    	}
+
+    	// Function to switch to Past Titles tab
+    	function showPastTitles() {
+    		tabInfo.classList.remove('active-tab');
+    		tabPast.classList.add('active-tab');
+    		infoSection.classList.remove('active');
+    		pastSection.classList.add('active');
+    		// Re-render past titles when switching to this tab to ensure Bootstrap collapse works
+    		setTimeout(function() {
+    			if (renderPastTitlesNow) {
+    				renderPastTitlesNow();
+    			}
+    		}, 100);
+    	}
+
+    	tabInfo.addEventListener('click', showFYPInfo);
+    	tabPast.addEventListener('click', showPastTitles);
         
         // --- Title change flow ---
         var changeBtn = document.getElementById('changeTitleBtn');
@@ -255,51 +286,190 @@
             openModal(editModal);
         });
 
-        // --- Populate Past Titles grouped by Supervisor ---
+        // --- Populate Past Titles grouped by Supervisor and Session ---
         var pastData = [
             {
                 supervisor: 'Dr. Azrina Binti Kamaruddin',
-                students: [
-                    { name: 'Aiman Zulkifli', title: 'IoT-based Smart Greenhouse Monitoring' },
-                    { name: 'Nurul Izzah', title: 'Automated Grading System for Final Year Projects' },
-                    { name: 'Muhammad Hafiz', title: 'Web-based Library Management System' }
+                sessions: [
+                    {
+                        session: '2024/2025',
+                        students: [
+                            { name: 'Aiman Zulkifli', title: 'IoT-based Smart Greenhouse Monitoring System' },
+                            { name: 'Nurul Izzah', title: 'Automated Grading System for Final Year Projects' }
+                        ]
+                    },
+                    {
+                        session: '2023/2024',
+                        students: [
+                            { name: 'Muhammad Hafiz', title: 'Web-based Library Management System' },
+                            { name: 'Siti Aisyah', title: 'Mobile Application for Health Monitoring' }
+                        ]
+                    },
+                    {
+                        session: '2022/2023',
+                        students: [
+                            { name: 'Ahmad Firdaus', title: 'E-Learning Platform for Online Courses' },
+                            { name: 'Nora Aziz', title: 'Inventory Management System for Retail Stores' }
+                        ]
+                    }
                 ]
             },
             {
                 supervisor: 'Prof. Ahmad Rahman',
-                students: [
-                    { name: 'Siti Aminah', title: 'Mobile Attendance Tracking Using NFC' },
-                    { name: 'Daniel Chong', title: 'Machine Learning for Plant Disease Detection' }
+                sessions: [
+                    {
+                        session: '2023/2024',
+                        students: [
+                            { name: 'Siti Aminah', title: 'Mobile Attendance Tracking Using NFC' },
+                            { name: 'Daniel Chong', title: 'Machine Learning for Plant Disease Detection' }
+                        ]
+                    },
+                    {
+                        session: '2022/2023',
+                        students: [
+                            { name: 'Lim Wei Jie', title: 'Smart Home Automation System' }
+                        ]
+                    }
                 ]
             },
             {
                 supervisor: 'Dr. Siti Nurhaliza',
-                students: [
-                    { name: 'Sarah Abdullah', title: 'E-commerce Platform with Payment Integration' },
-                    { name: 'Lee Wei Ming', title: 'Cloud-based Document Management System' }
+                sessions: [
+                    {
+                        session: '2024/2025',
+                        students: [
+                            { name: 'Sarah Abdullah', title: 'E-commerce Platform with Payment Integration' }
+                        ]
+                    },
+                    {
+                        session: '2023/2024',
+                        students: [
+                            { name: 'Lee Wei Ming', title: 'Cloud-based Document Management System' },
+                            { name: 'Tan Mei Ling', title: 'Social Media Analytics Dashboard' }
+                        ]
+                    }
                 ]
             }
         ];
 
-        var acc = document.getElementById('pastAccordion');
-        if (acc) {
+        // Function to sort sessions
+        function sortSessions(sessions, order) {
+            var sorted = sessions.slice();
+            sorted.sort(function(a, b) {
+                var aYear = parseInt(a.session.split('/')[0]);
+                var bYear = parseInt(b.session.split('/')[0]);
+                return order === 'latest' ? bYear - aYear : aYear - bYear;
+            });
+            return sorted;
+        }
+
+        // Function to render past titles
+        function renderPastTitles(data, sortOrder, searchTerm) {
+            var acc = document.getElementById('pastAccordion');
+            if (!acc) return;
+            
             acc.innerHTML = '';
-            pastData.forEach(function(group, idx){
-                var headerId = 'heading' + idx;
-                var collapseId = 'collapse' + idx;
-                var studentsHtml = group.students.map(function(s){
-                    return '<div class="student-item"><strong>' + s.name + ':</strong> ' + s.title + '</div>';
-                }).join('');
+            var supervisorIndex = 0;
+            var hasResults = false;
+            
+            data.forEach(function(group) {
+                var supervisorHeaderId = 'supervisor-heading-' + supervisorIndex;
+                var supervisorCollapseId = 'supervisor-collapse-' + supervisorIndex;
+                
+                // Filter and sort sessions
+                var filteredSessions = group.sessions.map(function(session) {
+                    if (!searchTerm) return session;
+                    
+                    var filteredStudents = session.students.filter(function(student) {
+                        var searchLower = searchTerm.toLowerCase();
+                        return student.name.toLowerCase().includes(searchLower) || 
+                               student.title.toLowerCase().includes(searchLower);
+                    });
+                    
+                    return filteredStudents.length > 0 ? {
+                        session: session.session,
+                        students: filteredStudents
+                    } : null;
+                }).filter(function(s) { return s !== null; });
+                
+                if (filteredSessions.length === 0) {
+                    supervisorIndex++;
+                    return;
+                }
+                
+                hasResults = true;
+                var sortedSessions = sortSessions(filteredSessions, sortOrder);
+                
+                // Build sessions HTML
+                var sessionsHtml = '';
+                sortedSessions.forEach(function(session, sessionIdx) {
+                    var sessionHeaderId = 'session-heading-' + supervisorIndex + '-' + sessionIdx;
+                    var sessionCollapseId = 'session-collapse-' + supervisorIndex + '-' + sessionIdx;
+                    
+                    var studentsHtml = session.students.map(function(s) {
+                        return '<div class="student-item">' +
+                            '<strong>' + s.name + ':</strong> ' + s.title +
+                            '</div>';
+                    }).join('');
+                    
+                    sessionsHtml += '<div class="session-item">' +
+                        '<button class="session-btn" type="button" data-bs-toggle="collapse" data-bs-target="#' + sessionCollapseId + '" aria-expanded="false" aria-controls="' + sessionCollapseId + '">' +
+                        '<span class="session-label">Session ' + session.session + '</span>' +
+                        '<i class="bi bi-chevron-down session-arrow"></i>' +
+                        '</button>' +
+                        '<div id="' + sessionCollapseId + '" class="collapse session-content" data-bs-parent="#supervisor-' + supervisorIndex + '-sessions">' +
+                        '<div class="students-list">' + studentsHtml + '</div>' +
+                        '</div>' +
+                        '</div>';
+                });
+                
                 var itemHtml = '<div class="supervisor-item">' +
-                    '<button class="supervisor-btn" type="button" data-bs-toggle="collapse" data-bs-target="#' + collapseId + '" aria-expanded="false" aria-controls="' + collapseId + '">' +
+                    '<button class="supervisor-btn" type="button" data-bs-toggle="collapse" data-bs-target="#' + supervisorCollapseId + '" aria-expanded="false" aria-controls="' + supervisorCollapseId + '">' +
                     '<span>' + group.supervisor + '</span>' +
                     '<i class="bi bi-chevron-down"></i>' +
                     '</button>' +
-                    '<div id="' + collapseId + '" class="collapse supervisor-content" data-bs-parent="#pastAccordion">' +
-                    '<div class="students-list">' + studentsHtml + '</div>' +
+                    '<div id="' + supervisorCollapseId + '" class="collapse supervisor-content" data-bs-parent="#pastAccordion">' +
+                    '<div id="supervisor-' + supervisorIndex + '-sessions" class="sessions-container">' + sessionsHtml + '</div>' +
                     '</div>' +
                     '</div>';
+                
                 acc.insertAdjacentHTML('beforeend', itemHtml);
+                supervisorIndex++;
+            });
+            
+            // Show "no results" message if search returns nothing
+            if (!hasResults && searchTerm) {
+                acc.innerHTML = '<div class="no-results" style="text-align: center; padding: 40px 20px; color: #999; font-style: italic;">No results found for "' + searchTerm + '"</div>';
+            }
+        }
+
+        // Initialize past titles variables
+        var currentSortOrder = 'latest';
+        var currentSearchTerm = '';
+        
+        // Function to render past titles (always render, the section visibility is handled by CSS)
+        renderPastTitlesNow = function() {
+            renderPastTitles(pastData, currentSortOrder, currentSearchTerm);
+        };
+        
+        // Initial render
+        renderPastTitlesNow();
+
+        // Search functionality
+        var searchInput = document.getElementById('pastTitleSearch');
+        if (searchInput) {
+            searchInput.addEventListener('input', function() {
+                currentSearchTerm = this.value.trim();
+                renderPastTitlesNow();
+            });
+        }
+
+        // Sort functionality
+        var sortSelect = document.getElementById('sortBySession');
+        if (sortSelect) {
+            sortSelect.addEventListener('change', function() {
+                currentSortOrder = this.value;
+                renderPastTitlesNow();
             });
         }
     };

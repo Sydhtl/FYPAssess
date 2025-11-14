@@ -1,31 +1,37 @@
 /* Logbook Submission Page Styles */
 
-/* Segment Tabs */
-#segmentTabs{
-	margin: 10px 0 20px 0;
-	display: inline-flex;
-	border: 2px solid #000;
-	border-radius: 6px;
-	overflow: hidden;
-	background-color: #e9e9e9;
+/* Task Tab Styles - Matching Assessor Dashboard */
+.tab-buttons {
+    display: flex;
+    border-bottom: 2px solid #e0e0e0;
+    margin-bottom: 15px;
 }
 
-.segment{
-	font-family: Montserrat;
-	font-weight: 700;
-	font-size: 14px; /* keep compact */
-	padding: 8px 14px; /* small size as requested */
-	border: none;
-	background: transparent;
-	cursor: pointer;
+.task-tab {
+    padding: 10px 20px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    color: #666;
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s;
+    font-family: Montserrat;
 }
-.segment:not(.active){
-	color: #000;
+
+.task-tab.active-tab {
+    color: #780000;
+    border-bottom-color: #780000;
 }
-.segment.active{
-	background-color: #ffffff;
-	border-left: 1px solid #000;
-	border-right: 1px solid #000;
+
+/* Task Group Styles - Matching Assessor Dashboard */
+.task-group {
+    display: none;
+}
+
+.task-group.active {
+    display: block;
 }
 
 .logbook-container {
