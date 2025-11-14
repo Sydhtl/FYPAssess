@@ -118,7 +118,7 @@
   border-radius: 8px;
   background-color: white;
   border: 1px solid #e0e0e0;
-  padding: 10px;
+  padding: 10px 10px 10px 0;
 }
 
 /* Custom scrollbar styling - Grey like logbook */
@@ -158,7 +158,7 @@
   color: white;
   position: sticky;
   top: 0;
-  z-index: 10;
+  z-index: 102;
 }
 
 .quota-table th {
@@ -183,14 +183,14 @@
   position: sticky;
   left: 0;
   background-color: white;
-  z-index: 5;
+  z-index: 100;
   width: 60px;
   min-width: 60px;
 }
 
 #studentDistributionTable thead th:nth-child(1) {
   background-color: #780000;
-  z-index: 15;
+  z-index: 101;
 }
 
 #studentDistributionTable th:nth-child(2),
@@ -198,7 +198,7 @@
   position: sticky;
   left: 60px; /* Width of No. column */
   background-color: white;
-  z-index: 5;
+  z-index: 100;
   box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);
   min-width: 150px;
   width: 200px;
@@ -206,7 +206,7 @@
 
 #studentDistributionTable thead th:nth-child(2) {
   background-color: #780000;
-  z-index: 15;
+  z-index: 101;
   box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);
 }
 

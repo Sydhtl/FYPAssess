@@ -61,13 +61,13 @@
                 <a href="../dashboard/dashboardCoordinator.html" id="coordinatorDashboard"><i class="bi bi-house-fill icon-padding"></i> Dashboard</a>
                 <a href="../studentAssignation/studentAssignation.html" id="studentAssignation"><i class="bi bi-people-fill icon-padding"></i> Student Assignation</a>
                 <a href="../learningObjective/learningObjective.html" id="learningObjective"><i class="bi bi-book-fill icon-padding"></i> Learning Objective</a>
-                <a href="markSubmission.html" id="markSubmission" class="active-menu-item"><i class="bi bi-clipboard-check-fill icon-padding"></i> Mark Submission</a>
+                <a href="markSubmission.html" id="markSubmission" class="active-menu-item"><i class="bi bi-clipboard-check-fill icon-padding"></i> Progress Submission</a>
                 <a href="../notification/notification.html" id="coordinatorNotification"><i class="bi bi-bell-fill icon-padding"></i> Notification</a>
                 <a href="../signatureSubmission/signatureSubmission.html" id="signatureSubmission"><i class="bi bi-pen-fill icon-padding"></i> Signature Submission</a>
                 <a href="../dateTimeAllocation/dateTimeAllocation.html" id="dateTimeAllocation"><i class="bi bi-calendar-event-fill icon-padding"></i> Date & Time Allocation</a>
             </div>
 
-            <a href="../../../login/login.html" id="logout">
+            <a href="../../login/login.html" id="logout">
                 <i class="bi bi-box-arrow-left" style="padding-right: 10px;"></i> Logout
             </a>
         </div>
@@ -91,7 +91,7 @@
     </div>
 
     <div id="main" class="main-grid">
-        <h1 class="page-title">Mark Submission</h1>
+        <h1 class="page-title">Progress Submission</h1>
 
         <div class="filters-section">
             <div class="filter-group">
@@ -113,13 +113,80 @@
 
         <div class="mark-submission-container">
             <div class="tab-buttons">
-                <button class="task-tab active-tab" data-tab="swe4949a">SWE4949-A</button>
+                <button class="task-tab active-tab" data-tab="fyp-title-submission">FYP Title Submission</button>
+                <button class="task-tab" data-tab="swe4949a">SWE4949-A</button>
                 <button class="task-tab" data-tab="swe4949b">SWE4949-B</button>
             </div>
 
             <div class="task-list-area">
+                <!-- FYP Title Submission Tab -->
+                <div class="task-group active" data-group="fyp-title-submission">
+                    <div class="mark-content-container">
+                        <div class="container-header">
+                            <div class="view-dropdown-wrapper">
+                                
+                            </div>
+                            <div class="download-actions">
+                             
+                                <div class="download-dropdown">
+                                    <button id="downloadButtonPdfFYP" class="btn-download btn-download-pdf" onclick="toggleDownloadDropdown('pdf', 'fyp', this)">
+                                        <i class="bi bi-file-earmark-pdf"></i>
+                                        <span>Download as PDF</span>
+                                        <i class="bi bi-chevron-down dropdown-arrow"></i>
+                                    </button>
+                                    <div class="download-dropdown-menu" id="downloadDropdownPdfFYP">
+                                        <a href="javascript:void(0)" onclick="downloadAsPDF('fyp-title-submission', 'submissions'); closeDownloadDropdown('pdf', 'fyp');" class="download-option pdf-option">
+                                            <i class="bi bi-file-earmark-pdf"></i>
+                                            <span>Download submissions</span>
+                                        </a>
+                                        <a href="javascript:void(0)" onclick="downloadAsPDF('fyp-title-submission', 'submissions-comments'); closeDownloadDropdown('pdf', 'fyp');" class="download-option pdf-option">
+                                            <i class="bi bi-file-earmark-pdf"></i>
+                                            <span>Download as PDF with comments</span>
+                                        </a>
+                                    </div>
+                                </div>
+                                <div class="download-dropdown">
+                                    <button id="downloadButtonExcelFYP" class="btn-download btn-download-excel" onclick="toggleDownloadDropdown('excel', 'fyp', this)">
+                                        <i class="bi bi-file-earmark-excel"></i>
+                                        <span>Download as Excel</span>
+                                        <i class="bi bi-chevron-down dropdown-arrow"></i>
+                                    </button>
+                                    <div class="download-dropdown-menu" id="downloadDropdownExcelFYP">
+                                        <a href="javascript:void(0)" onclick="downloadAsExcel('fyp-title-submission', 'submissions'); closeDownloadDropdown('excel', 'fyp');" class="download-option excel-option">
+                                            <i class="bi bi-file-earmark-excel"></i>
+                                            <span>Download submissions</span>
+                                        </a>
+                                        <a href="javascript:void(0)" onclick="downloadAsExcel('fyp-title-submission', 'submissions-comments'); closeDownloadDropdown('excel', 'fyp');" class="download-option excel-option">
+                                            <i class="bi bi-file-earmark-excel"></i>
+                                            <span>Download as Excel with comments</span>
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="table-scroll-container">
+                            <table class="mark-submission-table" id="markTableFYP">
+                                <thead>
+                                    <tr>
+                                        <th>No.</th>
+                                        <th>Matric No.</th>
+                                        <th>Name</th>
+                                        <th>Status Submission</th>
+                                        <th>Submission</th>
+                                        <th>Download as PDF</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="markTableBodyFYP">
+                                    <!-- Table rows will be populated by JavaScript -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- SWE4949-A Tab -->
-                <div class="task-group active" data-group="swe4949a">
+                <div class="task-group" data-group="swe4949a">
                     <div class="mark-content-container">
                         <div class="container-header">
                             <div class="view-dropdown-wrapper">
@@ -313,20 +380,100 @@
         </div>
     </div>
 
-    <div id="modalOverlay" class="modal-overlay" style="display:none;"></div>
-    <div id="notifyModal" class="modal" style="display:none;">
-        <div class="modal-content">
-            <h2 id="modalTitle">Notification</h2>
-            <p id="modalMessage">Notification has been sent.</p>
-            <div class="modal-actions">
-                <button class="btn btn-success" onclick="closeModal()">OK</button>
-            </div>
-        </div>
-    </div>
+    <div id="notifyModal" class="custom-modal"></div>
+    <div id="fypFormModal" class="custom-modal"></div>
 
     <script>
         const collapsedWidth = "60px";
         const expandedWidth = "250px";
+
+        const fypTitleSubmissionData = [
+            { 
+                id: 1, 
+                matricNo: '214673', 
+                name: 'Aisyah Nur', 
+                status: 'submitted',
+                comments: 'Good submission, well-structured project proposal.',
+                submission: {
+                    courseTitle: 'Final Year Project',
+                    courseCode: 'SWE4949',
+                    creditHour: '4',
+                    semester: '2',
+                    studentName: 'Aisyah Nur binti Ahmad',
+                    currentAddress: '123 Jalan Universiti, 43400 Serdang, Selangor',
+                    telNo: '012-3456789',
+                    programme: 'Software Engineering',
+                    minor: 'N/A',
+                    cgpa: '3.75',
+                    dissertationTitle: 'QR Attendance System',
+                    firstChoice: 'QR Attendance System',
+                    secondChoice: 'IoT Smart Farming',
+                    thirdChoice: 'E-Wallet App'
+                }
+            },
+            { 
+                id: 2, 
+                matricNo: '214692', 
+                name: 'Hakim Firdaus', 
+                status: 'submitted',
+                comments: 'Project needs more technical details.',
+                submission: {
+                    courseTitle: 'Final Year Project',
+                    courseCode: 'SWE4949',
+                    creditHour: '4',
+                    semester: '2',
+                    studentName: 'Hakim Firdaus bin Ismail',
+                    currentAddress: '456 Jalan Putra, 43400 Serdang, Selangor',
+                    telNo: '012-9876543',
+                    programme: 'Software Engineering',
+                    minor: 'N/A',
+                    cgpa: '3.68',
+                    dissertationTitle: 'IoT Smart Farming',
+                    firstChoice: 'IoT Smart Farming',
+                    secondChoice: 'Smart Parking System',
+                    thirdChoice: 'Food Waste App'
+                }
+            },
+            { 
+                id: 3, 
+                matricNo: '214726', 
+                name: 'Nabila Zahra', 
+                status: 'submitted',
+                comments: 'Excellent proposal with clear objectives.',
+                submission: {
+                    courseTitle: 'Final Year Project',
+                    courseCode: 'SWE4949',
+                    creditHour: '4',
+                    semester: '2',
+                    studentName: 'Nabila Zahra binti Hassan',
+                    currentAddress: '789 Jalan Serdang, 43400 Serdang, Selangor',
+                    telNo: '012-1112223',
+                    programme: 'Software Engineering',
+                    minor: 'N/A',
+                    cgpa: '3.82',
+                    dissertationTitle: 'E-Wallet App',
+                    firstChoice: 'E-Wallet App',
+                    secondChoice: 'AI Student Chatbot',
+                    thirdChoice: 'Mental Health Tracker'
+                }
+            },
+            { 
+                id: 4, 
+                matricNo: '214673', 
+                name: 'Faris Iman', 
+                status: 'not submitted',
+                comments: 'Submission pending. Please remind student to submit.',
+                submission: null
+            },
+            { 
+                id: 5, 
+                matricNo: '214692', 
+                name: 'Siti Hajar', 
+                status: 'not submitted',
+                comments: 'No submission received yet.',
+                submission: null
+            }
+        ];
 
         const marksData = {
             swe4949a: [
@@ -500,23 +647,93 @@
 
         document.addEventListener('DOMContentLoaded', function() {
             initializeTabs();
+            renderFYPTable();
             renderTable('swe4949a');
             renderTable('swe4949b');
             initializeRoleToggle();
             closeNav();
 
-            const overlay = document.getElementById('modalOverlay');
-            if (overlay) {
-                overlay.addEventListener('click', closeModal);
+            // Hide notify buttons initially (student-overview is default)
+            ['A', 'B'].forEach(suffix => {
+                const notifyButton = document.getElementById(`downloadButtonNotify${suffix}`);
+                const notifyContainer = notifyButton ? notifyButton.closest('.download-dropdown') : null;
+                if (notifyContainer) {
+                    notifyContainer.style.display = 'none';
+                }
+            });
+
+            const modal = document.getElementById('notifyModal');
+            if (modal) {
+                modal.addEventListener('click', function(e) {
+                    if (e.target === modal) {
+                        closeModal();
+                    }
+                });
             }
 
             document.addEventListener('keydown', function(event) {
                 if (event.key === 'Escape') {
                     closeModal();
+                    closeFYPFormModal();
                     closeAllDropdowns();
                 }
             });
+
+            const fypModal = document.getElementById('fypFormModal');
+            if (fypModal) {
+                fypModal.addEventListener('click', function(e) {
+                    if (e.target === fypModal) {
+                        closeFYPFormModal();
+                    }
+                });
+            }
         });
+
+        function renderFYPTable() {
+            const tbody = document.getElementById('markTableBodyFYP');
+            if (!tbody) return;
+
+            tbody.innerHTML = '';
+
+            if (!fypTitleSubmissionData.length) {
+                tbody.innerHTML = `<tr><td colspan="6" class="empty-state">No FYP title submission data available</td></tr>`;
+                return;
+            }
+
+            fypTitleSubmissionData.forEach((item, index) => {
+                const row = document.createElement('tr');
+                const statusClass = item.status === 'submitted' ? 'status-submitted' : 'status-not-submitted';
+                const statusText = item.status === 'submitted' ? 'Submitted' : 'Not Submitted';
+                
+                let submissionHTML = '';
+                if (item.submission) {
+                    submissionHTML = `<a href="javascript:void(0)" onclick="openFYPFormModal(${item.id})" class="submission-link">
+                        <i class="bi bi-file-earmark-pdf"></i> View Submission
+                    </a>`;
+                } else {
+                    submissionHTML = '<span class="no-submission">No submission yet</span>';
+                }
+
+                let downloadHTML = '';
+                if (item.submission) {
+                    downloadHTML = `<button class="btn-download-table" onclick="downloadFYPFormPDF(${item.id})" title="Download as PDF">
+                        <i class="bi bi-download"></i> Download
+                    </button>`;
+                } else {
+                    downloadHTML = '<span class="no-submission">-</span>';
+                }
+
+                row.innerHTML = `
+                    <td>${index + 1}.</td>
+                    <td>${item.matricNo}</td>
+                    <td>${item.name}</td>
+                    <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                    <td class="submission-cell">${submissionHTML}</td>
+                    <td class="download-cell">${downloadHTML}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
 
         function initializeTabs() {
             const tabs = document.querySelectorAll('.task-tab');
@@ -543,6 +760,24 @@
             currentView[tabName] = viewType;
             renderTable(tabName);
             closeAllDropdowns();
+            
+            // Show/hide notify button based on view
+            const tabSuffix = tabName.charAt(tabName.length - 1).toUpperCase();
+            const notifyButton = document.getElementById(`downloadButtonNotify${tabSuffix}`);
+            const notifyDropdown = document.getElementById(`downloadDropdownNotify${tabSuffix}`);
+            const notifyContainer = notifyButton ? notifyButton.closest('.download-dropdown') : null;
+            
+            if (viewType === 'student-overview') {
+                // Hide notify button in student marks overview
+                if (notifyContainer) {
+                    notifyContainer.style.display = 'none';
+                }
+            } else {
+                // Show notify button in lecturer progress view
+                if (notifyContainer) {
+                    notifyContainer.style.display = 'block';
+                }
+            }
         }
 
         function formatStatus(status) {
@@ -586,27 +821,25 @@
                 const assessorTaskNames = data[0].assessorTasks?.map(task => task.task) || ['No tasks'];
 
                 const headerRow = document.createElement('tr');
-                headerRow.innerHTML = `
-                    <th rowspan="2">No.</th>
-                    <th rowspan="2">Name</th>
-                    <th colspan="${supervisorTaskNames.length}">Progress as Supervisor(%)</th>
-                    <th colspan="${assessorTaskNames.length}">Progress as Assessor(%)</th>
-                    <th rowspan="2">Notify</th>
-                `;
-                thead.appendChild(headerRow);
-
-                const subHeaderRow = document.createElement('tr');
+                headerRow.innerHTML = `<th>No.</th><th>Name</th>`;
+                
                 supervisorTaskNames.forEach(name => {
                     const th = document.createElement('th');
-                    th.textContent = name;
-                    subHeaderRow.appendChild(th);
+                    th.textContent = `Supervisor - ${name}`;
+                    headerRow.appendChild(th);
                 });
+                
                 assessorTaskNames.forEach(name => {
                     const th = document.createElement('th');
-                    th.textContent = name;
-                    subHeaderRow.appendChild(th);
+                    th.textContent = `Assessor - ${name}`;
+                    headerRow.appendChild(th);
                 });
-                thead.appendChild(subHeaderRow);
+                
+                const notifyTh = document.createElement('th');
+                notifyTh.textContent = 'Notify';
+                headerRow.appendChild(notifyTh);
+                
+                thead.appendChild(headerRow);
 
                 data.forEach((item, index) => {
                     const row = document.createElement('tr');
@@ -678,23 +911,27 @@
             const lecturer = data.find(item => item.id === lecturerId);
             const name = lecturer ? lecturer.name : 'the selected lecturer';
             closeAllDropdowns();
-            openModal('Notification Sent', `Notification has been sent to ${name}.`);
+            openModal('Notification Sent', `Notification has been sent to ${name} for ${tabName.toUpperCase()}.`);
         }
 
         function notifyGroup(tabName, role) {
             let roleLabel = '';
+            let message = '';
             switch (role) {
                 case 'assessors':
                     roleLabel = 'all assessors';
+                    message = `Notifications have been sent to all assessors for ${tabName.toUpperCase()}.`;
                     break;
                 case 'supervisors':
                     roleLabel = 'all supervisors';
+                    message = `Notifications have been sent to all supervisors for ${tabName.toUpperCase()}.`;
                     break;
                 default:
                     roleLabel = 'all assessors and supervisors';
+                    message = `Notifications have been sent to all assessors and supervisors for ${tabName.toUpperCase()}.`;
             }
             closeAllDropdowns();
-            openModal('Notification Sent', `Notifications have been sent to ${roleLabel} for ${tabName.toUpperCase()}.`);
+            openModal('Notification Sent', message);
         }
 
         function closeAllDropdowns() {
@@ -752,7 +989,34 @@
             let title = '';
             let filename = '';
 
-            if (viewType === 'lecturer-progress') {
+            if (tabName === 'fyp-title-submission') {
+                const data = fypTitleSubmissionData || [];
+                if (!data.length) {
+                    openModal('Download Failed', 'No FYP title submission data available.');
+                    return;
+                }
+                const includeComments = type === 'submissions-comments';
+                const headers = ['No.', 'Matric No.', 'Name', 'Status Submission', 'Submission'];
+                if (includeComments) {
+                    headers.push('Comments');
+                }
+                head = [headers];
+                body = data.map((item, index) => {
+                    const row = [
+                        index + 1,
+                        item.matricNo,
+                        item.name,
+                        item.status === 'submitted' ? 'Submitted' : 'Not Submitted',
+                        item.submission ? 'Yes' : 'No'
+                    ];
+                    if (includeComments) {
+                        row.push(item.comments || '-');
+                    }
+                    return row;
+                });
+                title = `FYP Title Submission${includeComments ? ' - With Comments' : ''}`;
+                filename = `fyp-title-submission${includeComments ? '-with-comments' : ''}.pdf`;
+            } else if (viewType === 'lecturer-progress') {
                 const exportData = buildLecturerExportRows(tabName);
                 if (!exportData.rows.length) {
                     openModal('Download Failed', 'No lecturer progress data available.');
@@ -806,7 +1070,32 @@
             let rows = [];
             let filename = '';
 
-            if (viewType === 'lecturer-progress') {
+            if (tabName === 'fyp-title-submission') {
+                const data = fypTitleSubmissionData || [];
+                if (!data.length) {
+                    openModal('Download Failed', 'No FYP title submission data available.');
+                    return;
+                }
+                const includeComments = type === 'submissions-comments';
+                headers = ['No.', 'Matric No.', 'Name', 'Status Submission', 'Submission'];
+                if (includeComments) {
+                    headers.push('Comments');
+                }
+                rows = data.map((item, index) => {
+                    const row = [
+                        index + 1,
+                        item.matricNo,
+                        item.name,
+                        item.status === 'submitted' ? 'Submitted' : 'Not Submitted',
+                        item.submission ? 'Yes' : 'No'
+                    ];
+                    if (includeComments) {
+                        row.push(item.comments || '-');
+                    }
+                    return row;
+                });
+                filename = `fyp-title-submission${includeComments ? '-with-comments' : ''}.csv`;
+            } else if (viewType === 'lecturer-progress') {
                 const exportData = buildLecturerExportRows(tabName);
                 if (!exportData.rows.length) {
                     openModal('Download Failed', 'No lecturer progress data available.');
@@ -857,24 +1146,378 @@
         }
 
         function openModal(title, message) {
-            const overlay = document.getElementById('modalOverlay');
             const modal = document.getElementById('notifyModal');
-            const titleEl = document.getElementById('modalTitle');
-            const messageEl = document.getElementById('modalMessage');
-            if (!overlay || !modal) return;
+            if (!modal) return;
 
-            if (titleEl) titleEl.textContent = title || 'Notification';
-            if (messageEl) messageEl.textContent = message || '';
-
-            overlay.style.display = 'block';
-            modal.style.display = 'block';
+            modal.innerHTML = `
+                <div class="modal-dialog">
+                    <div class="modal-content-custom">
+                        <span class="close-btn" onclick="closeModal()">&times;</span>
+                        <div class="modal-icon"><i class="bi bi-check-circle-fill"></i></div>
+                        <div class="modal-title-custom">${title || 'Notification Sent'}</div>
+                        <div class="modal-message">${message || 'Notification has been sent.'}</div>
+                        <div style="display:flex; justify-content:center;">
+                            <button class="btn btn-success" onclick="closeModal()">OK</button>
+                        </div>
+                    </div>
+                </div>`;
+            modal.style.display = 'flex';
         }
 
         function closeModal() {
-            const overlay = document.getElementById('modalOverlay');
             const modal = document.getElementById('notifyModal');
-            if (overlay) overlay.style.display = 'none';
-            if (modal) modal.style.display = 'none';
+            if (modal) {
+                modal.style.display = 'none';
+                modal.innerHTML = '';
+            }
+        }
+
+        function openFYPFormModal(studentId) {
+            const modal = document.getElementById('fypFormModal');
+            if (!modal) return;
+
+            const student = fypTitleSubmissionData.find(item => item.id === studentId);
+            if (!student || !student.submission) {
+                openModal('Error', 'Submission data not found.');
+                return;
+            }
+
+            const sub = student.submission;
+            modal.innerHTML = `
+                <div class="modal-dialog fyp-form-dialog">
+                    <div class="fyp-form-container">
+                        <span class="close-btn" onclick="closeFYPFormModal()">&times;</span>
+                        <div class="fyp-form-header-box">
+                            <div class="fyp-form-header">
+                                <div class="fyp-form-header-left">
+                                    <div class="upm-logo-placeholder">UPM</div>
+                                    <div class="upm-name">UNIVERSITI PUTRA MALAYSIA</div>
+                                    <div class="upm-motto">BERILMU BERBAKTI</div>
+                                </div>
+                                <div class="fyp-form-header-right">
+                                    <div>PERKHIDMATAN UTAMA</div>
+                                    <div>PRASISWAZAH</div>
+                                    <div>PEJABAT TIMBALAN NAIB CANSELOR</div>
+                                    <div>(AKADEMIK & ANTARABANGSA)</div>
+                                    <div>Kod Dokumen: PU/PS/BR06/AJR</div>
+                                </div>
+                            </div>
+                            <div class="fyp-form-title-box">
+                                <div class="fyp-form-title">BACHELOR DISSERTATION/PROJECT REGISTRATION FORM</div>
+                                <div class="fyp-form-semester">(SEMESTER ${sub.semester} SESSION 2024/2025)</div>
+                            </div>
+                        </div>
+                        <div class="fyp-form-content">
+                            <div class="fyp-form-section">
+                                <div class="fyp-form-field">
+                                    <span class="fyp-form-label">Course Title:</span>
+                                    <span class="fyp-form-line">${sub.courseTitle}</span>
+                                </div>
+                                <div class="fyp-form-field">
+                                    <span class="fyp-form-label">Course Code:</span>
+                                    <span class="fyp-form-line">${sub.courseCode}</span>
+                                </div>
+                                <div class="fyp-form-field">
+                                    <span class="fyp-form-label">Credit Hour:</span>
+                                    <span class="fyp-form-line">${sub.creditHour}</span>
+                                </div>
+                                <div class="fyp-form-field">
+                                    <span class="fyp-form-label">Semester:</span>
+                                    <span class="fyp-form-line">${sub.semester}</span>
+                                </div>
+                            </div>
+                            <div class="fyp-form-divider"></div>
+                            <div class="fyp-form-section">
+                                <div class="fyp-form-field">
+                                    <span class="fyp-form-label">Student's Name:</span>
+                                    <span class="fyp-form-line">${sub.studentName}</span>
+                                </div>
+                                <div class="fyp-form-field">
+                                    <span class="fyp-form-label">Matric No.:</span>
+                                    <span class="fyp-form-line">${student.matricNo}</span>
+                                </div>
+                                <div class="fyp-form-field">
+                                    <span class="fyp-form-label">Current Address:</span>
+                                    <span class="fyp-form-line">${sub.currentAddress}</span>
+                                </div>
+                                <div class="fyp-form-field">
+                                    <span class="fyp-form-label">Tel. No.:</span>
+                                    <span class="fyp-form-line">${sub.telNo}</span>
+                                </div>
+                                <div class="fyp-form-field">
+                                    <span class="fyp-form-label">Programme:</span>
+                                    <span class="fyp-form-line">${sub.programme}</span>
+                                </div>
+                                <div class="fyp-form-field">
+                                    <span class="fyp-form-label">Minor (If Related):</span>
+                                    <span class="fyp-form-line">${sub.minor}</span>
+                                </div>
+                            </div>
+                            <div class="fyp-form-divider"></div>
+                            <div class="fyp-form-section">
+                                <div class="fyp-form-field">
+                                    <span class="fyp-form-label">CGPA:</span>
+                                    <span class="fyp-form-line">${sub.cgpa}</span>
+                                </div>
+                                <div class="fyp-form-field">
+                                    <span class="fyp-form-label">Dissertation/Project Title:</span>
+                                    <span class="fyp-form-line">${sub.dissertationTitle}</span>
+                                </div>
+                                <div class="fyp-form-field">
+                                    <span class="fyp-form-label">First Choice:</span>
+                                    <span class="fyp-form-line">${sub.firstChoice}</span>
+                                </div>
+                                <div class="fyp-form-field">
+                                    <span class="fyp-form-label">Second Choice:</span>
+                                    <span class="fyp-form-line">${sub.secondChoice}</span>
+                                </div>
+                                <div class="fyp-form-field">
+                                    <span class="fyp-form-label">Third Choice:</span>
+                                    <span class="fyp-form-line">${sub.thirdChoice}</span>
+                                </div>
+                            </div>
+                            <div class="fyp-form-divider"></div>
+                            <div class="fyp-form-section">
+                                <div class="fyp-form-signature-row">
+                                    <div class="fyp-form-signature-field">
+                                        <span class="fyp-form-label">Student' Signature:</span>
+                                        <span class="fyp-form-line"></span>
+                                    </div>
+                                    <div class="fyp-form-signature-field">
+                                        <span class="fyp-form-label">Date:</span>
+                                        <span class="fyp-form-line"></span>
+                                    </div>
+                                </div>
+                                <div class="fyp-form-signature-row">
+                                    <div class="fyp-form-signature-field">
+                                        <span class="fyp-form-label">Lecturer's/SV's Signature:</span>
+                                        <span class="fyp-form-line"></span>
+                                    </div>
+                                    <div class="fyp-form-signature-field">
+                                        <span class="fyp-form-label">Coordinator's Signature:</span>
+                                        <span class="fyp-form-line"></span>
+                                    </div>
+                                </div>
+                                <div class="fyp-form-signature-row">
+                                    <div class="fyp-form-signature-field">
+                                        <span class="fyp-form-label">Lecturer's Name:</span>
+                                        <span class="fyp-form-line"></span>
+                                    </div>
+                                    <div class="fyp-form-signature-field">
+                                        <span class="fyp-form-label">Date:</span>
+                                        <span class="fyp-form-line"></span>
+                                    </div>
+                                </div>
+                                <div class="fyp-form-signature-field">
+                                    <span class="fyp-form-label">Date:</span>
+                                    <span class="fyp-form-line"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+            modal.style.display = 'flex';
+        }
+
+        function closeFYPFormModal() {
+            const modal = document.getElementById('fypFormModal');
+            if (modal) {
+                modal.style.display = 'none';
+                modal.innerHTML = '';
+            }
+        }
+
+        function downloadAllFYPSubmissionsPDF() {
+            const studentsWithSubmissions = fypTitleSubmissionData.filter(item => item.submission);
+            
+            if (studentsWithSubmissions.length === 0) {
+                openModal('Download Failed', 'No submissions available to download.');
+                return;
+            }
+
+            // Download each student's PDF
+            studentsWithSubmissions.forEach((student, index) => {
+                setTimeout(() => {
+                    downloadFYPFormPDF(student.id);
+                }, index * 500); // Stagger downloads by 500ms to avoid browser blocking
+            });
+
+            openModal('Download Started', `Downloading ${studentsWithSubmissions.length} PDF file(s). Please check your downloads folder.`);
+        }
+
+        function downloadFYPFormPDF(studentId) {
+            const student = fypTitleSubmissionData.find(item => item.id === studentId);
+            if (!student || !student.submission) {
+                openModal('Error', 'Submission data not found.');
+                return;
+            }
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('p', 'pt', 'a4');
+            const sub = student.submission;
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const pageHeight = doc.internal.pageSize.getHeight();
+            let yPos = 40;
+            const margin = 40;
+            const lineHeight = 20;
+            const sectionSpacing = 15;
+
+            // Set font
+            doc.setFont('helvetica');
+            doc.setFontSize(10);
+
+            // Header Box
+            doc.setDrawColor(0, 0, 0);
+            doc.setLineWidth(1);
+            doc.rect(margin, yPos, pageWidth - (margin * 2), 120);
+
+            // UPM Logo placeholder (circle)
+            doc.setFillColor(120, 0, 0);
+            doc.circle(margin + 50, yPos + 50, 25, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'bold');
+            doc.text('UPM', margin + 50, yPos + 55, { align: 'center' });
+
+            // University name and motto
+            doc.setTextColor(0, 0, 0);
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'bold');
+            doc.text('UNIVERSITI PUTRA MALAYSIA', margin + 100, yPos + 30);
+            doc.setFont('helvetica', 'italic');
+            doc.setFontSize(8);
+            doc.text('BERILMU BERBAKTI', margin + 100, yPos + 45);
+
+            // Right side header
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(8);
+            const rightText = [
+                'PERKHIDMATAN UTAMA',
+                'PRASISWAZAH',
+                'PEJABAT TIMBALAN NAIB CANSELOR',
+                '(AKADEMIK & ANTARABANGSA)',
+                'Kod Dokumen: PU/PS/BR06/AJR'
+            ];
+            let rightY = yPos + 20;
+            rightText.forEach(text => {
+                doc.text(text, pageWidth - margin - 150, rightY, { align: 'center' });
+                rightY += 15;
+            });
+
+            // Form Title
+            yPos += 130;
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(12);
+            const titleText = 'BACHELOR DISSERTATION/PROJECT REGISTRATION FORM';
+            const titleWidth = doc.getTextWidth(titleText);
+            doc.text(titleText, (pageWidth - titleWidth) / 2, yPos);
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(9);
+            const semesterText = `(SEMESTER ${sub.semester} SESSION 2024/2025)`;
+            const semesterWidth = doc.getTextWidth(semesterText);
+            doc.text(semesterText, (pageWidth - semesterWidth) / 2, yPos + 15);
+
+            yPos += 35;
+
+            // Helper function to draw form field
+            function drawFormField(label, value, y) {
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(9);
+                doc.text(label + ':', margin, y);
+                const labelWidth = doc.getTextWidth(label + ':');
+                const lineStart = margin + labelWidth + 10;
+                const lineEnd = pageWidth - margin;
+                doc.setLineWidth(0.5);
+                doc.line(lineStart, y + 3, lineEnd, y + 3);
+                if (value) {
+                    doc.setFont('helvetica', 'normal');
+                    doc.text(value, lineStart + 5, y);
+                }
+            }
+
+            // Course Information
+            drawFormField('Course Title', sub.courseTitle, yPos);
+            yPos += lineHeight;
+            drawFormField('Course Code', sub.courseCode, yPos);
+            yPos += lineHeight;
+            drawFormField('Credit Hour', sub.creditHour, yPos);
+            yPos += lineHeight;
+            drawFormField('Semester', sub.semester, yPos);
+            yPos += sectionSpacing;
+
+            // Divider
+            doc.line(margin, yPos, pageWidth - margin, yPos);
+            yPos += sectionSpacing;
+
+            // Student Information
+            drawFormField('Student\'s Name', sub.studentName, yPos);
+            yPos += lineHeight;
+            drawFormField('Matric No.', student.matricNo, yPos);
+            yPos += lineHeight;
+            drawFormField('Current Address', sub.currentAddress, yPos);
+            yPos += lineHeight;
+            drawFormField('Tel. No.', sub.telNo, yPos);
+            yPos += lineHeight;
+            drawFormField('Programme', sub.programme, yPos);
+            yPos += lineHeight;
+            drawFormField('Minor (If Related)', sub.minor, yPos);
+            yPos += sectionSpacing;
+
+            // Divider
+            doc.line(margin, yPos, pageWidth - margin, yPos);
+            yPos += sectionSpacing;
+
+            // Dissertation/Project Details
+            drawFormField('CGPA', sub.cgpa, yPos);
+            yPos += lineHeight;
+            drawFormField('Dissertation/Project Title', sub.dissertationTitle, yPos);
+            yPos += lineHeight;
+            drawFormField('First Choice', sub.firstChoice, yPos);
+            yPos += lineHeight;
+            drawFormField('Second Choice', sub.secondChoice, yPos);
+            yPos += lineHeight;
+            drawFormField('Third Choice', sub.thirdChoice, yPos);
+            yPos += sectionSpacing;
+
+            // Divider
+            doc.line(margin, yPos, pageWidth - margin, yPos);
+            yPos += sectionSpacing;
+
+            // Signature Section
+            const sigLineStart = margin + 150;
+            const sigLineEnd = pageWidth - margin - 200;
+            const dateLineStart = pageWidth - margin - 150;
+            const dateLineEnd = pageWidth - margin;
+
+            // Student Signature and Date
+            doc.setFont('helvetica', 'bold');
+            doc.text('Student\' Signature:', margin, yPos);
+            doc.line(sigLineStart, yPos + 3, sigLineEnd, yPos + 3);
+            doc.text('Date:', dateLineStart, yPos);
+            doc.line(dateLineStart + 30, yPos + 3, dateLineEnd, yPos + 3);
+            yPos += lineHeight + 5;
+
+            // Lecturer/SV and Coordinator Signature
+            doc.text('Lecturer\'s/SV\'s Signature:', margin, yPos);
+            doc.line(sigLineStart, yPos + 3, sigLineEnd, yPos + 3);
+            doc.text('Coordinator\'s Signature:', dateLineStart, yPos);
+            doc.line(dateLineStart + 30, yPos + 3, dateLineEnd, yPos + 3);
+            yPos += lineHeight + 5;
+
+            // Lecturer Name and Date
+            doc.text('Lecturer\'s Name:', margin, yPos);
+            doc.line(sigLineStart, yPos + 3, sigLineEnd, yPos + 3);
+            doc.text('Date:', dateLineStart, yPos);
+            doc.line(dateLineStart + 30, yPos + 3, dateLineEnd, yPos + 3);
+            yPos += lineHeight + 5;
+
+            // Coordinator Date
+            doc.text('Date:', dateLineStart, yPos);
+            doc.line(dateLineStart + 30, yPos + 3, dateLineEnd, yPos + 3);
+
+            // Save PDF
+            const filename = `FYP_Registration_${student.matricNo}_${student.name.replace(/\s+/g, '_')}.pdf`;
+            doc.save(filename);
         }
 
         function saveMarks(tabName) {
@@ -966,42 +1609,94 @@
                     const menuId = `${role}Menu`;
                     const menu = document.getElementById(menuId);
 
-                    if (role === 'coordinator') {
-                        if (menu) {
+                    if (!menu) return;
+
                             const isExpanded = menu.classList.contains('expanded');
+                    const arrow = this.querySelector('.arrow-icon');
+
+                    // Collapse all other menus and reset their arrows
+                    document.querySelectorAll('.menu-items').forEach(otherMenu => {
+                        if (otherMenu !== menu) {
+                            otherMenu.classList.remove('expanded');
+                            const otherHeader = document.querySelector(`.role-header[data-role="${otherMenu.id.replace('Menu', '')}"]`);
+                            if (otherHeader) {
+                                const otherArrow = otherHeader.querySelector('.arrow-icon');
+                                if (otherArrow) {
+                                    otherArrow.classList.remove('bi-chevron-down');
+                                    otherArrow.classList.add('bi-chevron-right');
+                                }
+                            }
+                        }
+                    });
+
+                    // CRITICAL: Always ensure coordinator header state is correct
+                    const coordinatorHeader = document.querySelector('.role-header[data-role="coordinator"]');
+                    const coordinatorMenu = document.querySelector('#coordinatorMenu');
+                    
+                    if (coordinatorHeader && coordinatorMenu) {
+                        // Coordinator header ALWAYS has active-role on coordinator pages
+                        coordinatorHeader.classList.add('active-role');
+                        
+                        // If coordinator menu is collapsed, ensure it shows white (remove menu-expanded)
+                        if (!coordinatorMenu.classList.contains('expanded')) {
+                            coordinatorHeader.classList.remove('menu-expanded');
+                        } else {
+                            // If coordinator menu is expanded, ensure it shows normal (add menu-expanded)
+                            coordinatorHeader.classList.add('menu-expanded');
+                        }
+                    }
+
+                    // Remove active-role from all non-coordinator roles (they shouldn't be highlighted on coordinator pages)
+                    document.querySelectorAll('.role-header').forEach(h => {
+                        const roleType = h.getAttribute('data-role');
+                        // Only keep active-role for coordinator on coordinator pages
+                        if (roleType !== 'coordinator') {
+                            h.classList.remove('active-role');
+                            h.classList.remove('menu-expanded');
+                        }
+                    });
+
+                    // Toggle current menu
                             if (isExpanded) {
                                 menu.classList.remove('expanded');
                                 this.classList.remove('menu-expanded');
-                                const arrow = this.querySelector('.arrow-icon');
                                 if (arrow) {
                                     arrow.classList.remove('bi-chevron-down');
                                     arrow.classList.add('bi-chevron-right');
                                 }
                             } else {
                                 menu.classList.add('expanded');
+                        if (role === 'coordinator') {
                                 this.classList.add('menu-expanded');
-                                const arrow = this.querySelector('.arrow-icon');
+                        }
                                 if (arrow) {
                                     arrow.classList.remove('bi-chevron-right');
                                     arrow.classList.add('bi-chevron-down');
                                 }
                             }
-                        }
+
+                    // IMPORTANT: After toggling other roles, ensure coordinator header state is maintained
+                    // This ensures coordinator stays white when its menu is collapsed, even when other roles are clicked
+                    if (coordinatorHeader && coordinatorMenu && role !== 'coordinator') {
+                        coordinatorHeader.classList.add('active-role');
+                        if (!coordinatorMenu.classList.contains('expanded')) {
+                            coordinatorHeader.classList.remove('menu-expanded');
                     } else {
-                        if (menu) {
-                            menu.classList.toggle('expanded');
-                            const arrow = this.querySelector('.arrow-icon');
-                            if (arrow) {
-                                if (menu.classList.contains('expanded')) {
-                                    arrow.classList.remove('bi-chevron-right');
-                                    arrow.classList.add('bi-chevron-down');
-                                } else {
-                                    arrow.classList.remove('bi-chevron-down');
-                                    arrow.classList.add('bi-chevron-right');
-                                }
-                            }
+                            coordinatorHeader.classList.add('menu-expanded');
                         }
                     }
+
+                    // Show/hide child links for the current menu (only when sidebar is expanded)
+                    const sidebar = document.getElementById("mySidebar");
+                    const isSidebarExpanded = sidebar.style.width === "220px" || sidebar.style.width === "250px";
+
+                    menu.querySelectorAll('a').forEach(a => {
+                        if (isSidebarExpanded) {
+                            a.style.display = menu.classList.contains('expanded') ? 'block' : 'none';
+                        } else {
+                            a.style.display = 'none';
+                        }
+                    });
                 });
             });
         }

@@ -93,7 +93,7 @@
   border-radius: 8px;
   background-color: #ffffff;
   border: 1px solid #e0e0e0;
-  padding: 12px;
+  padding: 12px 12px 12px 0;
 }
 
 /* Custom scrollbar styling - Grey like logbook */
@@ -134,7 +134,7 @@
   color: white;
   position: sticky;
   top: 0;
-  z-index: 10;
+  z-index: 102;
 }
 
 .learning-objective-table th {
@@ -151,9 +151,9 @@
 }
 
 .learning-objective-table th:nth-child(2) {
-  width: 150px;
-  min-width: 150px;
-  max-width: 200px;
+  width: 400px;
+  min-width: 400px;
+  max-width: 500px;
 }
 
 .learning-objective-table th:nth-child(3) {
@@ -177,7 +177,7 @@
 }
 
 .learning-objective-table td:nth-child(2) {
-  max-width: 200px;
+  max-width: 500px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -258,7 +258,7 @@
 /* Task Input */
 .task-input {
   width: 100%;
-  max-width: 200px;
+  max-width: 380px;
   padding: 8px 12px;
   border: 2px solid #ddd;
   border-radius: 5px;
@@ -655,9 +655,9 @@
   }
 
   .learning-objective-table th:nth-child(2) {
-    width: 120px;
-    min-width: 120px;
-    max-width: 150px;
+    width: 250px;
+    min-width: 250px;
+    max-width: 300px;
   }
 
   .learning-objective-input {
@@ -710,9 +710,9 @@
   }
 
   .learning-objective-table th:nth-child(2) {
-    width: 100px;
-    min-width: 100px;
-    max-width: 120px;
+    width: 200px;
+    min-width: 200px;
+    max-width: 250px;
   }
 
   .learning-objective-input {

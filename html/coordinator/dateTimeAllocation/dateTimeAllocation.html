@@ -59,13 +59,13 @@
                 <a href="../dashboard/dashboardCoordinator.html" id="coordinatorDashboard"><i class="bi bi-house-fill icon-padding"></i> Dashboard</a>
                 <a href="../studentAssignation/studentAssignation.html" id="studentAssignation"><i class="bi bi-people-fill icon-padding"></i> Student Assignation</a>
                 <a href="../learningObjective/learningObjective.html" id="learningObjective"><i class="bi bi-book-fill icon-padding"></i> Learning Objective</a>
-                <a href="../markSubmission/markSubmission.html" id="markSubmission"><i class="bi bi-clipboard-check-fill icon-padding"></i> Mark Submission</a>
+                <a href="../markSubmission/markSubmission.html" id="markSubmission"><i class="bi bi-clipboard-check-fill icon-padding"></i> Progress Submission</a>
                 <a href="../notification/notification.html" id="coordinatorNotification"><i class="bi bi-bell-fill icon-padding"></i> Notification</a>
                 <a href="../signatureSubmission/signatureSubmission.html" id="signatureSubmission"><i class="bi bi-pen-fill icon-padding"></i> Signature Submission</a>
                 <a href="dateTimeAllocation.html" id="dateTimeAllocation" class="active-menu-item"><i class="bi bi-calendar-event-fill icon-padding"></i> Date & Time Allocation</a>
             </div>
 
-            <a href="../../../login/login.html" id="logout">
+            <a href="../../login/login.html" id="logout">
                 <i class="bi bi-box-arrow-left" style="padding-right: 10px;"></i> Logout
             </a>
         </div>
@@ -110,7 +110,7 @@
         </div>
 
         <div class="allocation-container">
-            <div class="container-title">Task Time Allocation</div>
+           
 
             <div class="tab-buttons">
                 <button class="task-tab active-tab" data-tab="swe4949a">SWE4949-A</button>
@@ -162,28 +162,8 @@
         </div>
     </div>
 
-    <div id="modalOverlay" class="modal-overlay" style="display:none;"></div>
-
-    <div id="successModal" class="modal" style="display:none;">
-        <div class="modal-content">
-            <h2>Success</h2>
-            <p>Task allocations saved successfully.</p>
-            <div class="modal-actions">
-                <button class="btn-save" onclick="closeModal('successModal')">OK</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="resetModal" class="modal" style="display:none;">
-        <div class="modal-content">
-            <h2>Reset Allocations</h2>
-            <p>Are you sure you want to reset allocations for this tab?</p>
-            <div class="modal-actions">
-                <button class="btn-reset" onclick="confirmReset()">Yes, Reset</button>
-                <button class="btn-save" onclick="closeModal('resetModal')">Cancel</button>
-            </div>
-        </div>
-    </div>
+    <div id="successModal" class="custom-modal"></div>
+    <div id="resetModal" class="custom-modal"></div>
 
     <script>
         const collapsedWidth = "60px";
@@ -244,6 +224,32 @@
             initializeTabs();
             renderAllocationTable('swe4949a');
             renderAllocationTable('swe4949b');
+
+            // Add event listeners for modals
+            const successModal = document.getElementById('successModal');
+            if (successModal) {
+                successModal.addEventListener('click', function(e) {
+                    if (e.target === successModal) {
+                        closeSuccessModal();
+                    }
+                });
+            }
+
+            const resetModal = document.getElementById('resetModal');
+            if (resetModal) {
+                resetModal.addEventListener('click', function(e) {
+                    if (e.target === resetModal) {
+                        closeResetModal();
+                    }
+                });
+            }
+
+            document.addEventListener('keydown', function(event) {
+                if (event.key === 'Escape') {
+                    closeSuccessModal();
+                    closeResetModal();
+                }
+            });
         });
 
         function initializeTabs() {
@@ -399,34 +405,73 @@
 
         function resetAllocations(tabName) {
             pendingResetTab = tabName;
-            openModal('resetModal');
+            
+            const resetModal = document.getElementById('resetModal');
+            if (!resetModal) return;
+            
+            resetModal.innerHTML = `
+                <div class="modal-dialog">
+                    <div class="modal-content-custom">
+                        <span class="close-btn" onclick="closeResetModal()">&times;</span>
+                        <div class="modal-title-custom">Reset Allocations</div>
+                        <div class="modal-message">Are you sure you want to reset allocations for this tab?</div>
+                        <div style="margin-top:15px; display:flex; gap:10px; justify-content:flex-end;">
+                            <button class="btn btn-light border" onclick="closeResetModal()">Cancel</button>
+                            <button class="btn btn-success" onclick="confirmReset()">Yes, Reset</button>
+                        </div>
+                    </div>
+                </div>`;
+            resetModal.style.display = 'flex';
+        }
+
+        function closeResetModal() {
+            const resetModal = document.getElementById('resetModal');
+            if (resetModal) {
+                resetModal.style.display = 'none';
+                resetModal.innerHTML = '';
+            }
         }
 
         function confirmReset() {
             if (!pendingResetTab) {
-                closeModal('resetModal');
+                closeResetModal();
                 return;
             }
 
             dateTimeAllocations[pendingResetTab] = [];
             renderAllocationTable(pendingResetTab);
             pendingResetTab = null;
-            closeModal('resetModal');
+            closeResetModal();
         }
 
         function saveAllocations(tabName) {
             console.log('Saving allocations for', tabName, JSON.parse(JSON.stringify(dateTimeAllocations[tabName])));
-            openModal('successModal');
+            
+            // Show success modal
+            const successModal = document.getElementById('successModal');
+            if (!successModal) return;
+            
+            successModal.innerHTML = `
+                <div class="modal-dialog">
+                    <div class="modal-content-custom">
+                        <span class="close-btn" onclick="closeSuccessModal()">&times;</span>
+                        <div class="modal-icon"><i class="bi bi-check-circle-fill"></i></div>
+                        <div class="modal-title-custom">Saved Successfully!</div>
+                        <div class="modal-message">Task allocations have been saved successfully.</div>
+                        <div style="display:flex; justify-content:center;">
+                            <button class="btn btn-success" onclick="closeSuccessModal()">OK</button>
+                        </div>
+                    </div>
+                </div>`;
+            successModal.style.display = 'flex';
         }
 
-        function openModal(modalId) {
-            document.getElementById('modalOverlay').style.display = 'block';
-            document.getElementById(modalId).style.display = 'block';
-        }
-
-        function closeModal(modalId) {
-            document.getElementById('modalOverlay').style.display = 'none';
-            document.getElementById(modalId).style.display = 'none';
+        function closeSuccessModal() {
+            const successModal = document.getElementById('successModal');
+            if (successModal) {
+                successModal.style.display = 'none';
+                successModal.innerHTML = '';
+            }
         }
 
         function openNav() {
@@ -509,42 +554,94 @@
                     const menuId = `${role}Menu`;
                     const menu = document.getElementById(menuId);
 
-                    if (role === 'coordinator') {
-                        if (menu) {
-                            const isExpanded = menu.classList.contains('expanded');
-                            if (isExpanded) {
-                                menu.classList.remove('expanded');
-                                this.classList.remove('menu-expanded');
-                                const arrow = this.querySelector('.arrow-icon');
-                                if (arrow) {
-                                    arrow.classList.remove('bi-chevron-down');
-                                    arrow.classList.add('bi-chevron-right');
-                                }
-                            } else {
-                                menu.classList.add('expanded');
-                                this.classList.add('menu-expanded');
-                                const arrow = this.querySelector('.arrow-icon');
-                                if (arrow) {
-                                    arrow.classList.remove('bi-chevron-right');
-                                    arrow.classList.add('bi-chevron-down');
+                    if (!menu) return;
+
+                    const isExpanded = menu.classList.contains('expanded');
+                    const arrow = this.querySelector('.arrow-icon');
+
+                    // Collapse all other menus and reset their arrows
+                    document.querySelectorAll('.menu-items').forEach(otherMenu => {
+                        if (otherMenu !== menu) {
+                            otherMenu.classList.remove('expanded');
+                            const otherHeader = document.querySelector(`.role-header[data-role="${otherMenu.id.replace('Menu', '')}"]`);
+                            if (otherHeader) {
+                                const otherArrow = otherHeader.querySelector('.arrow-icon');
+                                if (otherArrow) {
+                                    otherArrow.classList.remove('bi-chevron-down');
+                                    otherArrow.classList.add('bi-chevron-right');
                                 }
                             }
                         }
-                    } else {
-                        if (menu) {
-                            menu.classList.toggle('expanded');
-                            const arrow = this.querySelector('.arrow-icon');
-                            if (arrow) {
-                                if (menu.classList.contains('expanded')) {
-                                    arrow.classList.remove('bi-chevron-right');
-                                    arrow.classList.add('bi-chevron-down');
-                                } else {
-                                    arrow.classList.remove('bi-chevron-down');
-                                    arrow.classList.add('bi-chevron-right');
-                                }
-                            }
+                    });
+
+                    // CRITICAL: Always ensure coordinator header state is correct
+                    const coordinatorHeader = document.querySelector('.role-header[data-role="coordinator"]');
+                    const coordinatorMenu = document.querySelector('#coordinatorMenu');
+                    
+                    if (coordinatorHeader && coordinatorMenu) {
+                        // Coordinator header ALWAYS has active-role on coordinator pages
+                        coordinatorHeader.classList.add('active-role');
+                        
+                        // If coordinator menu is collapsed, ensure it shows white (remove menu-expanded)
+                        if (!coordinatorMenu.classList.contains('expanded')) {
+                            coordinatorHeader.classList.remove('menu-expanded');
+                        } else {
+                            // If coordinator menu is expanded, ensure it shows normal (add menu-expanded)
+                            coordinatorHeader.classList.add('menu-expanded');
                         }
                     }
+
+                    // Remove active-role from all non-coordinator roles (they shouldn't be highlighted on coordinator pages)
+                    document.querySelectorAll('.role-header').forEach(h => {
+                        const roleType = h.getAttribute('data-role');
+                        // Only keep active-role for coordinator on coordinator pages
+                        if (roleType !== 'coordinator') {
+                            h.classList.remove('active-role');
+                            h.classList.remove('menu-expanded');
+                        }
+                    });
+
+                    // Toggle current menu
+                    if (isExpanded) {
+                        menu.classList.remove('expanded');
+                        this.classList.remove('menu-expanded');
+                        if (arrow) {
+                            arrow.classList.remove('bi-chevron-down');
+                            arrow.classList.add('bi-chevron-right');
+                        }
+                    } else {
+                        menu.classList.add('expanded');
+                        if (role === 'coordinator') {
+                            this.classList.add('menu-expanded');
+                        }
+                        if (arrow) {
+                            arrow.classList.remove('bi-chevron-right');
+                            arrow.classList.add('bi-chevron-down');
+                        }
+                    }
+
+                    // IMPORTANT: After toggling other roles, ensure coordinator header state is maintained
+                    // This ensures coordinator stays white when its menu is collapsed, even when other roles are clicked
+                    if (coordinatorHeader && coordinatorMenu && role !== 'coordinator') {
+                        coordinatorHeader.classList.add('active-role');
+                        if (!coordinatorMenu.classList.contains('expanded')) {
+                            coordinatorHeader.classList.remove('menu-expanded');
+                        } else {
+                            coordinatorHeader.classList.add('menu-expanded');
+                        }
+                    }
+
+                    // Show/hide child links for the current menu (only when sidebar is expanded)
+                    const sidebar = document.getElementById("mySidebar");
+                    const isSidebarExpanded = sidebar.style.width === "220px" || sidebar.style.width === "250px";
+
+                    menu.querySelectorAll('a').forEach(a => {
+                        if (isSidebarExpanded) {
+                            a.style.display = menu.classList.contains('expanded') ? 'block' : 'none';
+                        } else {
+                            a.style.display = 'none';
+                        }
+                    });
                 });
             });
         }

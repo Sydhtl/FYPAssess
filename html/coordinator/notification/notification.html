@@ -59,13 +59,13 @@
                 <a href="../dashboard/dashboardCoordinator.html" id="coordinatorDashboard"><i class="bi bi-house-fill icon-padding"></i> Dashboard</a>
                 <a href="../studentAssignation/studentAssignation.html" id="studentAssignation"><i class="bi bi-people-fill icon-padding"></i> Student Assignation</a>
                 <a href="../learningObjective/learningObjective.html" id="learningObjective"><i class="bi bi-book-fill icon-padding"></i> Learning Objective</a>
-                <a href="#" id="markSubmission"><i class="bi bi-clipboard-check-fill icon-padding"></i> Mark Submission</a>
+                <a href="../markSubmission/markSubmission.html" id="markSubmission"><i class="bi bi-clipboard-check-fill icon-padding"></i> Progress Submission</a>
                 <a href="../notification/notification.html" id="coordinatorNotification"><i class="bi bi-bell-fill icon-padding"></i> Notification</a>
                 <a href="../signatureSubmission/signatureSubmission.html" id="signatureSubmission"><i class="bi bi-pen-fill icon-padding"></i> Signature Submission</a>
-                <a href="#" id="dateTimeAllocation"><i class="bi bi-calendar-event-fill icon-padding"></i> Date and Time Allocation</a>
+                <a href="../dateTimeAllocation/dateTimeAllocation.html" id="dateTimeAllocation"><i class="bi bi-calendar-event-fill icon-padding"></i> Date and Time Allocation</a>
             </div>
 
-            <a href="../../../login/login.html" id="logout">
+            <a href="../../login/login.html" id="logout">
                 <i class="bi bi-box-arrow-left" style="padding-right: 10px;"></i> Logout
             </a>
         </div>
@@ -262,42 +262,94 @@
                     const menuId = `${role}Menu`;
                     const menu = document.getElementById(menuId);
 
-                    if (role === 'coordinator') {
-                        if (menu) {
-                            const isExpanded = menu.classList.contains('expanded');
-                            if (isExpanded) {
-                                menu.classList.remove('expanded');
-                                this.classList.remove('menu-expanded');
-                                const arrow = this.querySelector('.arrow-icon');
-                                if (arrow) {
-                                    arrow.classList.remove('bi-chevron-down');
-                                    arrow.classList.add('bi-chevron-right');
-                                }
-                            } else {
-                                menu.classList.add('expanded');
-                                this.classList.add('menu-expanded');
-                                const arrow = this.querySelector('.arrow-icon');
-                                if (arrow) {
-                                    arrow.classList.remove('bi-chevron-right');
-                                    arrow.classList.add('bi-chevron-down');
+                    if (!menu) return;
+
+                    const isExpanded = menu.classList.contains('expanded');
+                    const arrow = this.querySelector('.arrow-icon');
+
+                    // Collapse all other menus and reset their arrows
+                    document.querySelectorAll('.menu-items').forEach(otherMenu => {
+                        if (otherMenu !== menu) {
+                            otherMenu.classList.remove('expanded');
+                            const otherHeader = document.querySelector(`.role-header[data-role="${otherMenu.id.replace('Menu', '')}"]`);
+                            if (otherHeader) {
+                                const otherArrow = otherHeader.querySelector('.arrow-icon');
+                                if (otherArrow) {
+                                    otherArrow.classList.remove('bi-chevron-down');
+                                    otherArrow.classList.add('bi-chevron-right');
                                 }
                             }
                         }
-                    } else {
-                        if (menu) {
-                            menu.classList.toggle('expanded');
-                            const arrow = this.querySelector('.arrow-icon');
-                            if (arrow) {
-                                if (menu.classList.contains('expanded')) {
-                                    arrow.classList.remove('bi-chevron-right');
-                                    arrow.classList.add('bi-chevron-down');
-                                } else {
-                                    arrow.classList.remove('bi-chevron-down');
-                                    arrow.classList.add('bi-chevron-right');
-                                }
-                            }
+                    });
+
+                    // CRITICAL: Always ensure coordinator header state is correct
+                    const coordinatorHeader = document.querySelector('.role-header[data-role="coordinator"]');
+                    const coordinatorMenu = document.querySelector('#coordinatorMenu');
+                    
+                    if (coordinatorHeader && coordinatorMenu) {
+                        // Coordinator header ALWAYS has active-role on coordinator pages
+                        coordinatorHeader.classList.add('active-role');
+                        
+                        // If coordinator menu is collapsed, ensure it shows white (remove menu-expanded)
+                        if (!coordinatorMenu.classList.contains('expanded')) {
+                            coordinatorHeader.classList.remove('menu-expanded');
+                        } else {
+                            // If coordinator menu is expanded, ensure it shows normal (add menu-expanded)
+                            coordinatorHeader.classList.add('menu-expanded');
                         }
                     }
+
+                    // Remove active-role from all non-coordinator roles (they shouldn't be highlighted on coordinator pages)
+                    document.querySelectorAll('.role-header').forEach(h => {
+                        const roleType = h.getAttribute('data-role');
+                        // Only keep active-role for coordinator on coordinator pages
+                        if (roleType !== 'coordinator') {
+                            h.classList.remove('active-role');
+                            h.classList.remove('menu-expanded');
+                        }
+                    });
+
+                    // Toggle current menu
+                    if (isExpanded) {
+                        menu.classList.remove('expanded');
+                        this.classList.remove('menu-expanded');
+                        if (arrow) {
+                            arrow.classList.remove('bi-chevron-down');
+                            arrow.classList.add('bi-chevron-right');
+                        }
+                    } else {
+                        menu.classList.add('expanded');
+                        if (role === 'coordinator') {
+                            this.classList.add('menu-expanded');
+                        }
+                        if (arrow) {
+                            arrow.classList.remove('bi-chevron-right');
+                            arrow.classList.add('bi-chevron-down');
+                        }
+                    }
+
+                    // IMPORTANT: After toggling other roles, ensure coordinator header state is maintained
+                    // This ensures coordinator stays white when its menu is collapsed, even when other roles are clicked
+                    if (coordinatorHeader && coordinatorMenu && role !== 'coordinator') {
+                        coordinatorHeader.classList.add('active-role');
+                        if (!coordinatorMenu.classList.contains('expanded')) {
+                            coordinatorHeader.classList.remove('menu-expanded');
+                        } else {
+                            coordinatorHeader.classList.add('menu-expanded');
+                        }
+                    }
+
+                    // Show/hide child links for the current menu (only when sidebar is expanded)
+                    const sidebar = document.getElementById("mySidebar");
+                    const isSidebarExpanded = sidebar.style.width === "220px" || sidebar.style.width === "250px";
+
+                    menu.querySelectorAll('a').forEach(a => {
+                        if (isSidebarExpanded) {
+                            a.style.display = menu.classList.contains('expanded') ? 'block' : 'none';
+                        } else {
+                            a.style.display = 'none';
+                        }
+                    });
                 });
             });
         }

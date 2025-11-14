@@ -175,7 +175,7 @@
   background-color: #fff;
   border: 1px solid #e0e0e0;
   border-radius: 8px;
-  padding: 12px;
+  padding: 12px 12px 12px 0;
 }
 
 .allocation-table {
@@ -204,7 +204,7 @@
   font-family: 'Montserrat', Arial, sans-serif;
   position: sticky;
   top: 0;
-  z-index: 10;
+  z-index: 102;
 }
 
 .allocation-table tbody tr:hover {
@@ -343,7 +343,7 @@
   }
 
   .table-scroll-container {
-    padding: 10px;
+    padding: 10px 10px 10px 0;
   }
 }
 
