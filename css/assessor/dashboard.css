@@ -71,6 +71,7 @@ body {
   display: grid;
   grid-template-columns: 2fr 1fr;
   gap: 20px;
+  min-width: 800px;
 }
 
 @media (max-width: 1024px) {
@@ -93,6 +94,7 @@ body {
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
   padding: 10px;
   margin-top: 10px;
+  height: 400px;
 }
 
 /* Task Tab Styles */
@@ -230,4 +232,77 @@ body {
     flex-direction: column;
     align-items: stretch;
   }
+}
+
+/* Accordion headers for "Upcoming" */
+.task-group-header {
+  background-color: #780000;
+  color: white;
+  padding: 12px 15px;
+  margin-bottom: 5px;
+  border-radius: 8px;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+.toggle-icon {
+  margin-right: 10px;
+  transition: transform 0.2s;
+}
+
+.task-list-details {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease-out;
+  padding: 0;
+}
+
+.task-list-details.expanded {
+  max-height: 1000px;
+}
+
+/* --- Task Row Grid Layouts --- */
+.task-row {
+  padding: 12px 10px;
+  border-bottom: 1px solid #e0e0e0;
+  font-size: 16px;
+  align-items: start;
+  line-height: 1.5;
+  /* FIX: Set a minimum width for rows to force horizontal scrolling */
+  min-width: 700px;
+}
+
+/* 4-column grid (In-progress, Completed) */
+.task-row.four-col-grid {
+  display: grid;
+  grid-template-columns: 2fr 3fr 1.5fr 1fr;
+  gap: 15px;
+}
+
+/* 5-column grid (Upcoming) */
+.task-row.five-col-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 3fr 1.5fr 0.5fr;
+  gap: 10px;
+}
+
+.task-row.header-row {
+  font-weight: 700;
+  color: #333;
+  border-bottom: 2px solid #ccc;
+  margin-bottom: 5px;
+  padding-top: 5px;
+}
+
+/* Remove border from the last item in a list */
+.task-group[data-group="inprogress"] .task-row:last-child,
+.task-group[data-group="completed"] .task-row:last-child,
+.task-list-details .task-row:last-child {
+  border-bottom: none;
+}
+
+.col-assessor {
+  text-align: center;
 }

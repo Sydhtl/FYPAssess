@@ -15,3 +15,6 @@ actions:
     - trunk-fmt-pre-commit
   enabled:
     - trunk-upgrade-available
+lint:
+  enabled:
+    - prettier@3.6.2

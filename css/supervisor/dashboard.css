@@ -1,0 +1,344 @@
+/* ================================================= */
+/* == Base & Typography Styles == */
+/* ================================================= */
+body {
+  font-family: "Montserrat";
+  transition: margin-left 0.5s;
+  /* Smooth transition for the main content shift */
+}
+
+#courseCode,
+#courseSession {
+  margin-left: auto;
+  font-family: "Montserrat";
+  text-align: right;
+  line-height: 1.2;
+  color: #333;
+  position: static;
+  margin: 0;
+}
+
+#courseCode {
+  font-size: 30px;
+}
+
+.card-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 15px;
+}
+
+/* ================================================= */
+/* == Row 1: Metrics Widgets == */
+/* ================================================= */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.widget {
+  background-color: #fdf0d5;
+  border-radius: 12px;
+  padding: 10px 20px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.widget-icon {
+  font-size: 30px;
+  color: #666;
+  padding: 1px;
+  border-radius: 8px;
+}
+
+.widget-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.widget-title {
+  font-size: 16px;
+  color: #666;
+  font-weight: 500;
+}
+
+.widget-value {
+  font-size: 23px;
+  font-weight: bold;
+  color: #333;
+}
+
+/* ================================================= */
+/* == Row 2: Overview (Charts) & Reminder == */
+/* ================================================= */
+
+/* --- Main Layout Grid for Row 2 --- */
+.overview-reminder-grid {
+  display: grid;
+  /* On large screens: 2/3 for charts, 1/3 for reminder */
+  grid-template-columns: 2fr 1fr;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+/* --- Overview Card (Charts) --- */
+.overview-section {
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  min-width: 0; /* Fix for grid overflow */
+}
+
+/* Grid *inside* the Overview Card (for the 2 charts) */
+.overview-charts-grid {
+  display: grid;
+  /* On large screens: two charts side-by-side */
+  grid-template-columns: 1fr 1fr;
+  gap: 25px;
+}
+
+.chart-container {
+  position: relative;
+  width: 80%;
+  /* FIX: Reduced height to make charts less wide/tall */
+  height: 250px;
+}
+
+.chart-container h3 {
+  text-align: center;
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 10px;
+}
+/* Custom HTML Legend */
+
+.custom-legend {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  margin-bottom: 10px;
+  font-size: 0.8rem;
+  color: #555;
+}
+
+.custom-legend span {
+  display: flex;
+  align-items: center;
+}
+
+.legend-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  margin-right: 6px;
+}
+
+/* --- Reminder Card --- */
+.reminder-card {
+  background-color: #fdf0d5;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  padding: 10px;
+  margin-top: 10px;
+  height: 100%; /* Makes it match the height of the chart card */
+}
+
+.reminder-card-content {
+  padding: 20px;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.reminder-date {
+  font-weight: bold;
+  margin-bottom: 10px;
+  font-size: 16px;
+  padding-top: 5px;
+}
+
+.reminder-item ul {
+  list-style-type: disc;
+  margin: 0;
+  padding-left: 20px;
+}
+
+.reminder-item ul li {
+  margin-bottom: 5px;
+  font-size: 16px;
+}
+
+.reminder-separator {
+  border: 0;
+  height: 1px;
+  background: #333;
+  margin: 20px 0;
+}
+
+/* ================================================= */
+/* == Row 3: Evaluation Task == */
+/* ================================================= */
+
+/* This card now sits on its own row */
+.evaluation-area {
+  margin-bottom: 30px;
+}
+
+.evaluation-task-card {
+  background-color: #fdf0d5;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  padding: 10px;
+  margin-top: 10px;
+  /* FIX: Allows horizontal scrolling on small screens */
+  overflow-x: auto;
+}
+
+/* --- Task Tab Styles --- */
+.tab-buttons {
+  display: flex;
+  border-bottom: 2px solid #e0e0e0;
+  margin-bottom: 15px;
+}
+
+.task-tab {
+  padding: 10px 20px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  color: #666;
+  border-bottom: 3px solid transparent;
+  transition: all 0.2s;
+  white-space: nowrap; /* Prevents tabs from wrapping */
+}
+
+.task-tab.active-tab {
+  color: #780000;
+  border-bottom-color: #780000;
+}
+
+/* --- Task List Styles --- */
+.task-group {
+  display: none;
+}
+
+.task-group.active {
+  display: block;
+}
+
+.no-tasks {
+  text-align: center;
+  padding: 40px 20px;
+  color: #999;
+  font-style: italic;
+}
+
+/* Accordion headers for "Upcoming" */
+.task-group-header {
+  background-color: #780000;
+  color: white;
+  padding: 12px 15px;
+  margin-bottom: 5px;
+  border-radius: 8px;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+.toggle-icon {
+  margin-right: 10px;
+  transition: transform 0.2s;
+}
+
+.task-list-details {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease-out;
+  padding: 0;
+}
+
+.task-list-details.expanded {
+  max-height: 1000px;
+}
+
+/* --- Task Row Grid Layouts --- */
+.task-row {
+  padding: 12px 10px;
+  border-bottom: 1px solid #e0e0e0;
+  font-size: 16px;
+  align-items: start;
+  line-height: 1.5;
+  /* FIX: Set a minimum width for rows to force horizontal scrolling */
+  min-width: 700px;
+}
+
+/* 4-column grid (In-progress, Completed) */
+.task-row.four-col-grid {
+  display: grid;
+  grid-template-columns: 2fr 3fr 1.5fr 1fr;
+  gap: 15px;
+}
+
+/* 5-column grid (Upcoming) */
+.task-row.five-col-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 3fr 1.5fr 0.5fr;
+  gap: 10px;
+}
+
+.task-row.header-row {
+  font-weight: 700;
+  color: #333;
+  border-bottom: 2px solid #ccc;
+  margin-bottom: 5px;
+  padding-top: 5px;
+}
+
+/* Remove border from the last item in a list */
+.task-group[data-group="inprogress"] .task-row:last-child,
+.task-group[data-group="completed"] .task-row:last-child,
+.task-list-details .task-row:last-child {
+  border-bottom: none;
+}
+
+.col-assessor {
+  text-align: center;
+}
+
+/* ================================================= */
+/* == RESPONSIVE FIXES == */
+/* ================================================= */
+
+/* For Tablets (e.g., < 1024px) */
+@media (max-width: 1024px) {
+  /* Stack the Overview and Reminder cards */
+  .overview-reminder-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .reminder-card {
+    height: auto; /* Let reminder height be automatic when stacked */
+  }
+}
+
+/* For Small Tablets / Large Phones (e.g., < 768px) */
+@media (max-width: 768px) {
+  /* Stack the two charts *inside* the Overview card */
+  .overview-charts-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .chart-container {
+    height: 220px; /* Can be a bit shorter when stacked */
+  }
+}
