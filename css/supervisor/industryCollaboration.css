@@ -1,0 +1,206 @@
+/* Main content area offset, starts at bottom of header */
+#main {
+  margin-left: var(--collapsed-width);
+  padding-top: var(--header-height); /* Clear space below fixed header */
+  transition: margin-left 0.3s;
+  min-height: 100vh;
+}
+
+.industryCollaboration-container {
+  padding: 10px 20px 0 20px; /* Title padding */
+}
+
+.page-title {
+  font-size: 16px;
+  font-weight: bold;
+  margin-bottom: 20px;
+  color: #333;
+}
+
+/* Container for the 2-column layout (Indicator + Form) */
+#main-content-area {
+  display: flex;
+  min-height: calc(
+    100vh - var(--header-height) - 70px
+  ); /* Adjust based on padding/title height */
+  margin-top: 15px;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+/* --- 1. Step Indicator Area (Smaller, light-yellow panel) --- */
+#step-indicator-area {
+  width: 350px;
+  min-height: 100%;
+  background-color: #fdf0d5;
+  padding: 30px;
+  flex-shrink: 0;
+}
+
+/* --- Step Indicator Styles (Vertical Dots) --- */
+.progress-container {
+  position: relative;
+  padding-left: 5px;
+}
+
+.step-indicator {
+  position: relative;
+  margin-bottom: 25px;
+  padding-left: 30px;
+  font-size: 16px;
+  color: #333;
+  line-height: 1.3;
+}
+
+.step-indicator .step-dot {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: transparent;
+  border: 2px solid #333;
+  color: transparent;
+  z-index: 2;
+}
+
+/* Completed State */
+.step-indicator.completed .step-dot {
+  border-color: green;
+  background-color: green;
+}
+ 
+/* Active State */
+.step-indicator.active {
+  font-weight: bold;
+  color: #333;
+}
+
+.step-indicator.active .step-dot {
+  border-color: green;
+  animation: pulse-blue 1s infinite alternate;
+}
+
+@keyframes pulse-blue {
+  from {
+    box-shadow: 0 0 0 0 rgba(0, 77, 153, 0.4);
+  }
+  to {
+    box-shadow: 0 0 0 6px rgba(0, 77, 153, 0);
+  }
+}
+
+@keyframes pulse-green {
+  0% {
+    transform: scale(0.9);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.step-indicator.hidden {
+  display: none;
+}
+
+/* --- 2. Form Area (Wider, white panel) --- */
+#form-area {
+  flex-grow: 1; /* Takes up remaining space */
+  padding: 30px;
+  background-color: white;
+}
+
+.form-section-title {
+  font-size: 16px;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 1rem;
+  padding-top: 1rem;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 0.5rem;
+}
+
+.fixed-width-addon {
+    /* 35px is usually a good size to fit up to two digits (e.g., "15.") */
+    width: 35px; 
+    /* The !important flag may be necessary to override Bootstrap's default styles */
+    text-align: center !important; 
+    flex: 0 0 auto; /* Ensures it doesn't flex/stretch, maintaining the fixed width */
+}
+
+/* Custom Form Styles */
+.form-check-input:checked {
+  background-color: blue;
+  border-color: blue;
+}
+
+.btn-submit {
+  background-color: var(--upm-green);
+  color: white;
+  border: none;
+}
+
+.btn-submit:hover {
+  background-color: #16a34a;
+  color: white;
+}
+
+.btn-add {
+  background-color: #3b82f6;
+  color: white;
+  font-size: 0.875rem;
+  padding: 0.375rem 0.75rem;
+  border-radius: 0.375rem;
+}
+
+.btn-add:hover {
+  background-color: #2563eb;
+}
+
+.card-light-bg {
+  background-color: #f8f9fa;
+  border: 1px solid #eee;
+  border-radius: 0.5rem;
+}
+
+/* Custom Modal Backdrop */
+.modal-backdrop-custom {
+    position: fixed; /* Stays in place even when scrolling */
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5); /* Semi-transparent black */
+    display: flex; /* Use flexbox for centering content */
+    justify-content: center; /* Center horizontally */
+    align-items: center; /* Center vertically */
+    z-index: 1050; /* Ensure it's above other page content */
+}
+
+/* Custom Modal Content */
+.modal-content-custom {
+    background-color: #fff;
+    padding: 30px;
+    border-radius: 8px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    position: relative; /* For positioning the close button */
+    max-width: 500px; /* Limit the width of the modal content */
+    width: 90%; /* Responsive width */
+}
+
+/* Close button positioning */
+.modal-close-btn {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+}
+
+/* For the icon/image in the modal */
+.modal-icon-container {
+    margin-bottom: 15px;
+}

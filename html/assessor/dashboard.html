@@ -44,17 +44,17 @@
                     Submission</a>
             </div>
 
-            <a href="#assessorMenu" class="role-header" data-role="assessor">
+            <a href="#assessorMenu" class="role-header active-role menu-expanded" data-role="assessor">
                 <span class="role-text">Assessor</span>
                 <span class="arrow-container">
                     <i class="bi bi-chevron-right arrow-icon"></i>
                 </span>
             </a>
 
-            <div id="assessorMenu" class="menu-items">
-                <a href="#" id="Dashboard"><i class="bi bi-house-fill icon-padding"></i> Dashboard</a>
-                <a href="#" id="Notification"><i class="bi bi-bell-fill icon-padding"></i> Notification</a>
-                <a href="#" id="EvaluationForm"><i class="bi bi-file-earmark-text-fill icon-padding"></i> Evaluation
+            <div id="assessorMenu" class="menu-items expanded">
+                <a href="dashboard.html" id="Dashboard"><i class="bi bi-house-fill icon-padding"></i> Dashboard</a>
+                <a href="notification.html" id="Notification"><i class="bi bi-bell-fill icon-padding"></i> Notification</a>
+                <a href="evaluationForm.html" id="EvaluationForm"><i class="bi bi-file-earmark-text-fill icon-padding"></i> Evaluation
                     Form</a>
             </div>
             <a href="#" id="logout">
@@ -88,7 +88,7 @@
 
     </div>
 
-   <!-- CRITICAL FIX: Added id="main" here to match the JavaScript code -->
+    <!-- CRITICAL FIX: Added id="main" here to match the JavaScript code -->
     <div id="main" class="main-grid">
         <!-- Top widgets would go here, maintaining vertical alignment with the section below -->
         <div class="metrics-grid">
@@ -119,8 +119,9 @@
 
             <!-- LEFT COLUMN: Evaluation Task List -->
             <div class="evaluation-area">
-                <h1 class="card-title">Evaluation task</h1>
+    
 
+                <h1 class="card-title">Evaluation task</h1>
                 <div class="evaluation-task-card">
                     <div class="tab-buttons">
                         <button class="task-tab active-tab" data-tab="inprogress">In-progress</button>
@@ -129,76 +130,98 @@
                     </div>
                     <div class="task-list-area">
 
-                        <!-- In-progress View (Active by default in JS) -->
                         <div class="task-group active" data-group="inprogress">
-                            <div class="no-tasks">
-                                <i class="far fa-thumbs-up"></i> No pending tasks at the moment
+                            <div class="task-row header-row four-col-grid">
+                                <span class="col-supervisee">Supervisee</span>
+                                <span class="col-project-title">Project title</span>
+                                <span class="col-assessment-type">Assessment type</span>
+                                <span class="col-due-date">Due date</span>
+                            </div>
+                            <div class="task-row data-row four-col-grid">
+                                <span class="col-supervisee">Amirul Afiq Bin Muhammad</span>
+                                <span class="col-project-title">Development of an Automated Assessment and Evaluation
+                                    for
+                                    Bachelor Projects</span>
+                                <span class="col-assessment-type">Demonstration<br>Thesis and logbook</span>
+                                <span class="col-due-date">24 Nov 2025<br>3 Jan 2026</span>
+                            </div>
+                            <div class="task-row data-row four-col-grid">
+                                <span class="col-supervisee">Harraz Firdaus Bin Hisyam</span>
+                                <span class="col-project-title">Virtual Reality Mobile Application for Interactive
+                                    Museum
+                                    Viewing Experience</span>
+                                <span class="col-assessment-type">Proposal report<br>Thesis and logbook</span>
+                                <span class="col-due-date">24 Aug 2025<br>3 Jan 2026</span>
                             </div>
                         </div>
 
-                        <!-- Upcoming View -->
                         <div class="task-group" data-group="upcoming">
-                            <!-- header 1 -->
                             <div class="task-group-header" data-target="#list-aug-9">
-                                <i class="fas fa-chevron-down toggle-icon"></i>
+                                <i class="fas fa-chevron-right toggle-icon"></i>
                                 9 Aug 2025, Wed - Bilik Kuliah A
                             </div>
                             <div id="list-aug-9" class="task-list-details">
-                                <div class="task-row header-row">
+                                <div class="task-row header-row five-col-grid">
                                     <span class="col-student">Student</span>
                                     <span class="col-time">Time</span>
-                                    <span class="col-title">Project title</span>
+                                    <span class="col-project-title">Project title</span>
+                                    <span class="col-assessment-type">Assessment type</span>
                                     <span class="col-assessor">Assessor</span>
                                 </div>
-                                <div class="task-row data-row">
+                                <div class="task-row data-row five-col-grid">
                                     <span class="col-student">Siti Athirah Binti Othman</span>
                                     <span class="col-time">9.00 am</span>
-                                    <span class="col-title">Development of an Automated Assessment and Evaluation for Bachelor
-                                        Projects</span>
+                                    <span class="col-project-title">Development of an Automated Assessment and
+                                        Evaluation
+                                        for Bachelor Projects</span>
+                                    <span class="col-assessment-type">Seminar Proposal</span>
                                     <span class="col-assessor"><i class="fas fa-user-tie"></i></span>
                                 </div>
                             </div>
 
-                            <!-- header 2 -->
                             <div class="task-group-header" data-target="#list-aug-10">
-                                <i class="fas fa-chevron-down toggle-icon"></i>
+                                <i class="fas fa-chevron-right toggle-icon"></i>
                                 10 Aug 2025, Thu - Bilik Kuliah A
                             </div>
                             <div id="list-aug-10" class="task-list-details">
-                                <div class="task-row header-row">
+                                <div class="task-row header-row five-col-grid">
                                     <span class="col-student">Student</span>
                                     <span class="col-time">Time</span>
-                                    <span class="col-title">Project title</span>
+                                    <span class="col-project-title">Project title</span>
+                                    <span class="col-assessment-type">Assessment type</span>
                                     <span class="col-assessor">Assessor</span>
                                 </div>
-                                <div class="task-row data-row">
+                                <div class="task-row data-row five-col-grid">
                                     <span class="col-student">Atiya Aisya Binti Aiman</span>
                                     <span class="col-time">9.30 am</span>
-                                    <span class="col-title">Virtual Reality Mobile Application for Interactive Museum Viewing
-                                        Experience</span>
+                                    <span class="col-project-title">Virtual Reality Mobile Application for Interactive
+                                        Museum Viewing Experience</span>
+                                    <span class="col-assessment-type">Seminar Proposal</span>
                                     <span class="col-assessor"><i class="fas fa-user-tie"></i></span>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Completed View -->
                         <div class="task-group" data-group="completed">
-                            <!-- header 3 -->
                             <div class="task-group-header" data-target="#list-aug-8">
-                                <i class="fas fa-chevron-down toggle-icon"></i>
-                                8 Aug 2025, Tue - Bilik Kuliah A
+                                <i class="fas fa-chevron-right toggle-icon"></i>
+                                8 Aug 2025, Wed - Bilik Kuliah A
                             </div>
                             <div id="list-aug-8" class="task-list-details">
-                                <div class="task-row header-row">
+                                <div class="task-row header-row five-col-grid">
                                     <span class="col-student">Student</span>
                                     <span class="col-time">Time</span>
-                                    <span class="col-title">Project title</span>
+                                    <span class="col-project-title">Project title</span>
+                                    <span class="col-assessment-type">Assessment type</span>
                                     <span class="col-assessor">Assessor</span>
                                 </div>
-                                <div class="task-row data-row">
-                                    <span class="col-student">Siti Amirah Binti Othman</span>
+                                <div class="task-row data-row five-col-grid">
+                                    <span class="col-student">Siti Athirah Binti Othman</span>
                                     <span class="col-time">9.00 am</span>
-                                    <span class="col-title">Development of a AI integrated Learning Platform</span>
+                                    <span class="col-project-title">Development of an Automated Assessment and
+                                        Evaluation
+                                        for Bachelor Projects</span>
+                                    <span class="col-assessment-type">Seminar Proposal</span>
                                     <span class="col-assessor"><i class="fas fa-user-tie"></i></span>
                                 </div>
                             </div>
@@ -207,30 +230,33 @@
                     </div>
                 </div>
             </div>
-
             <!-- RIGHT COLUMN: Reminder Section -->
-            <div class="reminder-area">
-                <h1 class="card-title">Reminder</h1>
-                <div class="reminder-card">
-                    <div class="reminder-card-content">
-                        <div class="reminder-item">
-                            <p class="reminder-date">28 October 2025</p>
-                            <ul>
-                                <li>Assessment rubric for Seminar Demonstration (Assessor) has been updated</li>
-                            </ul>
-                        </div>
-                        <hr class="reminder-separator">
-                        <div class="reminder-item">
-                            <p class="reminder-date">29 October 2025</p>
-                            <ul>
-                                <li>Supervisor may modify submitted marks before 12 November 2025</li>
-                            </ul>
-                        </div>
+        <div class="reminder-area">
+            <h1 class="card-title">Reminder</h1>
+            <div class="reminder-card">
+                <div class="reminder-card-content">
+                    <div class="reminder-item">
+                        <p class="reminder-date">28 October 2025</p>
+                        <ul>
+                            <li>Assessment rubric for Seminar Demonstration (Assessor) has been updated</li>
+                        </ul>
+                    </div>
+                    <hr class="reminder-separator">
+                    <div class="reminder-item">
+                        <p class="reminder-date">29 October 2025</p>
+                        <ul>
+                            <li>Supervisor may modify submitted marks before 12 November 2025</li>
+                        </ul>
                     </div>
                 </div>
             </div>
+        </div>
 
         </div>
+
+        
+
+    </div>
     </div>
 
     <script>
@@ -240,7 +266,7 @@
             var sidebar = document.getElementById("mySidebar");
             var header = document.getElementById("containerAtas");
             // CRITICAL FIX: Targets the main content area (now with id="main")
-            var mainContent = document.getElementById("main"); 
+            var mainContent = document.getElementById("main");
             var menuIcon = document.querySelector(".menu-icon");
 
             // 1. Expand the Sidebar
@@ -262,7 +288,7 @@
                     links[i].style.display = 'flex';
                 }
             }
-            
+
             // Show currently expanded menu items
             document.querySelectorAll('.menu-items.expanded a').forEach(a => a.style.display = 'block');
 
@@ -276,7 +302,7 @@
             var sidebar = document.getElementById("mySidebar");
             var header = document.getElementById("containerAtas");
             // CRITICAL FIX: Targets the main content area (now with id="main")
-            var mainContent = document.getElementById("main"); 
+            var mainContent = document.getElementById("main");
             var menuIcon = document.querySelector(".menu-icon");
 
             // 1. Collapse the Sidebar
@@ -306,13 +332,13 @@
         // --- Role Toggle Logic ---
         document.addEventListener('DOMContentLoaded', () => {
             const arrowContainers = document.querySelectorAll('.arrow-container');
-            
+
             // Function to handle the role menu toggle
             const handleRoleToggle = (header) => {
                 const menuId = header.getAttribute('href');
                 const targetMenu = document.querySelector(menuId);
                 const arrowIcon = header.querySelector('.arrow-icon');
-                
+
                 if (!targetMenu) return;
 
                 const isExpanded = targetMenu.classList.contains('expanded');
@@ -325,7 +351,7 @@
                     }
                 });
                 document.querySelectorAll('.role-header').forEach(h => {
-                     if (h !== header) h.classList.remove('active-role');
+                    if (h !== header) h.classList.remove('active-role');
                 });
                 document.querySelectorAll('.arrow-icon').forEach(icon => {
                     if (icon !== arrowIcon) {
@@ -337,14 +363,14 @@
                 // Toggle current menu
                 targetMenu.classList.toggle('expanded', !isExpanded);
                 header.classList.toggle('active-role', !isExpanded);
-                
+
                 // Show/hide child links for the current menu (only when sidebar is expanded)
                 const sidebar = document.getElementById("mySidebar");
                 const isSidebarExpanded = sidebar.style.width === "220px";
 
                 targetMenu.querySelectorAll('a').forEach(a => {
-                    if(isSidebarExpanded) {
-                         a.style.display = targetMenu.classList.contains('expanded') ? 'block' : 'none';
+                    if (isSidebarExpanded) {
+                        a.style.display = targetMenu.classList.contains('expanded') ? 'block' : 'none';
                     } else {
                         a.style.display = 'none';
                     }
@@ -397,26 +423,29 @@
             });
 
             // --- Task Group Expand/Collapse Logic (Accordion) ---
-            groupHeaders.forEach(header => {
-                header.addEventListener('click', () => {
-                    const targetId = header.getAttribute('data-target');
-                    const targetList = document.querySelector(targetId);
-                    const toggleIcon = header.querySelector('.toggle-icon');
+groupHeaders.forEach(header => {
+    header.addEventListener('click', () => {
+        const targetId = header.getAttribute('data-target');
+        const targetList = document.querySelector(targetId);
+        const toggleIcon = header.querySelector('.toggle-icon');
 
-                    if (targetList) {
-                        const isExpanded = targetList.classList.contains('expanded');
+        if (targetList) {
+            // 1. Check what the new state will be
+            const isExpanding = !targetList.classList.contains('expanded');
 
-                        // Toggle CSS classes
-                        targetList.classList.toggle('expanded', !isExpanded);
-                        toggleIcon.classList.toggle('fa-chevron-right', !targetList.classList.contains('expanded'));
-                        toggleIcon.classList.toggle('fa-chevron-down', targetList.classList.contains('expanded'));
-                    }
-                });
-            });
+            // 2. Toggle the content
+            targetList.classList.toggle('expanded', isExpanding);
+
+            // 3. Toggle the icon classes based on the new state
+            toggleIcon.classList.toggle('fa-chevron-right', !isExpanding); // Add 'right' if it is NOT expanding (i.e., collapsing)
+            toggleIcon.classList.toggle('fa-chevron-down', isExpanding);  // Add 'down' if it IS expanding
+        }
+    });
+});
 
             // Default to 'inprogress' tab view on load
             document.querySelector('.task-group[data-group="inprogress"]').classList.add('active');
-            
+
             // Initial setting of the menu state
             // Find the default active role header and expand its menu
             const defaultHeader = document.querySelector('.role-header.active-role');
@@ -424,7 +453,7 @@
                 // Ensure the initial arrow is correct for the default expanded menu
                 defaultHeader.querySelector('.arrow-icon').classList.remove('bi-chevron-right');
                 defaultHeader.querySelector('.arrow-icon').classList.add('bi-chevron-down');
-                
+
                 const menuId = defaultHeader.getAttribute('href');
                 const defaultMenu = document.querySelector(menuId);
                 if (defaultMenu) {

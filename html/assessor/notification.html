@@ -30,7 +30,7 @@
                 </span>
             </a> -->
 
-            <a href="#supervisorMenu" class="role-header active-role" data-role="supervisor">
+            <a href="#supervisorMenu" class="role-header" data-role="supervisor">
                 <span class="role-text">Supervisor</span>
                 <span class="arrow-container">
                     <i class="bi bi-chevron-right arrow-icon"></i>
@@ -51,17 +51,17 @@
                     Submission</a>
             </div>
 
-            <a href="#assessorMenu" class="role-header" data-role="assessor">
+            <a href="#assessorMenu" class="role-header active-role menu-expanded" data-role="assessor">
                 <span class="role-text">Assessor</span>
                 <span class="arrow-container">
                     <i class="bi bi-chevron-right arrow-icon"></i>
                 </span>
             </a>
 
-            <div id="assessorMenu" class="menu-items">
-                <a href="#" id="Dashboard"><i class="bi bi-house-fill icon-padding"></i> Dashboard</a>
-                <a href="#" id="Notification"><i class="bi bi-bell-fill icon-padding"></i> Notification</a>
-                <a href="#" id="EvaluationForm"><i class="bi bi-file-earmark-text-fill icon-padding"></i> Evaluation
+            <div id="assessorMenu" class="menu-items expanded">
+                <a href="dashboard.html" id="Dashboard"><i class="bi bi-house-fill icon-padding"></i> Dashboard</a>
+                <a href="notification.html" id="Notification"><i class="bi bi-bell-fill icon-padding"></i> Notification</a>
+                <a href="evaluationForm.html" id="EvaluationForm"><i class="bi bi-file-earmark-text-fill icon-padding"></i> Evaluation
                     Form</a>
             </div>
             <a href="#" id="logout">
@@ -102,7 +102,8 @@
             <!-- Notification Item 1 -->
             <div class="notification-item">
                 <div class="notification-description">
-                    <span class="notif-number">1.</span> You have been assigned to a new evaluation task. Please review the details and accept the task.
+                    <span class="notif-number">1.</span> You have been assigned to a new evaluation task. Please review
+                    the details and accept the task.
                 </div>
                 <div class="notif-card">
                     <div class="notif-details">
@@ -123,7 +124,8 @@
             <!-- Notification Item 2 -->
             <div class="notification-item">
                 <div class="notification-description">
-                    <span class="notif-number">2.</span> You have been assigned to a new evaluation task. Please review the details and accept the task.
+                    <span class="notif-number">2.</span> You have been assigned to a new evaluation task. Please review
+                    the details and accept the task.
                 </div>
                 <div class="notif-card">
                     <div class="notif-details">
@@ -151,7 +153,7 @@
             var sidebar = document.getElementById("mySidebar");
             var header = document.getElementById("containerAtas");
             // CRITICAL FIX: Targets the main content area (now with id="main")
-            var mainContent = document.getElementById("main"); 
+            var mainContent = document.getElementById("main");
             var menuIcon = document.querySelector(".menu-icon");
 
             // 1. Expand the Sidebar
@@ -173,7 +175,7 @@
                     links[i].style.display = 'flex';
                 }
             }
-            
+
             // Show currently expanded menu items
             document.querySelectorAll('.menu-items.expanded a').forEach(a => a.style.display = 'block');
 
@@ -187,7 +189,7 @@
             var sidebar = document.getElementById("mySidebar");
             var header = document.getElementById("containerAtas");
             // CRITICAL FIX: Targets the main content area (now with id="main")
-            var mainContent = document.getElementById("main"); 
+            var mainContent = document.getElementById("main");
             var menuIcon = document.querySelector(".menu-icon");
 
             // 1. Collapse the Sidebar
@@ -215,16 +217,16 @@
         };
 
 
-     // --- Role Toggle Logic ---
+        // --- Role Toggle Logic ---
         document.addEventListener('DOMContentLoaded', () => {
             const arrowContainers = document.querySelectorAll('.arrow-container');
-            
+
             // Function to handle the role menu toggle
             const handleRoleToggle = (header) => {
                 const menuId = header.getAttribute('href');
                 const targetMenu = document.querySelector(menuId);
                 const arrowIcon = header.querySelector('.arrow-icon');
-                
+
                 if (!targetMenu) return;
 
                 const isExpanded = targetMenu.classList.contains('expanded');
@@ -237,7 +239,7 @@
                     }
                 });
                 document.querySelectorAll('.role-header').forEach(h => {
-                     if (h !== header) h.classList.remove('active-role');
+                    if (h !== header) h.classList.remove('active-role');
                 });
                 document.querySelectorAll('.arrow-icon').forEach(icon => {
                     if (icon !== arrowIcon) {
@@ -249,14 +251,14 @@
                 // Toggle current menu
                 targetMenu.classList.toggle('expanded', !isExpanded);
                 header.classList.toggle('active-role', !isExpanded);
-                
+
                 // Show/hide child links for the current menu (only when sidebar is expanded)
                 const sidebar = document.getElementById("mySidebar");
                 const isSidebarExpanded = sidebar.style.width === "220px";
 
                 targetMenu.querySelectorAll('a').forEach(a => {
-                    if(isSidebarExpanded) {
-                         a.style.display = targetMenu.classList.contains('expanded') ? 'block' : 'none';
+                    if (isSidebarExpanded) {
+                        a.style.display = targetMenu.classList.contains('expanded') ? 'block' : 'none';
                     } else {
                         a.style.display = 'none';
                     }
