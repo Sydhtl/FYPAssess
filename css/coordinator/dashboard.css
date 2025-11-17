@@ -1,0 +1,347 @@
+body {
+  font-family: "Montserrat";
+  transition: margin-left 0.5s;
+  /* Smooth transition for the main content shift */
+}
+
+#courseCode,
+#courseSession {
+  margin-left: auto;
+  /* CRITICAL: Pushes this element to the far right of the flex container */
+  /* Text Styles */
+  font-family: "Montserrat";
+  text-align: right;
+  line-height: 1.2;
+  color: #333;
+  position: static;
+  margin: 0;
+}
+
+#courseCode {
+  font-size: 30px;
+}
+
+/* --- DASHBOARD GRID STYLES --- */
+.main-grid {
+  padding: 20px;
+  margin-left: 60px;
+  transition: margin-left 0.5s;
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.widget {
+  background-color: #fdf0d5;
+  border-radius: 12px;
+  padding: 10px 20px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.widget-icon {
+  font-size: 30px;
+  color: #666;
+  padding: 1px;
+  border-radius: 8px;
+}
+
+.widget-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.widget-title {
+  font-size: 16px;
+  color: #666;
+  font-weight: 500;
+}
+
+.widget-value {
+  font-size: 23px;
+  font-weight: bold;
+  color: #333;
+}
+
+/* --- TASK & REMINDER SECTION --- */
+.task-reminder-section {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 20px;
+}
+
+@media (max-width: 1024px) {
+  .task-reminder-section {
+    grid-template-columns: 1fr;
+  }
+}
+
+.card-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 15px;
+}
+
+.evaluation-task-card,
+.reminder-card {
+  background-color: #fdf0d5;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  padding: 10px;
+  margin-top: 10px;
+}
+
+/* Task Tab Styles */
+.tab-buttons {
+  display: flex;
+  border-bottom: 2px solid #e0e0e0;
+  margin-bottom: 15px;
+}
+
+.task-tab {
+  padding: 10px 20px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #666;
+  border-bottom: 3px solid transparent;
+  transition: all 0.2s;
+  font-family: Montserrat;
+}
+
+.task-tab.active-tab {
+  color: #780000;
+  border-bottom-color: #780000;
+}
+
+/* Task List Styles */
+.task-list-area {
+  min-height: 400px;
+}
+
+.task-group {
+  display: none;
+}
+
+.task-group.active {
+  display: block;
+}
+
+.no-tasks {
+  text-align: center;
+  padding: 40px 20px;
+  color: #999;
+  font-style: italic;
+}
+
+/* Chart Container Styles */
+.graph-container-wrapper {
+  padding: 15px;
+}
+
+.chart-container {
+  width: 100%;
+  height: 500px;
+  background-color: #ffffff;
+  border-radius: 8px;
+  padding: 20px;
+  position: relative;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  overflow-x: auto;
+}
+
+.chart-container canvas {
+  max-height: 100%;
+  max-width: 100%;
+}
+
+/* Ensure proper spacing for multiple bars */
+.task-list-area {
+  overflow-x: auto;
+}
+
+/* Reminder Card Specific Styles */
+.reminder-card-content {
+  background-color: #fdf0d5;
+  padding: 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.reminder-date {
+  font-weight: bold;
+  margin-bottom: 10px;
+  font-size: 16px;
+  padding-top: 5px;
+}
+
+.reminder-item ul {
+  list-style-type: disc;
+  margin: 0;
+  padding-left: 20px;
+}
+
+.reminder-item ul li {
+  margin-bottom: 5px;
+  font-size: 16px;
+}
+
+.reminder-separator {
+  border: 0;
+  height: 1px;
+  background: #333;
+  margin: 20px 0;
+}
+
+/* Responsive adjustments for smaller screens */
+@media (max-width: 600px) {
+  .evaluation-task-card,
+  .reminder-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .metrics-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .chart-container {
+    height: 300px;
+    padding: 10px;
+  }
+}
+
+/* Evaluation area and reminder area */
+.evaluation-area,
+.reminder-area {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Sidebar styles for role headers */
+.role-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 15px;
+  color: white;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: 'Montserrat', Arial, sans-serif;
+  font-weight: 600;
+  margin: 5px 10px;
+  border-radius: 8px;
+}
+
+.role-header:hover:not(.active-role) {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Coordinator header is white with #780000 when menu is COLLAPSED (not expanded) */
+/* IMPORTANT: This applies to coordinator on coordinator pages when menu is collapsed */
+.role-header.active-role:not(.menu-expanded),
+.role-header[data-role="coordinator"].active-role:not(.menu-expanded) {
+  background-color: white !important;
+  color: #780000 !important;
+  border-radius: 20px;
+  border: 4px solid #780000 !important;
+}
+
+.role-header.active-role:not(.menu-expanded) .arrow-icon,
+.role-header[data-role="coordinator"].active-role:not(.menu-expanded) .arrow-icon {
+  color: #780000 !important;
+}
+
+.role-header.active-role:not(.menu-expanded) .role-text,
+.role-header[data-role="coordinator"].active-role:not(.menu-expanded) .role-text {
+  color: #780000 !important;
+}
+
+/* When menu is expanded, coordinator header goes back to normal */
+.role-header.active-role.menu-expanded {
+  background-color: transparent !important;
+  color: white !important;
+  border: none !important;
+}
+
+.role-header.active-role.menu-expanded:hover {
+  
+  border: none !important;
+  color: white !important;
+}
+
+.role-header.active-role.menu-expanded .arrow-icon {
+  color: white !important;
+}
+
+.role-header.active-role.menu-expanded .role-text {
+  color: white !important;
+}
+
+.role-text {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.arrow-container {
+  display: flex;
+  align-items: center;
+}
+
+.arrow-icon {
+  font-size: 12px;
+  transition: transform 0.2s;
+}
+
+.menu-items {
+  display: none;
+  flex-direction: column;
+}
+
+.menu-items.expanded {
+  display: flex;
+}
+
+.menu-items a {
+  padding: 10px 15px 10px 40px;
+  color: white;
+  text-decoration: none;
+  display: block;
+  transition: background-color 0.2s, color 0.2s;
+  font-family: 'Montserrat', Arial, sans-serif;
+}
+
+.menu-items a:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+/* Active menu item when coordinator menu is expanded */
+.menu-items.expanded a.active-menu-item {
+  background-color: white !important;
+  color: #780000 !important;
+  border-radius: 20px;
+  border: 4px solid #780000 !important;
+}
+
+.menu-items.expanded a.active-menu-item .icon-padding,
+.menu-items.expanded a.active-menu-item i {
+  color: #780000 !important;
+  
+}
+
+.icon-padding {
+  padding-right: 10px;
+}
+

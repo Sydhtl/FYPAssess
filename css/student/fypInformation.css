@@ -1,0 +1,328 @@
+/* Page-specific styles for FYP Information */
+
+/* Task Tab Styles - Matching Assessor Dashboard */
+.tab-buttons {
+    display: flex;
+    border-bottom: 2px solid #e0e0e0;
+    margin-bottom: 15px;
+}
+
+.task-tab {
+    padding: 10px 20px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    color: #666;
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s;
+    font-family: Montserrat;
+}
+
+.task-tab.active-tab {
+    color: #780000;
+    border-bottom-color: #780000;
+}
+
+.section-title{
+	text-align: center;
+	font-weight: 800;
+	margin-bottom: 16px;
+}
+
+/* Task Group Styles - Matching Assessor Dashboard */
+.task-group {
+    display: none;
+}
+
+.task-group.active {
+    display: block;
+}
+
+/* Read-only fields should look non-editable */
+.readonly-field[readonly]{
+	background-color: #E6E6E6;
+	color: #333;
+	cursor: not-allowed;
+    border: 2px solid #ffffff; /* white border */
+}
+
+/* Keep the same grey color when clicked/focused and remove bootstrap glow */
+.readonly-field[readonly]:focus,
+.readonly-field[readonly]:active,
+input.form-control.readonly-field:focus,
+textarea.form-control.readonly-field:focus{
+	background-color: #E6E6E6 !important;
+	box-shadow: none !important;
+	outline: none !important;
+	border-color: #ffffff !important; /* keep white border on focus */
+}
+
+/* Editable field for title stands out slightly */
+.editable-field{
+	background-color: #ffffff;
+}
+
+.past-list{
+	background: #FDF0D5;
+	padding: 16px;
+
+	border-radius: 4px;
+}
+
+/* Past Title Controls */
+.past-title-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.search-box {
+    position: relative;
+    flex: 1;
+    min-width: 200px;
+    max-width: 400px;
+}
+
+.search-box i {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #666;
+    font-size: 16px;
+}
+
+.search-input {
+    width: 100%;
+    padding: 8px 12px 8px 35px;
+    border: 2px solid #ddd;
+    border-radius: 4px;
+    font-family: 'Montserrat', Arial, sans-serif;
+    font-size: 14px;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: #780000;
+}
+
+.sort-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.sort-label {
+    font-family: 'Montserrat', Arial, sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+    white-space: nowrap;
+}
+
+.sort-select {
+    padding: 8px 12px;
+    border: 2px solid #ddd;
+    border-radius: 4px;
+    font-family: 'Montserrat', Arial, sans-serif;
+    font-size: 14px;
+    background-color: white;
+    cursor: pointer;
+    min-width: 180px;
+}
+
+.sort-select:focus {
+    outline: none;
+    border-color: #780000;
+}
+
+/* Responsive adjustments for past title controls */
+@media (max-width: 768px) {
+    .past-title-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .search-box {
+        max-width: 100%;
+    }
+    
+    .sort-controls {
+        justify-content: space-between;
+        width: 100%;
+    }
+    
+    .sort-select {
+        flex: 1;
+        min-width: 150px;
+    }
+}
+
+/* Supervisor dropdown styling */
+.supervisor-item{
+	margin-bottom: 8px;
+	border: 1px solid #ddd;
+	border-radius: 4px;
+	overflow: hidden;
+	background: white;
+}
+
+.supervisor-btn{
+	width: 100%;
+	padding: 12px 16px;
+	background: #780000;
+	border: none;
+	text-align: left;
+	cursor: pointer;
+	font-family: 'Montserrat', Arial, sans-serif;
+	font-weight: 600;
+	font-size: 15px;
+	color: #ffffff;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	transition: background-color 0.2s;
+}
+
+.supervisor-btn:hover{
+	background-color: #ffffff;
+	color: #780000;
+}
+
+.supervisor-btn i{
+	transition: transform 0.3s;
+	font-size: 14px;
+}
+
+.supervisor-btn[aria-expanded="true"] i{
+	transform: rotate(180deg);
+}
+
+.supervisor-arrow {
+    transition: transform 0.3s;
+    font-size: 14px;
+}
+
+.supervisor-btn[aria-expanded="true"] .supervisor-arrow {
+    transform: rotate(180deg);
+}
+
+.supervisor-content{
+	background: #f9f9f9;
+}
+
+.sessions-container {
+    padding: 8px;
+}
+
+/* Session Item Styling */
+.session-item {
+    margin-bottom: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    overflow: hidden;
+    background: white;
+}
+
+.session-btn {
+    width: 100%;
+    padding: 10px 16px;
+    background: #ffffff;
+    border: none;
+    text-align: left;
+    cursor: pointer;
+    font-family: 'Montserrat', Arial, sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    color: #333;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background-color 0.2s;
+}
+
+.session-btn:hover {
+    background-color: #f0f0f0;
+}
+
+.session-label {
+    color: #780000;
+    font-weight: 600;
+}
+
+.session-arrow {
+    transition: transform 0.3s;
+    font-size: 12px;
+    color: #666;
+}
+
+.session-btn[aria-expanded="true"] .session-arrow {
+    transform: rotate(180deg);
+}
+
+.session-content {
+    background: #ffffff;
+    border-top: 1px solid #eee;
+}
+
+.session-content .students-list {
+    padding: 12px 16px 12px 30px;
+    background: #fafafa;
+}
+
+.supervisor-arrow {
+    transition: transform 0.3s;
+    font-size: 14px;
+}
+
+.supervisor-btn[aria-expanded="true"] .supervisor-arrow {
+    transform: rotate(180deg);
+}
+
+.students-list{
+	padding: 12px 16px;
+}
+
+.student-item{
+	padding: 10px 0;
+	border-bottom: 1px solid #e0e0e0;
+	font-family: 'Montserrat', Arial, sans-serif;
+	font-size: 14px;
+	color: #333;
+}
+
+.student-item:last-child{
+	border-bottom: none;
+}
+
+.student-item strong{
+	color: #780000;
+	margin-right: 8px;
+}
+
+/* Small note to show pending state after change */
+.status-note{
+	font-size: 12px;
+	font-weight: 700;
+	margin-left: 10px;
+	color: #a56a00;
+}
+
+/* Beige container to match Past Title */
+.info-card{
+	background: #FDF0D5;
+	padding: 16px;
+	box-shadow: 10px 10px 10px rgba(0,0,0,0.245);
+	border-radius: 4px;
+}
+
+#changeTitleBtn{
+    background-color: white;
+    
+}
+
