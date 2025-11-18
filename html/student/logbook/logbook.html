@@ -7,6 +7,8 @@
     <link rel="stylesheet" href="../../../css/student/logbook.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <!-- Include jsPDF library for PDF generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
     
@@ -249,7 +251,7 @@
                 '<td>' + item.id + '</td>' +
                 '<td>' + item.entry + '</td>' +
                 '<td><span class="status-badge ' + getStatusClass(item.status) + '">' + item.status + '</span></td>' +
-                '<td><a href="#" class="logbook-link" data-file="' + item.file + '">' + item.entry + '</a></td>' +
+                '<td><a href="#" class="logbook-link" data-id="' + item.id + '" data-entry="' + item.entry + '" data-status="' + item.status + '" data-section="' + section + '">' + item.entry + '</a></td>' +
                 '<td><button class="btn-delete" data-id="' + item.id + '" data-section="' + section + '"><i class="bi bi-trash"></i></button></td>';
             tbody.appendChild(row);
         });
@@ -260,8 +262,11 @@
         sectionElement.querySelectorAll('.logbook-link').forEach(function(link) {
             link.addEventListener('click', function(e) {
                 e.preventDefault();
-                var fileName = this.getAttribute('data-file');
-                showPdfViewer(fileName);
+                var id = parseInt(this.getAttribute('data-id'));
+                var entry = this.getAttribute('data-entry');
+                var status = this.getAttribute('data-status');
+                var section = this.getAttribute('data-section');
+                generateLogbookPdf(id, entry, status, section);
             });
         });
         
@@ -293,6 +298,178 @@
             }
             renderTable(section);
         }
+    }
+
+    function generateLogbookPdf(id, entry, status, section) {
+        // Get jsPDF from the UMD bundle
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        
+        var studentName = "NURUL SAIDAHTUL FATIHA BINTI SHAHARUDIN";
+        var courseCode = section === 'A' ? 'SWE4949A' : 'SWE4949B';
+        var courseName = section === 'A' ? 'Final Year Project A' : 'Final Year Project B';
+        var session = '2024/2025 - 2';
+        
+        // Load and add UPM logo
+        var img = new Image();
+        img.src = '../../../assets/UPMLogo.png';
+        img.onload = function() {
+            // Add logo centered at top
+            var logoWidth = 30;
+            var logoHeight = 20;
+            var pageWidth = 210;
+            var xPos = (pageWidth - logoWidth) / 2;
+            doc.addImage(img, 'PNG', xPos, 10, logoWidth, logoHeight);
+            
+            // Title
+            doc.setFontSize(18);
+            doc.setFont(undefined, 'bold');
+            doc.text('Logbook Entry', 105, 35, { align: 'center' });
+            
+            // Line separator
+            doc.setLineWidth(0.5);
+            doc.line(20, 40, 190, 40);
+            
+            // Content
+            doc.setFontSize(12);
+            doc.setFont(undefined, 'normal');
+            
+            var yPos = 50;
+            var lineHeight = 10;
+            
+            // Student info
+            doc.setFont(undefined, 'bold');
+            doc.text('Student Name:', 20, yPos);
+            doc.setFont(undefined, 'normal');
+            doc.text(studentName, 70, yPos);
+            yPos += lineHeight;
+            
+            doc.setFont(undefined, 'bold');
+            doc.text('Course Code:', 20, yPos);
+            doc.setFont(undefined, 'normal');
+            doc.text(courseCode, 70, yPos);
+            yPos += lineHeight;
+            
+            doc.setFont(undefined, 'bold');
+            doc.text('Course Name:', 20, yPos);
+            doc.setFont(undefined, 'normal');
+            doc.text(courseName, 70, yPos);
+            yPos += lineHeight;
+            
+            doc.setFont(undefined, 'bold');
+            doc.text('Session:', 20, yPos);
+            doc.setFont(undefined, 'normal');
+            doc.text(session, 70, yPos);
+            yPos += lineHeight + 5;
+            
+            doc.setFont(undefined, 'bold');
+            doc.text('Logbook Entry:', 20, yPos);
+            doc.setFont(undefined, 'normal');
+            doc.text(entry, 70, yPos);
+            yPos += lineHeight;
+            
+            doc.setFont(undefined, 'bold');
+            doc.text('Status:', 20, yPos);
+            doc.setFont(undefined, 'normal');
+            doc.text(status, 70, yPos);
+            yPos += lineHeight + 5;
+            
+            // Line separator
+            doc.setLineWidth(0.5);
+            doc.line(20, yPos, 190, yPos);
+            yPos += 10;
+            
+            // Logbook content section
+            doc.setFont(undefined, 'bold');
+            doc.text('Logbook Content:', 20, yPos);
+            doc.setFont(undefined, 'normal');
+            yPos += lineHeight;
+            
+            var contentText = 'This section contains the logbook entry details and activities performed during the project work. The student has documented their progress, challenges faced, and solutions implemented.';
+            var contentLines = doc.splitTextToSize(contentText, 170);
+            doc.text(contentLines, 20, yPos);
+            
+            // Footer
+            doc.setFontSize(8);
+            doc.setFont(undefined, 'normal');
+            doc.text('Generated on: ' + new Date().toLocaleString(), 105, 280, { align: 'center' });
+            doc.text('FYPAssess - Final Year Project Assessment System', 105, 285, { align: 'center' });
+            
+            // Open PDF in new window for viewing
+            window.open(doc.output('bloburl'), '_blank');
+        };
+        
+        // Fallback without logo
+        img.onerror = function() {
+            doc.setFontSize(18);
+            doc.setFont(undefined, 'bold');
+            doc.text('Logbook Entry', 105, 20, { align: 'center' });
+            
+            doc.setLineWidth(0.5);
+            doc.line(20, 25, 190, 25);
+            
+            doc.setFontSize(12);
+            doc.setFont(undefined, 'normal');
+            
+            var yPos = 35;
+            var lineHeight = 10;
+            
+            doc.setFont(undefined, 'bold');
+            doc.text('Student Name:', 20, yPos);
+            doc.setFont(undefined, 'normal');
+            doc.text(studentName, 70, yPos);
+            yPos += lineHeight;
+            
+            doc.setFont(undefined, 'bold');
+            doc.text('Course Code:', 20, yPos);
+            doc.setFont(undefined, 'normal');
+            doc.text(courseCode, 70, yPos);
+            yPos += lineHeight;
+            
+            doc.setFont(undefined, 'bold');
+            doc.text('Course Name:', 20, yPos);
+            doc.setFont(undefined, 'normal');
+            doc.text(courseName, 70, yPos);
+            yPos += lineHeight;
+            
+            doc.setFont(undefined, 'bold');
+            doc.text('Session:', 20, yPos);
+            doc.setFont(undefined, 'normal');
+            doc.text(session, 70, yPos);
+            yPos += lineHeight + 5;
+            
+            doc.setFont(undefined, 'bold');
+            doc.text('Logbook Entry:', 20, yPos);
+            doc.setFont(undefined, 'normal');
+            doc.text(entry, 70, yPos);
+            yPos += lineHeight;
+            
+            doc.setFont(undefined, 'bold');
+            doc.text('Status:', 20, yPos);
+            doc.setFont(undefined, 'normal');
+            doc.text(status, 70, yPos);
+            yPos += lineHeight + 5;
+            
+            doc.setLineWidth(0.5);
+            doc.line(20, yPos, 190, yPos);
+            yPos += 10;
+            
+            doc.setFont(undefined, 'bold');
+            doc.text('Logbook Content:', 20, yPos);
+            doc.setFont(undefined, 'normal');
+            yPos += lineHeight;
+            
+            var contentText = 'This section contains the logbook entry details and activities performed during the project work. The student has documented their progress, challenges faced, and solutions implemented.';
+            var contentLines = doc.splitTextToSize(contentText, 170);
+            doc.text(contentLines, 20, yPos);
+            
+            doc.setFontSize(8);
+            doc.setFont(undefined, 'normal');
+            doc.text('Generated on: ' + new Date().toLocaleString(), 105, 280, { align: 'center' });
+            doc.text('FYPAssess - Final Year Project Assessment System', 105, 285, { align: 'center' });
+            
+            window.open(doc.output('bloburl'), '_blank');
+        };
     }
 
     // Modal functions
