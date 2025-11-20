@@ -7,6 +7,8 @@
     <link rel="stylesheet" href="../../../css/student/logbook.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <!-- Include jsPDF library for PDF generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
     
@@ -146,16 +148,40 @@
                 </div>
                 <div class="modal-field">
                     <label class="modal-label">Logbook:</label>
-                    <div class="file-upload-area" id="fileUploadArea">
-                        <input type="file" id="logbookFileInput" accept=".pdf" style="display: none;" required>
-                        <i class="bi bi-arrow-up-circle file-upload-icon"></i>
-                        <p class="file-upload-text">Upload File Here</p>
-                        <p class="file-name" id="fileName" style="display: none;"></p>
+                    <div class="agenda-container" id="agendaContainer">
+                        <!-- Agenda items will be added here dynamically -->
                     </div>
+                    <button type="button" id="addAgendaBtn" class="btn btn-outline-primary" style="width: 100%; margin-top: 10px;">
+                        <i class="bi bi-plus-circle" style="margin-right: 5px;"></i>Add an Agenda
+                    </button>
                 </div>
                 <div class="modal-buttons">
                     <button type="button" id="cancelAddBtn" class="btn btn-light border">Cancel</button>
                     <button type="submit" id="saveAddBtn" class="btn btn-success">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Add Agenda Modal -->
+<div id="addAgendaModal" class="custom-modal">
+    <div class="modal-dialog">
+        <div class="modal-content-custom">
+            <span class="close-btn" id="closeAgendaModal">&times;</span>
+            <div class="modal-title-custom">Add Agenda</div>
+            <form id="addAgendaForm">
+                <div class="modal-field">
+                    <label class="modal-label">Name of Agenda:</label>
+                    <input type="text" id="agendaNameInput" class="form-control" placeholder="Enter agenda name" required>
+                </div>
+                <div class="modal-field">
+                    <label class="modal-label">Agenda's Explanation:</label>
+                    <textarea id="agendaExplanationInput" class="form-control" rows="4" placeholder="Enter agenda explanation" required></textarea>
+                </div>
+                <div class="modal-buttons">
+                    <button type="button" id="cancelAgendaBtn" class="btn btn-light border">Cancel</button>
+                    <button type="submit" id="saveAgendaBtn" class="btn btn-success">Save</button>
                 </div>
             </form>
         </div>
@@ -223,6 +249,8 @@
     var nextLogbookIdA = 10;
     var nextLogbookIdB = 3;
     var currentSection = 'A';
+    var agendaList = [];
+    var editingAgendaId = null;
 
     function updateRemainingCount(section) {
         var logbookData = section === 'A' ? logbookDataA : logbookDataB;
@@ -249,7 +277,7 @@
                 '<td>' + item.id + '</td>' +
                 '<td>' + item.entry + '</td>' +
                 '<td><span class="status-badge ' + getStatusClass(item.status) + '">' + item.status + '</span></td>' +
-                '<td><a href="#" class="logbook-link" data-file="' + item.file + '">' + item.entry + '</a></td>' +
+                '<td><a href="#" class="logbook-link" data-id="' + item.id + '" data-entry="' + item.entry + '" data-status="' + item.status + '" data-section="' + section + '">' + item.entry + '</a></td>' +
                 '<td><button class="btn-delete" data-id="' + item.id + '" data-section="' + section + '"><i class="bi bi-trash"></i></button></td>';
             tbody.appendChild(row);
         });
@@ -260,8 +288,11 @@
         sectionElement.querySelectorAll('.logbook-link').forEach(function(link) {
             link.addEventListener('click', function(e) {
                 e.preventDefault();
-                var fileName = this.getAttribute('data-file');
-                showPdfViewer(fileName);
+                var id = parseInt(this.getAttribute('data-id'));
+                var entry = this.getAttribute('data-entry');
+                var status = this.getAttribute('data-status');
+                var section = this.getAttribute('data-section');
+                generateLogbookPdf(id, entry, status, section);
             });
         });
         
@@ -295,6 +326,215 @@
         }
     }
 
+    function generateLogbookPdf(id, entry, status, section) {
+        // Get jsPDF from the UMD bundle
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        
+        var studentName = "NURUL SAIDAHTUL FATIHA BINTI SHAHARUDIN";
+        var courseCode = section === 'A' ? 'SWE4949A' : 'SWE4949B';
+        var courseName = section === 'A' ? 'Final Year Project A' : 'Final Year Project B';
+        var session = '2024/2025 - 2';
+        
+        // Get logbook data with agendas
+        var logbookData = section === 'A' ? logbookDataA : logbookDataB;
+        var logbookEntry = logbookData.find(function(item) { return item.id === id; });
+        var agendas = logbookEntry && logbookEntry.agendas ? logbookEntry.agendas : [];
+        
+        // Load and add UPM logo
+        var img = new Image();
+        img.src = '../../../assets/UPMLogo.png';
+        img.onload = function() {
+            // Add logo centered at top
+            var logoWidth = 30;
+            var logoHeight = 20;
+            var pageWidth = 210;
+            var xPos = (pageWidth - logoWidth) / 2;
+            doc.addImage(img, 'PNG', xPos, 10, logoWidth, logoHeight);
+            
+            // Title
+            doc.setFontSize(18);
+            doc.setFont(undefined, 'bold');
+            doc.text('Logbook Entry', 105, 35, { align: 'center' });
+            
+            // Line separator
+            doc.setLineWidth(0.5);
+            doc.line(20, 40, 190, 40);
+            
+            // Content
+            doc.setFontSize(12);
+            doc.setFont(undefined, 'normal');
+            
+            var yPos = 50;
+            var lineHeight = 10;
+            
+            // Student info
+            doc.setFont(undefined, 'bold');
+            doc.text('Student Name:', 20, yPos);
+            doc.setFont(undefined, 'normal');
+            doc.text(studentName, 70, yPos);
+            yPos += lineHeight;
+            
+            doc.setFont(undefined, 'bold');
+            doc.text('Course Code:', 20, yPos);
+            doc.setFont(undefined, 'normal');
+            doc.text(courseCode, 70, yPos);
+            yPos += lineHeight;
+            
+            doc.setFont(undefined, 'bold');
+            doc.text('Course Name:', 20, yPos);
+            doc.setFont(undefined, 'normal');
+            doc.text(courseName, 70, yPos);
+            yPos += lineHeight;
+            
+            doc.setFont(undefined, 'bold');
+            doc.text('Session:', 20, yPos);
+            doc.setFont(undefined, 'normal');
+            doc.text(session, 70, yPos);
+            yPos += lineHeight + 5;
+            
+            doc.setFont(undefined, 'bold');
+            doc.text('Logbook Entry:', 20, yPos);
+            doc.setFont(undefined, 'normal');
+            doc.text(entry, 70, yPos);
+            yPos += lineHeight;
+            
+            doc.setFont(undefined, 'bold');
+            doc.text('Status:', 20, yPos);
+            doc.setFont(undefined, 'normal');
+            doc.text(status, 70, yPos);
+            yPos += lineHeight + 5;
+            
+            // Line separator
+            doc.setLineWidth(0.5);
+            doc.line(20, yPos, 190, yPos);
+            yPos += 10;
+            
+            // Logbook content section
+            doc.setFont(undefined, 'bold');
+            doc.text('Logbook Content:', 20, yPos);
+            doc.setFont(undefined, 'normal');
+            yPos += lineHeight;
+            
+            // Display agendas
+            if (agendas.length > 0) {
+                agendas.forEach(function(agenda, index) {
+                    doc.setFont(undefined, 'bold');
+                    var agendaTitle = (index + 1) + '. ' + agenda.name;
+                    var titleLines = doc.splitTextToSize(agendaTitle, 170);
+                    doc.text(titleLines, 20, yPos);
+                    yPos += lineHeight * titleLines.length;
+                    
+                    doc.setFont(undefined, 'normal');
+                    var explanationLines = doc.splitTextToSize(agenda.explanation, 170);
+                    doc.text(explanationLines, 20, yPos);
+                    yPos += lineHeight * explanationLines.length + 5;
+                });
+            } else {
+                var contentText = 'No agenda items added.';
+                doc.text(contentText, 20, yPos);
+                yPos += lineHeight;
+            }
+            
+            // Footer
+            doc.setFontSize(8);
+            doc.setFont(undefined, 'normal');
+            doc.text('Generated on: ' + new Date().toLocaleString(), 105, 280, { align: 'center' });
+            doc.text('FYPAssess - Final Year Project Assessment System', 105, 285, { align: 'center' });
+            
+            // Open PDF in new window for viewing
+            window.open(doc.output('bloburl'), '_blank');
+        };
+        
+        // Fallback without logo
+        img.onerror = function() {
+            doc.setFontSize(18);
+            doc.setFont(undefined, 'bold');
+            doc.text('Logbook Entry', 105, 20, { align: 'center' });
+            
+            doc.setLineWidth(0.5);
+            doc.line(20, 25, 190, 25);
+            
+            doc.setFontSize(12);
+            doc.setFont(undefined, 'normal');
+            
+            var yPos = 35;
+            var lineHeight = 10;
+            
+            doc.setFont(undefined, 'bold');
+            doc.text('Student Name:', 20, yPos);
+            doc.setFont(undefined, 'normal');
+            doc.text(studentName, 70, yPos);
+            yPos += lineHeight;
+            
+            doc.setFont(undefined, 'bold');
+            doc.text('Course Code:', 20, yPos);
+            doc.setFont(undefined, 'normal');
+            doc.text(courseCode, 70, yPos);
+            yPos += lineHeight;
+            
+            doc.setFont(undefined, 'bold');
+            doc.text('Course Name:', 20, yPos);
+            doc.setFont(undefined, 'normal');
+            doc.text(courseName, 70, yPos);
+            yPos += lineHeight;
+            
+            doc.setFont(undefined, 'bold');
+            doc.text('Session:', 20, yPos);
+            doc.setFont(undefined, 'normal');
+            doc.text(session, 70, yPos);
+            yPos += lineHeight + 5;
+            
+            doc.setFont(undefined, 'bold');
+            doc.text('Logbook Entry:', 20, yPos);
+            doc.setFont(undefined, 'normal');
+            doc.text(entry, 70, yPos);
+            yPos += lineHeight;
+            
+            doc.setFont(undefined, 'bold');
+            doc.text('Status:', 20, yPos);
+            doc.setFont(undefined, 'normal');
+            doc.text(status, 70, yPos);
+            yPos += lineHeight + 5;
+            
+            doc.setLineWidth(0.5);
+            doc.line(20, yPos, 190, yPos);
+            yPos += 10;
+            
+            doc.setFont(undefined, 'bold');
+            doc.text('Logbook Content:', 20, yPos);
+            doc.setFont(undefined, 'normal');
+            yPos += lineHeight;
+            
+            // Display agendas
+            if (agendas.length > 0) {
+                agendas.forEach(function(agenda, index) {
+                    doc.setFont(undefined, 'bold');
+                    var agendaTitle = (index + 1) + '. ' + agenda.name;
+                    var titleLines = doc.splitTextToSize(agendaTitle, 170);
+                    doc.text(titleLines, 20, yPos);
+                    yPos += lineHeight * titleLines.length;
+                    
+                    doc.setFont(undefined, 'normal');
+                    var explanationLines = doc.splitTextToSize(agenda.explanation, 170);
+                    doc.text(explanationLines, 20, yPos);
+                    yPos += lineHeight * explanationLines.length + 5;
+                });
+            } else {
+                var contentText = 'No agenda items added.';
+                doc.text(contentText, 20, yPos);
+                yPos += lineHeight;
+            }
+            
+            doc.setFontSize(8);
+            doc.setFont(undefined, 'normal');
+            doc.text('Generated on: ' + new Date().toLocaleString(), 105, 280, { align: 'center' });
+            doc.text('FYPAssess - Final Year Project Assessment System', 105, 285, { align: 'center' });
+            
+            window.open(doc.output('bloburl'), '_blank');
+        };
+    }
+
     // Modal functions
     function openModal(modal) { modal.style.display = 'block'; }
     function closeModal(modal) { modal.style.display = 'none'; }
@@ -323,68 +563,144 @@
 
     // Add new row modal
     var addModal = document.getElementById('addRowModal');
-    var fileUploadArea = document.getElementById('fileUploadArea');
-    var fileInput = document.getElementById('logbookFileInput');
-    var fileNameDisplay = document.getElementById('fileName');
+    var agendaModal = document.getElementById('addAgendaModal');
+    var agendaContainer = document.getElementById('agendaContainer');
 
     document.getElementById('addNewRowBtnA').addEventListener('click', function() {
         currentSection = 'A';
         document.getElementById('addLogbookForm').reset();
-        fileNameDisplay.style.display = 'none';
+        agendaList = [];
+        agendaContainer.innerHTML = '';
         openModal(addModal);
     });
 
     document.getElementById('addNewRowBtnB').addEventListener('click', function() {
         currentSection = 'B';
         document.getElementById('addLogbookForm').reset();
-        fileNameDisplay.style.display = 'none';
+        agendaList = [];
+        agendaContainer.innerHTML = '';
         openModal(addModal);
     });
 
     document.getElementById('closeAddModal').onclick = function() { closeModal(addModal); };
     document.getElementById('cancelAddBtn').onclick = function() { closeModal(addModal); };
 
-    fileUploadArea.addEventListener('click', function() {
-        fileInput.click();
-    });
-
-    fileUploadArea.addEventListener('dragover', function(e) {
+    // Add Agenda button
+    document.getElementById('addAgendaBtn').addEventListener('click', function(e) {
         e.preventDefault();
-        fileUploadArea.style.backgroundColor = '#e8e8e8';
+        editingAgendaId = null;
+        document.getElementById('addAgendaForm').reset();
+        document.querySelector('#addAgendaModal .modal-title-custom').textContent = 'Add Agenda';
+        openModal(agendaModal);
     });
 
-    fileUploadArea.addEventListener('dragleave', function() {
-        fileUploadArea.style.backgroundColor = '#ffffff';
-    });
+    document.getElementById('closeAgendaModal').onclick = function() { closeModal(agendaModal); };
+    document.getElementById('cancelAgendaBtn').onclick = function() { closeModal(agendaModal); };
 
-    fileUploadArea.addEventListener('drop', function(e) {
+    // Save agenda
+    document.getElementById('addAgendaForm').addEventListener('submit', function(e) {
         e.preventDefault();
-        fileUploadArea.style.backgroundColor = '#ffffff';
-        var files = e.dataTransfer.files;
-        if (files.length > 0) {
-            fileInput.files = files;
-            updateFileName(files[0].name);
+        var agendaName = document.getElementById('agendaNameInput').value;
+        var agendaExplanation = document.getElementById('agendaExplanationInput').value;
+        
+        if (!agendaName || !agendaExplanation) {
+            alert('Please fill in all fields');
+            return;
         }
+        
+        if (editingAgendaId !== null) {
+            // Update existing agenda
+            var agendaIndex = agendaList.findIndex(function(a) { return a.id === editingAgendaId; });
+            if (agendaIndex !== -1) {
+                agendaList[agendaIndex].name = agendaName;
+                agendaList[agendaIndex].explanation = agendaExplanation;
+            }
+            editingAgendaId = null;
+        } else {
+            // Add new agenda
+            var agenda = {
+                id: Date.now(),
+                name: agendaName,
+                explanation: agendaExplanation
+            };
+            agendaList.push(agenda);
+        }
+        
+        renderAgendaList();
+        closeModal(agendaModal);
+        this.reset();
     });
 
-    fileInput.addEventListener('change', function(e) {
-        if (e.target.files.length > 0) {
-            updateFileName(e.target.files[0].name);
-        }
-    });
+    function renderAgendaList() {
+        agendaContainer.innerHTML = '';
+        agendaList.forEach(function(agenda) {
+            var agendaItem = document.createElement('div');
+            agendaItem.className = 'agenda-item';
+            agendaItem.style.cssText = 'border: 1px solid #ddd; padding: 10px; margin-bottom: 10px; border-radius: 5px; background-color: #f9f9f9;';
+            agendaItem.innerHTML = 
+                '<div style="display: flex; justify-content: space-between; align-items: start;">' +
+                    '<div style="flex: 1; word-wrap: break-word; overflow-wrap: break-word; min-width: 0;">' +
+                        '<strong style="display: block; margin-bottom: 5px; word-wrap: break-word;">' + agenda.name + '</strong>' +
+                        '<p style="margin: 0; font-size: 14px; color: #666; word-wrap: break-word; white-space: pre-wrap;">' + agenda.explanation + '</p>' +
+                    '</div>' +
+                    '<div style="display: flex; gap: 5px; flex-shrink: 0; margin-left: 10px;">' +
+                        '<button type="button" class="btn btn-sm btn-primary edit-agenda-btn" data-id="' + agenda.id + '">' +
+                            '<i class="bi bi-pencil"></i>' +
+                        '</button>' +
+                        '<button type="button" class="btn btn-sm btn-danger delete-agenda-btn" data-id="' + agenda.id + '">' +
+                            '<i class="bi bi-trash"></i>' +
+                        '</button>' +
+                    '</div>' +
+                '</div>';
+            agendaContainer.appendChild(agendaItem);
+        });
+        
+        // Attach edit event listeners
+        document.querySelectorAll('.edit-agenda-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var id = parseInt(this.getAttribute('data-id'));
+                editAgenda(id);
+            });
+        });
+        
+        // Attach delete event listeners
+        document.querySelectorAll('.delete-agenda-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var id = parseInt(this.getAttribute('data-id'));
+                deleteAgenda(id);
+            });
+        });
+    }
 
-    function updateFileName(name) {
-        fileNameDisplay.textContent = name;
-        fileNameDisplay.style.display = 'block';
+    function editAgenda(id) {
+        var agenda = agendaList.find(function(a) { return a.id === id; });
+        if (agenda) {
+            editingAgendaId = id;
+            document.getElementById('agendaNameInput').value = agenda.name;
+            document.getElementById('agendaExplanationInput').value = agenda.explanation;
+            document.querySelector('#addAgendaModal .modal-title-custom').textContent = 'Edit Agenda';
+            openModal(agendaModal);
+        }
+    }
+
+    function deleteAgenda(id) {
+        if (confirm('Are you sure you want to delete this agenda?')) {
+            agendaList = agendaList.filter(function(agenda) { return agenda.id !== id; });
+            renderAgendaList();
+        }
     }
 
     document.getElementById('addLogbookForm').addEventListener('submit', function(e) {
         e.preventDefault();
         var entry = document.getElementById('logbookEntryInput').value;
-        var file = fileInput.files[0];
         
-        if (!entry || !file) {
-            alert('Please fill in all fields');
+        if (!entry) {
+            alert('Please enter logbook entry title');
+            return;
+        }
+        
+        if (agendaList.length === 0) {
+            alert('Please add at least one agenda');
             return;
         }
         
@@ -394,7 +710,8 @@
                 id: nextLogbookIdA++,
                 entry: entry,
                 status: 'Waiting for approval',
-                file: file.name
+                file: entry.replace(/\s+/g, '_') + '.pdf',
+                agendas: agendaList
             };
             logbookDataA.push(newEntry);
         } else {
@@ -402,7 +719,8 @@
                 id: nextLogbookIdB++,
                 entry: entry,
                 status: 'Waiting for approval',
-                file: file.name
+                file: entry.replace(/\s+/g, '_') + '.pdf',
+                agendas: agendaList
             };
             logbookDataB.push(newEntry);
         }
@@ -410,7 +728,8 @@
         renderTable(currentSection);
         closeModal(addModal);
         this.reset();
-        fileNameDisplay.style.display = 'none';
+        agendaList = [];
+        agendaContainer.innerHTML = '';
     });
 
     // PDF viewer modal
