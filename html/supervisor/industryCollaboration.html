@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>IndustryCollaboration_Supervisor</title>
+    <link rel="stylesheet" href="../../../css/supervisor/dashboard.css">
+    <link rel="stylesheet" href="../../../css/supervisor/industryCollaboration.css">
+    <link rel="stylesheet" href="../../../css/background.css">
+    <link rel="stylesheet" href="../../../css/dashboard.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+</head>
+
+<body>
+
+    <div id="mySidebar" class="sidebar">
+        <button class="menu-icon" onclick="openNav()">☰</button>
+
+        <div id="sidebarLinks">
+            <a href="javascript:void(0)" class="closebtn" id="close" onclick="closeNav()">
+                Close <span class="x-symbol">x</span>
+            </a>
+
+            <span id="nameSide">HI, SAZLINAH BINTI HASSAN</span>
+
+            <!-- <a href="#coordinatorMenu" class="role-header" data-role="coordinator">
+                <span class="role-text">Coordinator</span>
+                <span class="arrow-container">
+                    <i class="bi bi-chevron-right arrow-icon"></i>
+                </span>
+            </a> -->
+
+            <a href="#supervisorMenu" class="role-header active-role menu-expanded" data-role="supervisor">
+                <span class="role-text">Supervisor</span>
+                <span class="arrow-container">
+                    <i class="bi bi-chevron-right arrow-icon"></i>
+                </span>
+            </a>
+
+            <div id="supervisorMenu" class="menu-items expanded">
+                <a href="dashboard.html" id="dashboard"><i class="bi bi-house-fill icon-padding"></i> Dashboard</a>
+                <a href="notification.html" id="Notification"><i class="bi bi-bell-fill icon-padding"></i>
+                    Notification</a>
+                <a href="industryCollaboration.html" id="industryCollaboration"><i
+                        class="bi bi-file-earmark-text-fill icon-padding"></i>
+                    Industry
+                    Collaboration</a>
+                <a href="evaluationForm.html" id="evaluationForm"><i
+                        class="bi bi-file-earmark-text-fill icon-padding"></i> Evaluation
+                    Form</a>
+                <a href="report.html" id="superviseesReport"><i class="bi bi-bar-chart-fill icon-padding"></i>
+                    Supervisees'
+                    Report</a>
+                <a href="logbookSubmission.html" id="logbookSubmission"><i
+                        class="bi bi-calendar-check-fill icon-padding"></i> Logbook
+                    Submission</a>
+                <a href="signatureSubmission.html" id="signatureSubmission"><i
+                        class="bi bi-calendar-check-fill icon-padding"></i> Signature
+                    Submission</a>
+                <a href="projectTitle.html" id="projectTitle"><i class="bi bi-calendar-check-fill icon-padding"></i>
+                    Project Title</a>
+            </div>
+
+            <a href="#assessorMenu" class="role-header" data-role="assessor">
+                <span class="role-text">Assessor</span>
+                <span class="arrow-container">
+                    <i class="bi bi-chevron-right arrow-icon"></i>
+                </span>
+            </a>
+
+            <div id="assessorMenu" class="menu-items">
+                <a href="#" id="Dashboard"><i class="bi bi-house-fill icon-padding"></i> Dashboard</a>
+                <a href="#" id="Notification"><i class="bi bi-bell-fill icon-padding"></i> Notification</a>
+                <a href="#" id="EvaluationForm"><i class="bi bi-file-earmark-text-fill icon-padding"></i> Evaluation
+                    Form</a>
+            </div>
+            <a href="#" id="logout">
+                <i class="bi bi-box-arrow-left" style="padding-right: 10px;"></i> Logout
+            </a>
+        </div>
+    </div>
+
+    <div id="containerAtas" class="containerAtas">
+
+        <a href="../dashboard/dashboard.html">
+            <img src="../../../assets/UPMLogo.png" alt="UPM logo" width="100px" id="upm-logo">
+        </a>
+
+        <div class="header-text-group">
+            <div id="module-titles">
+                <div id="containerModule">Supervisor Module</div>
+                <div id="containerFYPAssess">FYPAssess</div>
+            </div>
+            <div id="course-session">
+                <div id="courseCode">SWE4949A</div>
+                <div id="courseSession">2024/2025 - 2 </div>
+            </div>
+        </div>
+
+        <!-- <div id="username">NURUL SAIDAHTUL FATIHA BINTI SHAHARUDIN</div> -->
+        <!-- <span id="notificationCircle"><i class="bi bi-bell-fill" style="color: white;"></i></span> -->
+        <!-- <span id="logoutCircle"><i class="bi bi-box-arrow-left"style="color: white;"></i></span> -->
+
+    </div>
+
+    </div>
+
+    <div id="main">
+        <div class="industryCollaboration-container">
+            <h1 class="page-title">Industry Collaboration</h1>
+            <div id="main-content-area">
+
+                <!-- 1. LEFT SECTION: STEP INDICATOR (Smaller, light-yellow panel) -->
+
+                <div id="step-indicator-area">
+
+
+                    <div class="progress-container">
+
+                        <!-- Step 1: Topic selection -->
+                        <div id="step-topic-selection" class="step-indicator active" data-step="topic" data-order="1">
+                            <span class="step-dot">
+                                <!-- <i class="bi bi-check"></i> -->
+                            </span>
+                            Topic selection
+                        </div>
+
+                        <!-- Step 2: Industry collaboration (Radio) -->
+                        <div id="step-industry-collaboration" class="step-indicator" data-step="collaboration"
+                            data-order="2">
+                            <span class="step-dot">
+                                <!-- <i class="bi bi-check"></i> -->
+                            </span>
+                            Industry collaboration
+                        </div>
+
+                        <!-- Step 3: Industry information (Dynamic) -->
+                        <div id="step-industry-info" class="step-indicator hidden" data-step="info" data-order="3">
+                            <span class="step-dot">
+                                <!-- <i class="bi bi-check"></i> -->
+                            </span>
+                            Industry information
+                        </div>
+
+                        <!-- Step 4: Industry supervisor details (Dynamic) -->
+                        <div id="step-supervisor-details" class="step-indicator hidden" data-step="supervisor"
+                            data-order="4">
+                            <span class="step-dot">
+                                <!-- <i class="bi bi-check"></i> -->
+                            </span>
+                            Industry supervisor details
+                        </div>
+
+                        <!-- Step 5: Industry requirements (Dynamic) -->
+                        <div id="step-requirements" class="step-indicator hidden" data-step="requirements"
+                            data-order="5">
+                            <span class="step-dot">
+                                <!-- <i class="bi bi-check"></i> -->
+                            </span>
+                            Industry requirements
+                        </div>
+
+                        <!-- Step 6: Industry topic selection (Dynamic) -->
+                        <div id="step-topic-selection-ext" class="step-indicator hidden" data-step="topic_ext"
+                            data-order="6">
+                            <span class="step-dot">
+                                <!-- <i class="bi bi-check"></i> -->
+                            </span>
+                            Industry topic selection
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. RIGHT SECTION: FORM AREA (Wider, white panel) -->
+                <div id="form-area">
+                    <form id="industry-form">
+
+                        <!-- ============================================== -->
+                        <!-- SECTION 1: TOPIC SELECTION (ALWAYS VISIBLE) -->
+                        <!-- ============================================== -->
+                        <h2 class="form-section-title" data-step-target="topic">Topic selection</h2>
+                        <div class="mb-4">
+                            <label class="form-label">List of topics for Bachelor Project</label>
+                            <div id="topic-list-container" class="space-y-2">
+                                <div class="input-group mb-2">
+                                    <span class="input-group-text fixed-width-addon">1.</span>
+                                    <input type="text" name="topic[]" class="form-control topic-required" placeholder=""
+                                        required>
+                                </div>
+                                <div class="input-group mb-2">
+                                    <span class="input-group-text fixed-width-addon">2.</span>
+                                    <input type="text" name="topic[]" class="form-control topic-required" placeholder=""
+                                        required>
+                                </div>
+                                <div class="input-group mb-2">
+                                    <span class="input-group-text fixed-width-addon">3.</span>
+                                    <input type="text" name="topic[]" class="form-control topic-required" placeholder=""
+                                        required>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ============================================== -->
+                        <!-- SECTION 2: INDUSTRY COLLABORATION (RADIO BUTTON) -->
+                        <!-- ============================================== -->
+                        <h2 class="form-section-title" data-step-target="collaboration">Industry collaboration</h2>
+                        <div class="mb-4 d-flex gap-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="collaboration_choice" value="yes"
+                                    id="collaboration-yes" required>
+                                <label class="form-check-label fw-medium" for="collaboration-yes">Yes</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="collaboration_choice" value="no"
+                                    id="collaboration-no" required>
+                                <label class="form-check-label fw-medium" for="collaboration-no">No</label>
+                            </div>
+                        </div>
+
+                        <!-- ============================================== -->
+                        <!-- EXTENDED FIELDS (CONDITIONAL) -->
+                        <!-- ============================================== -->
+                        <div id="extended-fields" class="d-none">
+
+                            <!-- SECTION 3: INDUSTRY INFORMATION -->
+                            <h2 class="form-section-title" data-step-target="info">Industry information</h2>
+                            <div class="mb-3">
+                                <label class="form-label">Company name</label>
+                                <input type="text" name="company_name" placeholder=""
+                                    class="form-control collaboration-required">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Company email address</label>
+                                <input type="email" name="company_email" placeholder=""
+                                    class="form-control collaboration-required">
+                            </div>
+                            <div class="mb-4">
+                                <label class="form-label">Company address</label>
+
+                                <div class="mb-3">
+                                    <input type="text" name="company_address" placeholder=""
+                                        class="form-control collaboration-required" required>
+                                </div>
+
+                                <div class="row g-3">
+
+                                    <div class="col-md-4">
+                                        <label for="company_postcode" class="form-label">Postcode</label>
+                                        <input type="text" name="company_postcode" id="company_postcode"
+                                            class="form-control collaboration-required" required>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label for="company_city" class="form-label">City</label>
+                                        <input type="text" name="company_city" id="company_city"
+                                            class="form-control collaboration-required" required>
+                                    </div>
+
+                                    <div class="col-md-4">
+                                        <label for="company_state" class="form-label">State</label>
+                                        <select id="company_state" name="company_state"
+                                            class="form-select collaboration-required" required>
+                                            <option value="">Select</option>
+                                            <option value="JOHOR">Johor</option>
+                                            <option value="KEDAH">Kedah</option>
+                                            <option value="KELANTAN">Kelantan</option>
+                                            <option value="MELAKA">Melaka</option>
+                                            <option value="NEGERI SEMBILAN">Negeri Sembilan</option>
+                                            <option value="PAHANG">Pahang</option>
+                                            <option value="PERAK">Perak</option>
+                                            <option value="PERLIS">Perlis</option>
+                                            <option value="PULAU PINANG">Pulau Pinang</option>
+                                            <option value="SABAH">Sabah</option>
+                                            <option value="SARAWAK">Sarawak</option>
+                                            <option value="SELANGOR">Selangor</option>
+                                            <option value="TERENGGANU">Terengganu</option>
+                                            <option value="WP KUALA LUMPUR">WP Kuala Lumpur</option>
+                                            <option value="WP LABUAN">WP Labuan</option>
+                                            <option value="WP PUTRAJAYA">WP Putrajaya</option>
+                                        </select>
+                                    </div>
+
+
+
+                                </div>
+                            </div>
+
+                            <!-- SECTION 4: INDUSTRY SUPERVISOR DETAILS -->
+                            <h2 class="form-section-title" data-step-target="supervisor">Industry supervisor details
+                            </h2>
+
+                            <div id="supervisor-container" class="mb-3">
+                                <div class="card p-0 mb-3 border-0 supervisor-card">
+
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <label class="fw-normal text-secondary supervisor-number-label">Industry
+                                            Supervisor 1 </label>
+                                        <button type="button" class="btn btn-outline-danger btn-sm btn-remove d-none">
+                                            Remove <i class="bi bi-x"></i>
+                                        </button>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Name</label>
+                                        <input type="text" name="ind_supervisor_name[]" placeholder=""
+                                            class="form-control collaboration-required">
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label">Email address</label>
+                                        <input type="email" name="ind_supervisor_email[]" placeholder=""
+                                            class="form-control collaboration-required">
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label">Phone No</label>
+                                        <input type="tel" name="ind_supervisor_phone[]" placeholder=""
+                                            class="form-control collaboration-required" pattern="^01[0-9]-[0-9]{7,8}$">
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label">Role/Position</label>
+                                        <input type="text" name="ind_supervisor_role[]" placeholder=""
+                                            class="form-control collaboration-required">
+                                    </div>
+
+                                </div>
+
+                            </div>
+                            <div class="mt-0 d-flex justify-content-end">
+                                <button type="button" id="add-supervisor-btn"
+                                    class="btn btn-outline-primary btn-sm btn-add">
+                                    Add industry supervisor <i class="bi bi-plus"></i></button>
+                            </div>
+
+                            <!-- SECTION 5: INDUSTRY REQUIREMENTS -->
+                            <h2 class="form-section-title" data-step-target="requirements">Industry requirements</h2>
+                            <div class="row g-3 mb-4">
+                                <div class="col-md-6">
+                                    <label class="form-label">Number of students</label>
+                                    <select name="num_students" class="form-select collaboration-required">
+                                        <option value="">Select</option>
+                                        <option value="1">1</option>
+                                        <option value="2">2</option>
+                                        <option value="3">3</option>
+                                        <option value="4+">4</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Academic qualification</label>
+                                    <select name="academic_qualification" class="form-select collaboration-required">
+                                        <option value="">Select</option>
+                                        <option value="cgpa1">At least 3.00 CGPA</option>
+                                        <option value="cgpa2">At least 3.50 CGPA</option>
+                                        <option value="cgpa3">At least 3.75 CGPA</option>
+                                        <option value="cgpa4">No requirement</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="mb-4">
+                                <label class="form-label">Required skills</label>
+                                <div id="skill-list-container" class="space-y-2">
+
+                                    <div class="input-group mb-2 skill-input-group">
+                                        <span class="input-group-text fixed-width-addon skill-number">1.</span>
+                                        <input type="text" name="required_skill[]"
+                                            class="form-control collaboration-required" placeholder="" required>
+                                    </div>
+
+                                </div>
+                                <div class="d-flex justify-content-end mt-2">
+                                    <button type="button" id="add-skill-btn" class="btn btn-add btn-sm">
+                                        Add required skills <i class="bi bi-plus-square-fill"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- SECTION 6: INDUSTRY TOPIC SELECTION -->
+                            <h2 class="form-section-title" data-step-target="topic_ext">Industry topic selection</h2>
+                            <div class="mb-4">
+                                <label class="form-label">List of topic by industry</label>
+                                <div id="ind-topic-list-container" class="space-y-2">
+
+                                    <div class="input-group mb-2 ind-topic-input-group">
+                                        <span class="input-group-text fixed-width-addon skill-number">1.</span>
+                                        <input type="text" name="ind_topic[]"
+                                            class="form-control collaboration-required" placeholder="" required>
+                                    </div>
+
+                                </div>
+                                <div class="d-flex justify-content-end mt-2">
+                                    <button type="button" id="add-ind-topic-btn" class="btn btn-add btn-sm">
+                                        Add industry topic <i class="bi bi-plus-square-fill"></i>
+                                    </button>
+                                </div>
+
+
+                            </div>
+
+                        </div>
+
+                        <!-- ACTION BUTTONS -->
+                        <div class="action-buttons pt-4 mt-5 border-top d-flex justify-content-end gap-3">
+                            <button type="button" class="btn btn-light border fw-medium">
+                                Cancel
+                            </button>
+                            <button type="submit" id="submit-button" class="btn btn-success btn-submit fw-medium">
+                                Save
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+        </div>
+    </div>
+    <div id="acknowledgementModal" class="modal-backdrop-custom d-none">
+
+        <div class="modal-content-custom">
+            <button type="button" class="btn-close modal-close-btn" aria-label="Close"></button>
+
+            <div class="modal-body-custom text-center">
+                <div class="modal-icon-container">
+                    <i class="bi bi-check-circle-fill text-success" style="font-size: 3rem;"></i>
+                </div>
+
+                <h3 class="modal-title-custom mt-3">Information is saved!</h3>
+
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- JAVASCRIPT LOGIC ---
+        function openNav() {
+            var fullWidth = "220px";
+            var sidebar = document.getElementById("mySidebar");
+            var header = document.getElementById("containerAtas");
+            // CRITICAL FIX: Targets the main content area (now with id="main")
+            var mainContent = document.getElementById("main");
+            var menuIcon = document.querySelector(".menu-icon");
+
+            // 1. Expand the Sidebar
+            document.getElementById("mySidebar").style.width = fullWidth;
+
+            // 2. Push the main content AND the header container to the right
+            if (mainContent) mainContent.style.marginLeft = fullWidth;
+            if (header) header.style.marginLeft = fullWidth;
+
+            // 3. Show the links
+            document.getElementById("nameSide").style.display = "block";
+
+            var links = document.getElementById("sidebarLinks").getElementsByTagName("a");
+            for (var i = 0; i < links.length; i++) {
+                // Show role headers and other links
+                if (links[i].classList.contains('role-header') || links[i].id === 'logout') {
+                    links[i].style.display = 'flex';
+                } else if (links[i].id === 'close') {
+                    links[i].style.display = 'flex';
+                }
+            }
+
+            // Show currently expanded menu items
+            document.querySelectorAll('.menu-items.expanded a').forEach(a => a.style.display = 'block');
+
+
+            // 4. Hide the open icon
+            if (menuIcon) menuIcon.style.display = "none";
+        }
+
+        function closeNav() {
+            var collapsedWidth = "60px";
+            var sidebar = document.getElementById("mySidebar");
+            var header = document.getElementById("containerAtas");
+            // CRITICAL FIX: Targets the main content area (now with id="main")
+            var mainContent = document.getElementById("main");
+            var menuIcon = document.querySelector(".menu-icon");
+
+            // 1. Collapse the Sidebar
+            sidebar.style.width = collapsedWidth;
+
+            // 2. Move the main content AND the header container back
+            if (mainContent) mainContent.style.marginLeft = collapsedWidth;
+            if (header) header.style.marginLeft = collapsedWidth;
+
+            // 3. Hide the name and the links (except for the open menu icon)
+            document.getElementById("nameSide").style.display = "none";
+
+            var links = document.getElementById("sidebarLinks").getElementsByTagName("a");
+            for (var i = 0; i < links.length; i++) {
+                links[i].style.display = "none";
+            }
+
+            // 4. Show the open icon
+            if (menuIcon) menuIcon.style.display = "block";
+        }
+
+        // Ensure the collapsed state is set immediately on page load
+        window.onload = function () {
+            closeNav();
+        };
+
+
+        // --- Role Toggle Logic (Integrated into DOMContentLoaded) ---
+
+        // =================================================================
+        // FORM AND PROGRESS INDICATOR LOGIC
+        // =================================================================
+        document.addEventListener('DOMContentLoaded', () => {
+
+            const form = document.getElementById('industry-form');
+            const extendedFields = document.getElementById('extended-fields');
+            const radioYes = document.getElementById('collaboration-yes');
+            const radioNo = document.getElementById('collaboration-no');
+            const progressLineFill = document.getElementById('progress-line-fill');
+            const roleHeaders = document.querySelectorAll('.role-header');
+
+            let stepIndicators = Array.from(document.querySelectorAll('.step-indicator')).map((el, index) => ({
+                element: el,
+                name: el.getAttribute('data-step'),
+                order: index + 1,
+            }));
+
+            let collaborationRequiredFields = document.querySelectorAll('.collaboration-required');
+
+
+            // --- Helper Functions ---
+
+            /** Toggles the 'required' attribute on conditional fields. */
+            function toggleRequiredFields(required) {
+                // Re-select as new fields might have been added dynamically
+                collaborationRequiredFields = document.querySelectorAll('.collaboration-required');
+                collaborationRequiredFields.forEach(field => {
+                    if (required) {
+                        field.setAttribute('required', 'required');
+                    } else {
+                        field.removeAttribute('required');
+                    }
+                });
+            }
+
+            /** Checks if a step is completed based on its form fields. */
+            function checkStepCompletion(step) {
+                const formElements = form.elements;
+                const isCollaboration = radioYes.checked;
+
+                switch (step.name) {
+                    case 'topic':
+                        const topicInputs = document.querySelectorAll('#topic-list-container input[type="text"]');
+                        // Min 3 required, and all visible fields must be filled
+                        return topicInputs.length >= 3 && Array.from(topicInputs).every(input => input.value.trim() !== '');
+                    case 'collaboration':
+                        return radioYes.checked || radioNo.checked;
+                    case 'info':
+                        if (!isCollaboration) return false;
+                        const companyFields = ['company_name', 'company_email', 'company_address'];
+                        return companyFields.every(name => {
+                            const input = formElements.namedItem(name);
+                            return input && input.value.trim() !== '';
+                        });
+                    case 'supervisor':
+                        if (!isCollaboration) return false;
+                        const supInputs = document.querySelectorAll('#supervisor-container .card:first-child input.collaboration-required');
+                        // Ensure the primary supervisor fields are all filled
+                        return Array.from(supInputs).every(input => input.value.trim() !== '');
+                    case 'requirements':
+                        if (!isCollaboration) return false;
+                        const reqFields = ['num_students', 'academic_qualification'];
+                        const skillInputs = document.querySelectorAll('#skill-list-container input[type="text"]');
+                        // Check selects and at least the first skill input
+                        return reqFields.every(name => formElements.namedItem(name) && formElements.namedItem(name).value !== '') &&
+                            (skillInputs.length === 0 || skillInputs[0].value.trim() !== '');
+                    case 'topic_ext':
+                        if (!isCollaboration) return false;
+                        const indTopicInputs = document.querySelectorAll('#ind-topic-list-container input[type="text"]');
+                        // At least one industry topic must be provided
+                        return indTopicInputs.length > 0 && indTopicInputs[0].value.trim() !== '';
+                    default:
+                        return false;
+                }
+            }
+
+            /** Updates the step indicators and the vertical progress line. */
+            function updateStepIndicators() {
+                const isCollaboration = radioYes.checked;
+                let foundActive = false;
+                let lastCompletedStepElement = null;
+
+                // 1. Handle visibility and completion status
+                stepIndicators.forEach(step => {
+                    const isDynamic = step.order > 2;
+                    const shouldBeVisible = !isDynamic || isCollaboration;
+
+                    step.element.classList.toggle('hidden', !shouldBeVisible);
+
+                    if (shouldBeVisible) {
+                        const isCompleted = checkStepCompletion(step);
+
+                        step.element.classList.remove('active', 'completed');
+
+                        if (isCompleted) {
+                            step.element.classList.add('completed');
+                            lastCompletedStepElement = step.element;
+                        } else if (!foundActive) {
+                            // The first visible, incomplete step becomes active
+                            step.element.classList.add('active');
+                            foundActive = true;
+                        }
+                    }
+                });
+
+
+            }
+
+            /** Handles the creation of dynamic input fields. */
+            function addDynamicField(containerId, templateHtml) {
+                const container = document.getElementById(containerId);
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = templateHtml.trim();
+                const newElement = tempDiv.firstElementChild;
+                container.appendChild(newElement);
+
+                // Attach input listener to the new fields and update required status
+                newElement.querySelectorAll('input, select, textarea').forEach(input => {
+                    input.addEventListener('input', updateStepIndicators);
+                    if (radioYes.checked && input.classList.contains('collaboration-required')) {
+                        input.setAttribute('required', 'required');
+                    }
+                });
+
+                // Re-calculate the list of required fields
+                collaborationRequiredFields = document.querySelectorAll('.collaboration-required');
+                updateStepIndicators();
+            }
+
+            // --- Event Listeners ---
+
+            // 1. Conditional Display Logic (Yes/No Radio)
+            [radioYes, radioNo].forEach(radio => {
+                radio.addEventListener('change', () => {
+                    const isYes = radioYes.checked;
+
+                    if (isYes) {
+                        extendedFields.classList.remove('d-none');
+                        toggleRequiredFields(true);
+                    } else {
+                        extendedFields.classList.add('d-none');
+                        toggleRequiredFields(false);
+                    }
+                    updateStepIndicators();
+                });
+            });
+
+            // 2. Step Indicator Update Logic (on input change)
+            form.addEventListener('input', updateStepIndicators);
+
+            // Function to update the numbering of all existing supervisor cards
+            const updateSupervisorLabels = () => {
+                const cards = document.querySelectorAll('#supervisor-container .supervisor-card');
+                cards.forEach((card, index) => {
+                    const numberLabel = card.querySelector('.supervisor-number-label');
+                    if (numberLabel) {
+                        // Update the label text (e.g., "Industry Supervisor 2")
+                        numberLabel.textContent = `Industry Supervisor ${index + 1}`;
+                    }
+                    const removeBtn = card.querySelector('.btn-remove');
+                    if (removeBtn) {
+                        // Only hide the remove button if it is the first (required) supervisor
+                        removeBtn.classList.toggle('d-none', index === 0);
+                    }
+                });
+                updateStepIndicators(); // Important: Recalculate completion after adding/removing
+            };
+
+            // Function to attach the remove listener to a specific card
+            const attachRemoveListener = (cardElement) => {
+                const removeBtn = cardElement.querySelector('.btn-remove');
+                if (removeBtn) {
+                    removeBtn.addEventListener('click', function () {
+                        cardElement.remove(); // Remove the entire card/supervisor element
+                        updateSupervisorLabels(); // Re-number the remaining cards
+                    });
+                }
+            }
+
+            document.getElementById('add-supervisor-btn').addEventListener('click', () => {
+                const container = document.getElementById('supervisor-container');
+
+                // 1. Clone the first existing supervisor card
+                const existingCard = container.querySelector('.supervisor-card');
+                const newCard = existingCard.cloneNode(true);
+
+                // 2. Clear the input values in the cloned card
+                newCard.querySelectorAll('input').forEach(input => input.value = '');
+
+                // 3. Ensure the remove button is visible and has a listener
+                const removeBtn = newCard.querySelector('.btn-remove');
+                if (removeBtn) {
+                    removeBtn.classList.remove('d-none'); // Show the button if it was hidden
+                    removeBtn.addEventListener('click', function () {
+                        newCard.remove();
+                        updateSupervisorLabels();
+                    });
+                }
+
+                // 4. Append the new card and update all labels
+                container.appendChild(newCard);
+                updateSupervisorLabels();
+            });
+
+            /**
+ * [skill] Re-numbers the skill fields inside the container and updates the placeholders.
+ */
+            const updateSkillNumbers = () => {
+
+                const fields = document.querySelectorAll('#skill-list-container .skill-input-group');
+                fields.forEach((field, index) => {
+                    const number = index + 1;
+
+                    // Update the number in the Bootstrap addon (the '1.' span)
+                    const numberSpan = field.querySelector('.fixed-width-addon');
+                    if (numberSpan) {
+                        numberSpan.textContent = `${number}.`;
+                    }
+
+                });
+            };
+
+            document.getElementById('add-skill-btn').addEventListener('click', () => {
+                const container = document.getElementById('skill-list-container');
+
+                // 1. Get the last field element (the template to clone)
+                const existingField = container.querySelector('.skill-input-group:last-child');
+
+                // 2. Clone the existing field (deep clone: true)
+                const newField = existingField.cloneNode(true);
+
+                // 3. Clear the input value in the cloned field
+                const input = newField.querySelector('input[name="required_skill[]"]');
+                input.value = '';
+
+                // 4. Create and append the trash icon button
+                const removeBtn = document.createElement('button');
+                removeBtn.type = 'button';
+                removeBtn.className = 'btn btn-sm btn-outline-danger input-group-text remove-skill-btn';
+                removeBtn.innerHTML = '<i class="bi bi-x"></i>';
+
+                // Remove any existing trash button before appending the new one 
+                newField.querySelector('.remove-skill-btn')?.remove();
+
+                // Append the trash button next to the input
+                newField.appendChild(removeBtn);
+
+                // 5. Attach remove event listener
+                removeBtn.addEventListener('click', function () {
+                    newField.remove(); // Remove the entire input group
+                    updateSkillNumbers(); // Re-number remaining fields and update placeholders
+                });
+
+                // 6. Append the new field and update all numbers and placeholders
+                container.appendChild(newField);
+                updateSkillNumbers();
+            });
+
+            //[Ind topic] Re-numbers the skill fields inside the container and updates the placeholders.
+
+            const updateIndTopicNumbers = () => {
+
+                const fields = document.querySelectorAll('#ind-topic-list-container .ind-topic-input-group');
+                fields.forEach((field, index) => {
+                    const number = index + 1;
+
+                    // Update the number in the Bootstrap addon (the '1.' span)
+                    const numberSpan = field.querySelector('.fixed-width-addon');
+                    if (numberSpan) {
+                        numberSpan.textContent = `${number}.`;
+                    }
+
+                });
+            };
+
+            document.getElementById('add-ind-topic-btn').addEventListener('click', () => {
+                const container = document.getElementById('ind-topic-list-container');
+
+                // 1. Get the last field element (the template to clone)
+                const existingField = container.querySelector('.ind-topic-input-group:last-child');
+
+                // 2. Clone the existing field (deep clone: true)
+                const newField = existingField.cloneNode(true);
+
+                // 3. Clear the input value in the cloned field
+                const input = newField.querySelector('input[name="ind_topic[]"]');
+                input.value = '';
+
+                // 4. Create and append the trash icon button
+                const removeBtn = document.createElement('button');
+                removeBtn.type = 'button';
+                removeBtn.className = 'btn btn-sm btn-outline-danger input-group-text remove-ind-topic-btn';
+                removeBtn.innerHTML = '<i class="bi bi-x"></i>';
+
+                // Remove any existing trash button before appending the new one 
+                newField.querySelector('.remove-ind-topic-btn')?.remove();
+
+                // Append the trash button next to the input
+                newField.appendChild(removeBtn);
+
+                // 5. Attach remove event listener
+                removeBtn.addEventListener('click', function () {
+                    newField.remove(); // Remove the entire input group
+                    updateIndTopicNumbers(); // Re-number remaining fields and update placeholders
+                });
+
+                // 6. Append the new field and update all numbers and placeholders
+                container.appendChild(newField);
+                updateIndTopicNumbers();
+            });
+
+            // 4. Role Toggle Logic
+            roleHeaders.forEach(header => {
+                header.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    const menuId = header.getAttribute('href');
+                    const targetMenu = document.querySelector(menuId);
+                    const arrowIcon = header.querySelector('.arrow-icon');
+
+                    if (!targetMenu) return;
+
+                    const isExpanded = targetMenu.classList.contains('expanded');
+                    const isSidebarExpanded = document.getElementById("mySidebar").style.width === EXPANDED_WIDTH;
+
+                    // Collapse all other menus
+                    document.querySelectorAll('.menu-items').forEach(menu => {
+                        if (menu !== targetMenu) {
+                            menu.classList.remove('expanded');
+                            menu.querySelectorAll('a').forEach(a => a.style.display = 'none');
+                        }
+                    });
+                    document.querySelectorAll('.role-header').forEach(h => {
+                        if (h !== header) h.classList.remove('active-role');
+                        h.querySelector('.arrow-icon').classList.replace('bi-chevron-down', 'bi-chevron-right');
+                    });
+
+
+                    // Toggle current menu
+                    targetMenu.classList.toggle('expanded', !isExpanded);
+                    header.classList.toggle('active-role', !isExpanded);
+
+                    if (isExpanded) {
+                        // Collapse it
+                        arrowIcon.classList.replace('bi-chevron-down', 'bi-chevron-right');
+                        targetMenu.querySelectorAll('a').forEach(a => a.style.display = 'none');
+                    } else {
+                        // Expand it
+                        arrowIcon.classList.replace('bi-chevron-right', 'bi-chevron-down');
+                        if (isSidebarExpanded) {
+                            targetMenu.querySelectorAll('a').forEach(a => a.style.display = 'block');
+                        }
+                    }
+                });
+            });
+
+            // 5. Submission Handler
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+
+                if (form.checkValidity()) {
+                    // --- THIS BLOCK CREATES AND DISPLAYS THE SUCCESS POP-UP ---
+                    const messageBox = document.createElement('div');
+
+                    // You'll need to update the content to match your modal/dialog structure
+                    // If the 'Information is saved!' is a simple alert:
+                    messageBox.textContent = 'Information is saved!';
+                    messageBox.classList.add('alert', 'alert-success');
+                    messageBox.style.cssText = 'position: fixed; top: 90px; right: 20px; z-index: 1000; border-radius: 0.5rem;';
+
+                    document.body.appendChild(messageBox);
+                    setTimeout(() => messageBox.remove(), 4000); // Remove after 4 seconds
+                    // -----------------------------------------------------------
+
+                } else {
+                    console.error("Form validation failed. Please check required fields.");
+                    form.reportValidity(); // Shows built-in browser validation messages
+                }
+            });
+            // Get references to your new modal elements
+            const acknowledgementModal = document.getElementById('acknowledgementModal');
+            const closeModalBtns = document.querySelectorAll('.modal-close-btn'); // Both 'X' and 'Close' button
+
+
+            // Add event listeners to close the modal
+            closeModalBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    acknowledgementModal.classList.add('d-none'); // Hide the modal
+                });
+            });
+
+
+            // Inside your form.addEventListener('submit', ...)
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+
+                if (form.checkValidity()) {
+                    // Form is valid, show the full-page acknowledgment modal
+                    acknowledgementModal.classList.remove('d-none'); // Show the modal
+
+                    // Optionally, reset the form after showing the success message
+                    // form.reset(); 
+                    // Or you might navigate to another page, etc.
+
+                } else {
+                    console.error("Form validation failed. Please check required fields.");
+                    form.reportValidity();
+                }
+            });
+
+            // IMPORTANT: Add this to your initial setup (DOMContentLoaded) 
+            // to ensure the modal is hidden when the page first loads.
+            document.addEventListener('DOMContentLoaded', () => {
+                // ... other initial setup ...
+                acknowledgementModal.classList.add('d-none'); // Ensure modal is hidden initially
+                // ...
+            });
+            // --- Initial Setup ---
+
+            // Set initial state based on radio (which defaults to 'No' in HTML)
+            extendedFields.classList.add('d-none');
+            toggleRequiredFields(false);
+
+            // Add initial listeners for topic fields
+            document.querySelectorAll('.topic-required').forEach(input => input.addEventListener('input', updateStepIndicators));
+
+            // Wait for the DOM and styles to settle before calculating positions
+            window.onload = function () {
+                closeNav(); // Initialize in collapsed state as requested
+                updateStepIndicators();
+            };
+        });
+    </script>
+</body>
+
+</html>
