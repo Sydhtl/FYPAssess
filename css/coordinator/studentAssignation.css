@@ -118,7 +118,7 @@
   border-radius: 8px;
   background-color: white;
   border: 1px solid #e0e0e0;
-  padding: 10px 10px 10px 0;
+  padding: 0;
 }
 
 /* Custom scrollbar styling - Grey like logbook */
@@ -159,6 +159,14 @@
   position: sticky;
   top: 0;
   z-index: 102;
+}
+
+.quota-table thead tr:first-child th:first-child {
+  border-top-left-radius: 7px;
+}
+
+.quota-table thead tr:first-child th:last-child {
+  border-top-right-radius: 7px;
 }
 
 .quota-table th {
