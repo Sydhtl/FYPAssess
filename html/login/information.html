@@ -39,13 +39,8 @@
                 <option value="3">Bachelor of Computer Science (Computer Network)</option>
                 <option value="4">Bachelor of Software Engineering</option>
             </select>
-              <p id="UsernamePassword">Course Name 
-                        <span class="info-tooltip" aria-hidden="true">
-                                ⓘ
-                                <span class="tooltip-text">PMust not be empty.</span>
-                        </span></p> 
-             
-            <input type="text" id="courseName" placeholder="Course Name" required>
+              
+            
                 <p id="UsernamePassword">Course Code 
                      <span class="info-tooltip" aria-hidden="true">
                                 ⓘ
@@ -53,21 +48,40 @@
                         </span>
              
                 </p>
-            <input type="text" id="courseCode" placeholder="Course Code" required>
+            <select class="input-field" id="coursecode" required>
+                <option value="" disabled selected>Select current course code</option>
+                <option value="1">Bachelor of Computer Science</option>
+                <option value="2">Bachelor of Computer Science(Multimedia Computing)</option>
+                <option value="3">Bachelor of Computer Science (Computer Network)</option>
+                <option value="4">Bachelor of Software Engineering</option>
+            </select>
+
               <p id="UsernamePassword">Credit Hour
                  <span class="info-tooltip" aria-hidden="true">
                                 ⓘ
-                                <span class="tooltip-text">Must be a whole number (integer) between 1 and 4 digits (e.g., 3).</span>
+                                <span class="tooltip-text">Must choose correct credit hour.</span>
                         </span>
               </p>
-            <input type="text" id="creditHour" placeholder="Credit Hour" required>
+                 <select class="input-field" id="creditHour" required>
+                <option value="" disabled selected>Select the credit hour</option>
+                 <option value="1">Bachelor of Computer Science</option>
+                <option value="2">Bachelor of Computer Science(Multimedia Computing)</option>
+                <option value="3">Bachelor of Computer Science (Computer Network)</option>
+                <option value="4">Bachelor of Software Engineering</option>
+            </select>
               <p id="UsernamePassword"> Semester
                  <span class="info-tooltip" aria-hidden="true">
                                 ⓘ
-                                <span class="tooltip-text">Must be the single digit 1, 2, or 3.</span>
+                                <span class="tooltip-text">Must choose correct semester</span>
                         </span>
               </p>
-            <input type="text" id="semester" placeholder="Semester" required>
+                 <select class="input-field" id="semester" required>
+                <option value="" disabled selected>Select your semester</option>
+                 <option value="1">Bachelor of Computer Science</option>
+                <option value="2">Bachelor of Computer Science(Multimedia Computing)</option>
+                <option value="3">Bachelor of Computer Science (Computer Network)</option>
+                <option value="4">Bachelor of Software Engineering</option>
+            </select>
               <p id="UsernamePassword">Session
                  <span class="info-tooltip" aria-hidden="true">
                                 ⓘ
@@ -93,13 +107,28 @@
             </p>
             <input type="text" id="phoneNumber" placeholder="Enter your phone number without -" required>
          
+             <p id="UsernamePassword">Race
+                 <span class="info-tooltip" aria-hidden="true">
+                                ⓘ
+                                <span class="tooltip-text">Choose correct race</span>
+                        </span>
+            </p>
+            <select class="input-field" id="race" required>
+                <option value="" disabled selected>Select your race</option>
+                <option value="Malay">Malay</option>
+                <option value="Chinese">Chinese</option>
+                <option value="Indian">Indian</option>
+                <option value="Others">Others</option>
+            </select>
+            <input type="text" id="otherRace" placeholder="Please specify your race" style="display:none; margin-top:5px;" />
+
             <p id="UsernamePassword">Current Address
                  <span class="info-tooltip" aria-hidden="true">
                                 ⓘ
                                 <span class="tooltip-text">Must not be empty.</span>
                         </span>
             </p>
-            <textarea id="currentAddress" placeholder="Enter project description" class="input-field" style="height: 100px; resize: none;" required></textarea>
+            <textarea id="currentAddress" placeholder="Enter full address" class="input-field" style="height: 100px; resize: none;" required></textarea>
             <p id="UsernamePassword">Minor
                  <span class="info-tooltip" aria-hidden="true">
                                 ⓘ
@@ -177,8 +206,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const courseInfo = {
         fields: {
             programme: document.querySelector('#programme'),
-            courseName: document.querySelector('#courseName'),
-            courseCode: document.querySelector('#courseCode'),
+            coursecode: document.querySelector('#coursecode'),
             creditHour: document.querySelector('#creditHour'),
             semester: document.querySelector('#semester'),
             session: document.querySelector('#session')
@@ -189,6 +217,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const studentInfo = {
         fields: {
             phoneNumber: document.querySelector('#phoneNumber'),
+            race: document.querySelector('#race'),
+            otherRace: document.querySelector('#otherRace'),
             currentAddress: document.querySelector('#currentAddress'),
             cgpa: document.querySelector('#cgpa'),
             minor: document.querySelector('#minor') // Minor is optional, but included for listeners
@@ -250,22 +280,26 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (sectionObject === courseInfo) {
             return isStringValid(fields.programme.value) &&
-                   isStringValid(fields.courseName.value) &&
-                   isStringValid(fields.courseCode.value) &&
-                   isCreditHourValid(fields.creditHour.value) &&
-                   isSemesterValid(fields.semester.value) &&
+                   isStringValid(fields.coursecode.value) &&
+                   isStringValid(fields.creditHour.value) &&
+                   isStringValid(fields.semester.value) &&
                    isSessionValid(fields.session.value);
         }
 
         if (sectionObject === studentInfo) {
-            // Note: currentAddress, phoneNumber, and cgpa are required
+            // Note: currentAddress, phoneNumber, race, and cgpa are required (minor is optional)
+            // If race is "Others", then otherRace text field must be filled
+            const isRaceValid = isStringValid(fields.race.value) && 
+                               (fields.race.value !== 'Others' || isStringValid(fields.otherRace.value));
+            
             return isPhoneNumberValid(fields.phoneNumber.value) &&
+                   isRaceValid &&
                    isStringValid(fields.currentAddress.value) &&
                    isCGPA(fields.cgpa.value);
         }
 
         if (sectionObject === fypInfo) {
-            // All FYP fields (Supervisor and Titles 1, 2, 3) are checked for submission
+            // Supervisor and Title 1 are required
             return isStringValid(fields.supervisor.value) &&
                    isStringValid(fields.fypTitle1.value);
         }
@@ -293,26 +327,53 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Add event listeners to course info section
     Object.values(courseInfo.fields).forEach(field => {
-        field.addEventListener('input', () => {
-            const isValid = validateFields(courseInfo); 
-            updateButton(courseInfo.continue, isValid);
-        });
+        if (field) {
+            field.addEventListener('input', () => {
+                const isValid = validateFields(courseInfo); 
+                updateButton(courseInfo.continue, isValid);
+            });
+            // Also add change event for select elements
+            if (field.tagName === 'SELECT') {
+                field.addEventListener('change', () => {
+                    const isValid = validateFields(courseInfo); 
+                    updateButton(courseInfo.continue, isValid);
+                });
+            }
+        }
     });
 
     // Add event listeners to student info section
     Object.values(studentInfo.fields).forEach(field => {
-        field.addEventListener('input', () => {
-            const isValid = validateFields(studentInfo); 
-            updateButton(studentInfo.continue, isValid);
-        });
+        if (field) {
+            field.addEventListener('input', () => {
+                const isValid = validateFields(studentInfo); 
+                updateButton(studentInfo.continue, isValid);
+            });
+            // Also add change event for select elements
+            if (field.tagName === 'SELECT') {
+                field.addEventListener('change', () => {
+                    const isValid = validateFields(studentInfo); 
+                    updateButton(studentInfo.continue, isValid);
+                });
+            }
+        }
     });
 
     // Add event listeners to FYP info section
     Object.values(fypInfo.fields).forEach(field => {
-        field.addEventListener('input', () => {
-            const isValid = validateFields(fypInfo); 
-            updateSubmitButton(fypInfo.submit, isValid); 
-        });
+        if (field) {
+            field.addEventListener('input', () => {
+                const isValid = validateFields(fypInfo); 
+                updateSubmitButton(fypInfo.submit, isValid); 
+            });
+            // Also add change event for select elements
+            if (field.tagName === 'SELECT') {
+                field.addEventListener('change', () => {
+                    const isValid = validateFields(fypInfo); 
+                    updateSubmitButton(fypInfo.submit, isValid);
+                });
+            }
+        }
     });
 
     // --- 6. Custom Modal/Submission Logic (NEW) ---
@@ -479,6 +540,26 @@ document.addEventListener('DOMContentLoaded', function() {
         if (programme.value) {
              populateSupervisors(programme.value);
         }
+    }
+
+    // Show/hide "Other Race" text field based on race selection
+    const raceSelect = document.querySelector('#race');
+    const otherRaceInput = document.querySelector('#otherRace');
+    
+    if (raceSelect && otherRaceInput) {
+        raceSelect.addEventListener('change', function() {
+            if (this.value === 'Others') {
+                otherRaceInput.style.display = 'block';
+                otherRaceInput.required = true;
+            } else {
+                otherRaceInput.style.display = 'none';
+                otherRaceInput.required = false;
+                otherRaceInput.value = ''; // Clear the value when hidden
+            }
+            // Re-validate student info after race change
+            const isValid = validateFields(studentInfo);
+            updateButton(studentInfo.continue, isValid);
+        });
     }
 
     // Run initial validation for all sections (in case fields are pre-filled)

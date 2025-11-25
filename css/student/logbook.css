@@ -35,10 +35,12 @@
 }
 
 .logbook-container {
-    background: #FDF0D5;
-    padding: 20px;
-    box-shadow: 10px 10px 10px rgba(0,0,0,0.245);
-    border-radius: 4px;
+    background: #fdf0d5;
+    padding: 30px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    border-radius: 12px;
+    margin-top: 20px;
+    min-height: 600px;
 }
 
 .section-title {
@@ -99,59 +101,122 @@
 }
 
 .table-wrapper {
-    background: white;
-    border-radius: 4px;
+    width: 100%;
     overflow-x: auto;
-    overflow-y: scroll;
-    max-height: 300px;
+    overflow-y: visible;
+    border-radius: 8px;
+    background-color: #ffffff;
+    border: 1px solid #e0e0e0;
+    padding: 0;
     margin-bottom: 15px;
 }
 
+.table-wrapper {
+    scrollbar-width: thin;
+    scrollbar-color: #c0c0c0 #f1f1f1;
+}
+
+.table-wrapper::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.table-wrapper::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.table-wrapper::-webkit-scrollbar-thumb {
+    background: #c0c0c0;
+    border-radius: 4px;
+}
+
+.table-wrapper::-webkit-scrollbar-thumb:hover {
+    background: #a0a0a0;
+}
+
 .logbook-table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: #ffffff;
+    min-width: 900px;
     margin-bottom: 0;
     font-family: 'Montserrat', Arial, sans-serif;
 }
 
 .logbook-table thead {
-    background-color: #f8f9fa;
+    background-color: #780000 !important;
+    color: white;
     position: sticky;
     top: 0;
-    z-index: 10;
+    z-index: 102;
+}
+
+.logbook-table thead tr:first-child th:first-child {
+    border-top-left-radius: 7px;
+}
+
+.logbook-table thead tr:first-child th:last-child {
+    border-top-right-radius: 7px;
+}
+
+.logbook-table thead tr {
+    background-color: #780000 !important;
 }
 
 .logbook-table th {
-    font-weight: 700;
-    padding: 12px;
-    border-bottom: 2px solid #dee2e6;
-    background-color: #f8f9fa;
+    padding: 15px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 14px;
+    font-family: 'Montserrat', Arial, sans-serif;
+    color: white !important;
+    background-color: #780000 !important;
+    border: none;
+    border-right: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.logbook-table th:last-child {
+    border-right: none;
 }
 
 .logbook-table td {
-    padding: 12px;
+    padding: 15px;
+    border-bottom: 1px solid #eee;
+    border-right: 1px solid #eee;
+    font-family: 'Montserrat', Arial, sans-serif;
+    color: #333;
     vertical-align: middle;
 }
 
+.logbook-table td:last-child {
+    border-right: none;
+}
+
+.logbook-table tbody tr:hover {
+    background-color: #f9f9f9;
+}
+
 .status-badge {
-    padding: 4px 12px;
-    border-radius: 12px;
+    display: inline;
     font-weight: 600;
-    font-size: 13px;
-    display: inline-block;
+    font-size: 14px;
+    text-transform: capitalize;
+    background: none;
+    border: none;
+    padding: 0;
 }
 
 .status-approved {
-    color: #1dba42;
-    background-color: #d4edda;
+    color: #28a745;
 }
 
 .status-declined {
-    color: #df0319;
-    background-color: #f8d7da;
+    color: #dc3545;
 }
 
 .status-waiting {
-    color: #f1b606;
-    background-color: #fff3cd;
+    color: #ffc107;
 }
 
 .logbook-link {

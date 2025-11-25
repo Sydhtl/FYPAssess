@@ -277,7 +277,7 @@
   border-radius: 8px;
   background-color: #ffffff;
   border: 1px solid #e0e0e0;
-  padding: 12px 12px 12px 0;
+  padding: 0;
 }
 
 .table-scroll-container {
@@ -320,19 +320,37 @@
   z-index: 102;
 }
 
+.mark-submission-table thead tr:first-child th:first-child {
+  border-top-left-radius: 7px;
+}
+
+.mark-submission-table thead tr:first-child th:last-child {
+  border-top-right-radius: 7px;
+}
+
 .mark-submission-table th {
   padding: 15px;
   text-align: left;
   font-weight: 600;
   font-size: 14px;
   font-family: 'Montserrat', Arial, sans-serif;
+  border-right: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.mark-submission-table th:last-child {
+  border-right: none;
 }
 
 .mark-submission-table td {
   padding: 15px;
   border-bottom: 1px solid #eee;
+  border-right: 1px solid #eee;
   font-family: 'Montserrat', Arial, sans-serif;
   color: #333;
+}
+
+.mark-submission-table td:last-child {
+  border-right: none;
 }
 
 .mark-submission-table td a {
