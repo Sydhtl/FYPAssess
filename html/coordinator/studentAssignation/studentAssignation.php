@@ -60,23 +60,23 @@
             </a>
 
             <div id="coordinatorMenu" class="menu-items expanded">
-                <a href="../dashboard/dashboardCoordinator.html" id="coordinatorDashboard"><i class="bi bi-house-fill icon-padding"></i> Dashboard</a>
-                <a href="studentAssignation.html" id="studentAssignation" class="active-menu-item"><i class="bi bi-people-fill icon-padding"></i> Student Assignation</a>
-                <a href="../learningObjective/learningObjective.html" id="learningObjective"><i class="bi bi-book-fill icon-padding"></i> Learning Objective</a>
-                <a href="../markSubmission/markSubmission.html" id="markSubmission"><i class="bi bi-clipboard-check-fill icon-padding"></i> Progress Submission</a>
-                <a href="../notification/notification.html" id="coordinatorNotification"><i class="bi bi-bell-fill icon-padding"></i> Notification</a>
-                <a href="../signatureSubmission/signatureSubmission.html" id="signatureSubmission"><i class="bi bi-pen-fill icon-padding"></i> Signature Submission</a>
-                <a href="../dateTimeAllocation/dateTimeAllocation.html" id="dateTimeAllocation"><i class="bi bi-calendar-event-fill icon-padding"></i> Date and Time Allocation</a>
+                <a href="../dashboard/dashboardCoordinator.php" id="coordinatorDashboard"><i class="bi bi-house-fill icon-padding"></i> Dashboard</a>
+                <a href="studentAssignation.php" id="studentAssignation" class="active-menu-item"><i class="bi bi-people-fill icon-padding"></i> Student Assignation</a>
+                <a href="../learningObjective/learningObjective.php" id="learningObjective"><i class="bi bi-book-fill icon-padding"></i> Learning Objective</a>
+                <a href="../markSubmission/markSubmission.php" id="markSubmission"><i class="bi bi-clipboard-check-fill icon-padding"></i> Progress Submission</a>
+                <a href="../notification/notification.php" id="coordinatorNotification"><i class="bi bi-bell-fill icon-padding"></i> Notification</a>
+                <a href="../signatureSubmission/signatureSubmission.php" id="signatureSubmission"><i class="bi bi-pen-fill icon-padding"></i> Signature Submission</a>
+                <a href="../dateTimeAllocation/dateTimeAllocation.php" id="dateTimeAllocation"><i class="bi bi-calendar-event-fill icon-padding"></i> Date and Time Allocation</a>
             </div>
 
-            <a href="../../login/login.html" id="logout">
+            <a href="../../login/login.php" id="logout">
                 <i class="bi bi-box-arrow-left" style="padding-right: 10px;"></i> Logout
             </a>
         </div>
     </div>
 
     <div id="containerAtas" class="containerAtas">
-        <a href="../dashboard/dashboardCoordinator.html">
+        <a href="../dashboard/dashboardCoordinator.php">
             <img src="../../../assets/UPMLogo.png" alt="UPM logo" width="100px" id="upm-logo">
         </a>
 

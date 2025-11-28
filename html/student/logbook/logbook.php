@@ -20,13 +20,13 @@
                 Close <span class="x-symbol">x</span>
             </a>
             <span id="nameSide">HI, NURUL SAIDAHTUL FATIHA BINTI SHAHARUDIN</span>
-            <a href="../dashboard/dashboard.html" id="dashboard"> <i class="bi bi-house-fill" style="padding-right: 10px;"></i>Dashboard</a>
-            <a href="../fypInformation/fypInformation.html" id="fypInformation"><i class="bi bi-file-earmark-text-fill" style="padding-right: 10px;"></i>FYP Information</a>
-            <a href="./logbook.html" id="logbookSubmission" class="focus"><i class="bi bi-file-earmark-text-fill" style="padding-right: 10px;"></i>Logbook Submission</a>
-            <a href="../notification/notification.html" id="notification"><i class="bi bi-bell-fill" style="padding-right: 10px;"></i>Notification</a>
-            <a href="../signatureUpload/signatureUpload.html" id="signatureSubmission"><i class="bi bi-pen-fill" style="padding-right: 10px;"></i>Signature Submission</a>
+            <a href="../dashboard/dashboard.php" id="dashboard"> <i class="bi bi-house-fill" style="padding-right: 10px;"></i>Dashboard</a>
+            <a href="../fypInformation/fypInformation.php" id="fypInformation"><i class="bi bi-file-earmark-text-fill" style="padding-right: 10px;"></i>FYP Information</a>
+            <a href="./logbook.php" id="logbookSubmission" class="focus"><i class="bi bi-file-earmark-text-fill" style="padding-right: 10px;"></i>Logbook Submission</a>
+            <a href="../notification/notification.php" id="notification"><i class="bi bi-bell-fill" style="padding-right: 10px;"></i>Notification</a>
+            <a href="../signatureUpload/signatureUpload.php" id="signatureSubmission"><i class="bi bi-pen-fill" style="padding-right: 10px;"></i>Signature Submission</a>
           
-            <a href="../../login/login.html" id="logout">
+            <a href="../../login/login.php" id="logout">
                 <i class="bi bi-box-arrow-left" style="padding-right: 10px;"></i> Logout
             </a>
         </div>
@@ -34,7 +34,7 @@
     
     <div id="containerAtas" class="containerAtas">
         
-        <a href="../dashboard/dashboard.html">
+        <a href="../dashboard/dashboard.php">
             <img src="../../../assets/UPMLogo.png" alt="UPM logo" width="100px" id="upm-logo">
         </a>
         

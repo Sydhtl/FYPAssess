@@ -20,13 +20,13 @@
                 Close <span class="x-symbol">x</span>
             </a>
             <span id="nameSide">HI, NURUL SAIDAHTUL FATIHA BINTI SHAHARUDIN</span>
-            <a href="../dashboard/dashboard.html" id="dashboard"> <i class="bi bi-house-fill" style="padding-right: 10px;"></i>Dashboard</a>
-            <a href="../fypInformation/fypInformation.html" id="fypInformation"><i class="bi bi-file-earmark-text-fill" style="padding-right: 10px;"></i>FYP Information</a>
-            <a href="../logbook/logbook.html" id="logbookSubmission"><i class="bi bi-file-earmark-text-fill" style="padding-right: 10px;"></i>Logbook Submission</a>
-            <a href="../Notification/notification.html" id="notification" class="focus"><i class="bi bi-bell-fill" style="padding-right: 10px;"></i>Notification</a>
-            <a href="../signatureUpload/signatureUpload.html" id="signatureSubmission"><i class="bi bi-pen-fill" style="padding-right: 10px;"></i>Signature Submission</a>
+            <a href="../dashboard/dashboard.php" id="dashboard"> <i class="bi bi-house-fill" style="padding-right: 10px;"></i>Dashboard</a>
+            <a href="../fypInformation/fypInformation.php" id="fypInformation"><i class="bi bi-file-earmark-text-fill" style="padding-right: 10px;"></i>FYP Information</a>
+            <a href="../logbook/logbook.php" id="logbookSubmission"><i class="bi bi-file-earmark-text-fill" style="padding-right: 10px;"></i>Logbook Submission</a>
+            <a href="../Notification/notification.php" id="notification" class="focus"><i class="bi bi-bell-fill" style="padding-right: 10px;"></i>Notification</a>
+            <a href="../signatureUpload/signatureUpload.php" id="signatureSubmission"><i class="bi bi-pen-fill" style="padding-right: 10px;"></i>Signature Submission</a>
 
-            <a href="../../login/login.html" id="logout">
+            <a href="../../login/login.php" id="logout">
                 <i class="bi bi-box-arrow-left" style="padding-right: 10px;"></i> Logout
             </a>
         </div>
@@ -34,7 +34,7 @@
 
     <div id="containerAtas" class="containerAtas">
 
-        <a href="../dashboard/dashboard.html">
+        <a href="../dashboard/dashboard.php">
             <img src="../../../assets/UPMLogo.png" alt="UPM logo" width="100px" id="upm-logo">
         </a>
 
@@ -68,7 +68,7 @@
                         <p><strong>Date</strong>: 9 Aug 2025, Wed</p>
                     </div>
                     <div class="notif-action">
-                        <button type="button" class="btn btn-outline-dark action-btn fyp-info-btn" onclick="window.location.href='../fypInformation/fypInformation.html'">
+                        <button type="button" class="btn btn-outline-dark action-btn fyp-info-btn" onclick="window.location.href='../fypInformation/fypInformation.php'">
                             FYP Information
                         </button>
                     </div>
@@ -88,7 +88,7 @@
                         <p><strong>Date</strong>: 10 Aug 2025, Thu</p>
                     </div>
                     <div class="notif-action">
-                        <button type="button" class="btn btn-outline-dark action-btn logbook-btn" onclick="window.location.href='../logbook/logbook.html'">
+                        <button type="button" class="btn btn-outline-dark action-btn logbook-btn" onclick="window.location.href='../logbook/logbook.php'">
                             Logbook
                         </button>
                     </div>
@@ -108,7 +108,7 @@
                         <p><strong>Date</strong>: 8 Aug 2025, Tue</p>
                     </div>
                     <div class="notif-action">
-                        <button type="button" class="btn btn-outline-dark action-btn fyp-info-btn" onclick="window.location.href='../fypInformation/fypInformation.html'">
+                        <button type="button" class="btn btn-outline-dark action-btn fyp-info-btn" onclick="window.location.href='../fypInformation/fypInformation.php'">
                             FYP Information
                         </button>
                     </div>
@@ -128,7 +128,7 @@
                         <p><strong>Date</strong>: 7 Aug 2025, Mon</p>
                     </div>
                     <div class="notif-action">
-                        <button type="button" class="btn btn-outline-dark action-btn logbook-btn" onclick="window.location.href='../logbook/logbook.html'">
+                        <button type="button" class="btn btn-outline-dark action-btn logbook-btn" onclick="window.location.href='../logbook/logbook.php'">
                             Logbook
                         </button>
                     </div>
