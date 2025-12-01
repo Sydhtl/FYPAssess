@@ -1,3 +1,38 @@
+
+<?php
+include '../../../php/mysqlConnect.php';
+session_start();
+
+if (!isset($_SESSION['upmId']) || $_SESSION['role'] !== 'Student') {
+    header("Location: ../../login/Login.php");
+    exit();
+}
+
+$studentId = $_SESSION['upmId'];
+
+$query = "SELECT 
+    s.Student_ID,
+    s.Student_Name,
+    s.Semester,
+    fs.FYP_Session,
+    c.Course_Code
+FROM student s
+LEFT JOIN fyp_session fs ON s.FYP_Session_ID = fs.FYP_Session_ID
+LEFT JOIN course c ON fs.Course_ID = c.Course_ID
+WHERE s.Student_ID = ?";
+
+$stmt = $conn->prepare($query);
+$stmt->bind_param("s", $studentId);
+$stmt->execute();
+$result = $stmt->get_result();
+$student = $result->fetch_assoc();
+$stmt->close();
+
+$studentName = $student['Student_Name'] ?? 'N/A';
+$courseCode = $student['Course_Code'] ?? 'N/A';
+$semesterRaw = $student['Semester'] ?? 'N/A';
+$fypSession = $student['FYP_Session'] ?? 'N/A';
+?>
 <!DOCTYPE html>
 <html>
 <head>
@@ -17,7 +52,7 @@
             <a href="javascript:void(0)" class="closebtn" id="close" onclick="closeNav()">
                 Close <span class="x-symbol">x</span>
             </a>
-            <span id="nameSide">HI, NURUL SAIDAHTUL FATIHA BINTI SHAHARUDIN</span>
+            <span id="nameSide">HI, <?php echo htmlspecialchars($studentName); ?></span>
             <a href="../dashboard/dashboard.php" id="dashboard" class="focus"> <i class="bi bi-house-fill" style="padding-right: 10px;"></i>Dashboard</a>
             <a href="../fypInformation/fypInformation.php" id="fypInformation"><i class="bi bi-file-earmark-text-fill" style="padding-right: 10px;"></i>FYP Information</a>
             <a href="../logbook/logbook.php" id="logbookSubmission"><i class="bi bi-file-earmark-text-fill" style="padding-right: 10px;"></i>Logbook Submission</a>
@@ -42,8 +77,8 @@
                 <div id="containerFYPAssess">FYPAssess</div>
             </div>
             <div id="course-session">
-                <div id="courseCode">SWE4949A</div>
-                <div id="courseSession">2024/2025 - 2 </div>
+                <div id="courseCode"><?php echo htmlspecialchars($courseCode); ?></div>
+                <div id="courseSession"><?php echo htmlspecialchars($fypSession . ' - ' . $semesterRaw); ?></div>
             </div>
         </div>
     </div>

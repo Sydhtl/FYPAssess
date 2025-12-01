@@ -33,14 +33,19 @@ if ($result->num_rows > 0) {
 }
 
 // 4. FETCH LECTURERS (Grouped by Department_ID)
+// 4. FETCH LECTURERS (Grouped by Department_ID)
 $lecturerData = [];
-$lecturerQuery = "SELECT Lecturer_ID, Department_ID, Lecturer_Name FROM lecturer ORDER BY Department_ID, Lecturer_Name";
+$lecturerQuery = "SELECT l.Lecturer_ID, l.Department_ID, l.Lecturer_Name, s.Supervisor_ID 
+                  FROM lecturer l
+                  JOIN supervisor s ON l.Lecturer_ID = s.Lecturer_ID
+                  ORDER BY l.Department_ID, l.Lecturer_Name";
 $lecturerResult = $conn->query($lecturerQuery);
 if ($lecturerResult->num_rows > 0) {
     while($row = $lecturerResult->fetch_assoc()){
         $lecturerData[] = $row;
     }
 }
+
 
 ?>
 
@@ -268,43 +273,39 @@ document.addEventListener('DOMContentLoaded', function() {
         updateButton(courseInfo.continue, isValid);
     }
 
-    // B. Supervisor Logic - Build from Lecturer Data
-    function buildSupervisorsByProgramme() {
-        const grouped = {};
-        if (!allLecturers) return grouped;
+   // --- Build supervisors grouped by programme ---
+function buildSupervisorsByProgramme() {
+    const grouped = {};
+    allLecturers.forEach(lecturer => {
+        const deptID = lecturer.Department_ID;
+        if (!grouped[deptID]) grouped[deptID] = [];
         
-        allLecturers.forEach(lecturer => {
-            const deptID = lecturer.Department_ID;
-            if (!grouped[deptID]) {
-                grouped[deptID] = [];
-            }
-            grouped[deptID].push({
-                value: lecturer.Lecturer_ID,
-                text: lecturer.Lecturer_Name
-            });
+        grouped[deptID].push({
+            value: lecturer.Supervisor_ID, // <-- send Supervisor_ID
+            text: lecturer.Lecturer_Name
         });
-        
-        return grouped;
-    }
-    
-    const supervisorsByProgramme = buildSupervisorsByProgramme();
+    });
+    return grouped;
+}
 
-    function populateSupervisors(progValue) {
-        const supervisorSelect = fypInfo.fields.supervisor;
-        supervisorSelect.innerHTML = '<option value="" disabled selected>Select your supervisor</option>';
-        
-        const list = supervisorsByProgramme[progValue] || [];
-        list.forEach(s => {
-            const opt = document.createElement('option');
-            opt.value = s.value;
-            opt.textContent = s.text;
-            if (savedSupervisorID && s.value == savedSupervisorID) opt.selected = true;
-            supervisorSelect.appendChild(opt);
-        });
-        
-        const isValid = validateFields(fypInfo);
-        updateSubmitButton(fypInfo.submit, isValid);
-    }
+const supervisorsByProgramme = buildSupervisorsByProgramme();
+
+function populateSupervisors(progValue) {
+    const supervisorSelect = fypInfo.fields.supervisor;
+    supervisorSelect.innerHTML = '<option value="" disabled selected>Select your supervisor</option>';
+
+    const list = supervisorsByProgramme[progValue] || [];
+    list.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.value;  // now using Supervisor_ID
+        opt.textContent = s.text;
+        if (savedSupervisorID && s.value == savedSupervisorID) opt.selected = true;
+        supervisorSelect.appendChild(opt);
+    });
+
+    const isValid = validateFields(fypInfo);
+    updateSubmitButton(fypInfo.submit, isValid);
+}
 
     // C. Listeners for Programme Change
     if (courseInfo.fields.programme) {
