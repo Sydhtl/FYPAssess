@@ -36,7 +36,10 @@
 
 .logbook-container {
     background: #fdf0d5;
-    padding: 30px;
+    padding-top: 30px;
+    padding-left: 30px;
+    padding-right: 30px;
+    padding-bottom: 0px!important  ;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
     border-radius: 12px;
     margin-top: 20px;
@@ -337,4 +340,58 @@
     border: 1px solid #ddd;
     border-radius: 4px;
 }
+
+/* Enlarged Add Logbook Modal */
+#addRowModal .modal-content-custom {
+    max-width: 900px;
+}
+.logbook-modal-grid {
+    display: flex;
+    gap: 30px;
+    flex-wrap: wrap;
+}
+.logbook-modal-col {
+    flex: 1;
+    min-width: 280px;
+}
+.agenda-items {
+    max-height: 260px;
+    overflow-y: auto;
+    border: 1px solid #ddd;
+    background: #ffffff;
+    padding: 10px;
+    border-radius: 6px;
+    margin-bottom: 12px;
+}
+.agenda-item {
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    padding: 8px 10px;
+    background: #fafafa;
+    margin-bottom: 8px;
+    font-family: 'Montserrat', Arial, sans-serif;
+    font-size: 13px;
+}
+.agenda-item-title { font-weight: 600; margin-bottom: 4px; }
+.agenda-item-explanation {
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+    word-break: break-word;
+}
+/* Add Agenda button styling (white background, black border) */
+.add-agenda-btn {
+    width: 100%;
+    background-color: #ffffff;
+    border: 2px solid #000000;
+    color: #000000;
+    font-weight: 600;
+}
+.add-agenda-btn:hover {
+    background-color: #f5f5f5;
+    color: #000000;
+    border-color: #333333;
+}
+/* Agenda modal specific tweaks */
+#addAgendaModal .modal-content-custom { max-width: 500px; }
+#addAgendaModal textarea { resize: vertical; max-height: 200px; }
 

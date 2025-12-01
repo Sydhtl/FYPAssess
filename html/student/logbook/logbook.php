@@ -13,6 +13,7 @@ $query = "SELECT
     s.Student_ID,
     s.Student_Name,
     s.Semester,
+    s.Department_ID,
     fs.FYP_Session,
     c.Course_Code
 FROM student s
@@ -31,6 +32,80 @@ $studentName = $student['Student_Name'] ?? 'N/A';
 $courseCode = $student['Course_Code'] ?? 'N/A';
 $semesterRaw = $student['Semester'] ?? 'N/A';
 $fypSession = $student['FYP_Session'] ?? 'N/A';
+$departmentId = $student['Department_ID'] ?? null;
+
+// Get courses for this department
+$coursesQuery = "SELECT Course_ID, Course_Code FROM course WHERE Department_ID = ? ORDER BY Course_ID";
+$stmtCourses = $conn->prepare($coursesQuery);
+$stmtCourses->bind_param("i", $departmentId);
+$stmtCourses->execute();
+$coursesResult = $stmtCourses->get_result();
+$departmentCourses = [];
+while ($row = $coursesResult->fetch_assoc()) {
+    $departmentCourses[] = $row;
+}
+$stmtCourses->close();
+
+// Ensure we have at least 2 courses for the sections
+$course1 = $departmentCourses[0] ?? ['Course_ID' => null, 'Course_Code' => 'N/A'];
+$course2 = $departmentCourses[1] ?? ['Course_ID' => null, 'Course_Code' => 'N/A'];
+
+// Check if student is registered for each course
+$isRegisteredCourse1 = false;
+$isRegisteredCourse2 = false;
+
+if ($course1['Course_ID']) {
+    $checkReg1 = $conn->prepare("SELECT 1 FROM fyp_session fs JOIN student s ON s.FYP_Session_ID = fs.FYP_Session_ID WHERE s.Student_ID = ? AND fs.Course_ID = ?");
+    $checkReg1->bind_param("si", $studentId, $course1['Course_ID']);
+    $checkReg1->execute();
+    $isRegisteredCourse1 = $checkReg1->get_result()->num_rows > 0;
+    $checkReg1->close();
+}
+
+if ($course2['Course_ID']) {
+    $checkReg2 = $conn->prepare("SELECT 1 FROM fyp_session fs JOIN student s ON s.FYP_Session_ID = fs.FYP_Session_ID WHERE s.Student_ID = ? AND fs.Course_ID = ?");
+    $checkReg2->bind_param("si", $studentId, $course2['Course_ID']);
+    $checkReg2->execute();
+    $isRegisteredCourse2 = $checkReg2->get_result()->num_rows > 0;
+    $checkReg2->close();
+}
+
+// Fetch logbook entries for this student
+// Check if logbook table exists first
+$logbookEntries = [];
+$checkTableQuery = "SHOW TABLES LIKE 'logbook'";
+$tableExists = $conn->query($checkTableQuery);
+
+if ($tableExists && $tableExists->num_rows > 0) {
+    $logbookQuery = "SELECT Logbook_ID, course_id, Logbook_Name, Logbook_Status, Logbook_Date FROM logbook WHERE Student_ID = ? ORDER BY Logbook_Date DESC";
+    $stmtLogbook = $conn->prepare($logbookQuery);
+    if ($stmtLogbook) {
+        $stmtLogbook->bind_param("s", $studentId);
+        $stmtLogbook->execute();
+        $logbookResult = $stmtLogbook->get_result();
+        while ($row = $logbookResult->fetch_assoc()) {
+            // Fetch agendas for this logbook
+            $agendas = [];
+            $agendaQuery = "SELECT Agenda_Title, Agenda_Content FROM logbook_agenda WHERE Logbook_ID = ? ORDER BY Agenda_ID";
+            $stmtAgenda = $conn->prepare($agendaQuery);
+            if ($stmtAgenda) {
+                $stmtAgenda->bind_param("i", $row['Logbook_ID']);
+                $stmtAgenda->execute();
+                $agendaResult = $stmtAgenda->get_result();
+                while ($agendaRow = $agendaResult->fetch_assoc()) {
+                    $agendas[] = [
+                        'name' => $agendaRow['Agenda_Title'],
+                        'explanation' => $agendaRow['Agenda_Content']
+                    ];
+                }
+                $stmtAgenda->close();
+            }
+            $row['agendas'] = $agendas;
+            $logbookEntries[] = $row;
+        }
+        $stmtLogbook->close();
+    }
+}
 ?>
 <!DOCTYPE html>
 <html>
@@ -87,22 +162,24 @@ $fypSession = $student['FYP_Session'] ?? 'N/A';
 <div id="main">
     <div class="logbook-container">
         <div class="tab-buttons">
-            <button id="tabSweA" class="task-tab active-tab">SWE4949A</button>
-            <button id="tabSweB" class="task-tab">SWE4949B</button>
+            <button id="tabSweA" class="task-tab active-tab"><?php echo htmlspecialchars($course1['Course_Code']); ?></button>
+            <button id="tabSweB" class="task-tab"><?php echo htmlspecialchars($course2['Course_Code']); ?></button>
         </div>
         
         <div id="sweASection" class="task-group active">
             <div style="margin-top: 15px;">
-                <h4 class="section-title" id="sectionTitleA">Logbook Submission SWE4949A</h4>
+                <h4 class="section-title" id="sectionTitleA">Logbook Submission <?php echo htmlspecialchars($course1['Course_Code']); ?></h4>
                 
                 <div class="name-section">
                     <div class="name-field-wrapper">
                         <label class="form-label">Name</label>
                         <input type="text" class="form-control readonly-field" value="<?php echo htmlspecialchars($studentName); ?>" readonly>
                     </div>
-                    <button type="button" id="addNewRowBtnA" class="btn btn-outline-dark add-row-btn" style="background-color: white; color: black;">
+                    <?php if ($isRegisteredCourse1): ?>
+                    <a href="add_logbook.php?section=A&course_id=<?php echo $course1['Course_ID']; ?>" class="btn btn-outline-dark add-row-btn" style="background-color: white; color: black;">
                         <i class="bi bi-plus-circle" style="margin-right: 8px; color: black;"></i>Add new row
-                    </button>
+                    </a>
+                    <?php endif; ?>
                 </div>
 
                 <div class="table-wrapper">
@@ -131,16 +208,18 @@ $fypSession = $student['FYP_Session'] ?? 'N/A';
 
         <div id="sweBSection" class="task-group">
             <div style="margin-top: 15px;">
-                <h4 class="section-title" id="sectionTitleB">Logbook Submission SWE4949B</h4>
+                <h4 class="section-title" id="sectionTitleB">Logbook Submission <?php echo htmlspecialchars($course2['Course_Code']); ?></h4>
                 
                 <div class="name-section">
                     <div class="name-field-wrapper">
                         <label class="form-label">Name</label>
                         <input type="text" class="form-control readonly-field" value="<?php echo htmlspecialchars($studentName); ?>" readonly>
                     </div>
-                    <button type="button" id="addNewRowBtnB" class="btn btn-outline-dark add-row-btn" style="background-color: white; color: black;">
+                    <?php if ($isRegisteredCourse2): ?>
+                    <a href="add_logbook.php?section=B&course_id=<?php echo $course2['Course_ID']; ?>" class="btn btn-outline-dark add-row-btn" style="background-color: white; color: black;">
                         <i class="bi bi-plus-circle" style="margin-right: 8px; color: black;"></i>Add new row
-                    </button>
+                    </a>
+                    <?php endif; ?>
                 </div>
 
                 <div class="table-wrapper">
@@ -169,58 +248,6 @@ $fypSession = $student['FYP_Session'] ?? 'N/A';
     </div>
 </div>
 
-<!-- Add New Row Modal -->
-<div id="addRowModal" class="custom-modal">
-    <div class="modal-dialog">
-        <div class="modal-content-custom">
-            <span class="close-btn" id="closeAddModal">&times;</span>
-            <div class="modal-title-custom">Add New Logbook</div>
-            <form id="addLogbookForm">
-                <div class="modal-field">
-                    <label class="modal-label">Logbook Entry:</label>
-                    <input type="text" id="logbookEntryInput" class="form-control" placeholder="Enter logbook entry title" required>
-                </div>
-                <div class="modal-field">
-                    <label class="modal-label">Logbook:</label>
-                    <div class="agenda-container" id="agendaContainer">
-                        <!-- Agenda items will be added here dynamically -->
-                    </div>
-                    <button type="button" id="addAgendaBtn" class="btn btn-outline-primary" style="width: 100%; margin-top: 10px;">
-                        <i class="bi bi-plus-circle" style="margin-right: 5px;"></i>Add an Agenda
-                    </button>
-                </div>
-                <div class="modal-buttons">
-                    <button type="button" id="cancelAddBtn" class="btn btn-light border">Cancel</button>
-                    <button type="submit" id="saveAddBtn" class="btn btn-success">Save</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- Add Agenda Modal -->
-<div id="addAgendaModal" class="custom-modal">
-    <div class="modal-dialog">
-        <div class="modal-content-custom">
-            <span class="close-btn" id="closeAgendaModal">&times;</span>
-            <div class="modal-title-custom">Add Agenda</div>
-            <form id="addAgendaForm">
-                <div class="modal-field">
-                    <label class="modal-label">Name of Agenda:</label>
-                    <input type="text" id="agendaNameInput" class="form-control" placeholder="Enter agenda name" required>
-                </div>
-                <div class="modal-field">
-                    <label class="modal-label">Agenda's Explanation:</label>
-                    <textarea id="agendaExplanationInput" class="form-control" rows="4" placeholder="Enter agenda explanation" required></textarea>
-                </div>
-                <div class="modal-buttons">
-                    <button type="button" id="cancelAgendaBtn" class="btn btn-light border">Cancel</button>
-                    <button type="submit" id="saveAgendaBtn" class="btn btn-success">Save</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
 
 <!-- PDF Viewer Modal -->
 <div id="pdfViewerModal" class="custom-modal">
@@ -261,23 +288,45 @@ $fypSession = $student['FYP_Session'] ?? 'N/A';
         document.getElementsByClassName("menu-icon")[0].style.display = "block";
     }
 
-    // Logbook data storage - separate for each section
-    var logbookDataA = [
-        { id: 1, entry: 'Logbook 1', status: 'Approved', file: 'logbook1.pdf' },
-        { id: 2, entry: 'Logbook 2', status: 'Approved', file: 'logbook2.pdf' },
-        { id: 3, entry: 'Logbook 3', status: 'Approved', file: 'logbook3.pdf' },
-        { id: 4, entry: 'Logbook 4', status: 'Approved', file: 'logbook4.pdf' },
-        { id: 5, entry: 'Logbook 5', status: 'Approved', file: 'logbook5.pdf' },
-        { id: 6, entry: 'Logbook 6', status: 'Declined', file: 'logbook6.pdf' },
-        { id: 7, entry: 'Logbook 7', status: 'Declined', file: 'logbook7.pdf' },
-        { id: 8, entry: 'Logbook 8', status: 'Waiting for approval', file: 'logbook8.pdf' },
-        { id: 9, entry: 'Logbook 9', status: 'Waiting for approval', file: 'logbook9.pdf' }
-    ];
+    // Logbook data storage - separate for each section (populated from PHP)
+    var course1Id = <?php echo json_encode($course1['Course_ID']); ?>;
+    var course2Id = <?php echo json_encode($course2['Course_ID']); ?>;
+    
+    var logbookDataA = <?php 
+        $dataA = [];
+        $counterA = 1;
+        foreach ($logbookEntries as $entry) {
+            if ($entry['course_id'] == $course1['Course_ID']) {
+                $dataA[] = [
+                    'id' => $counterA++,
+                    'logbook_id' => $entry['Logbook_ID'],
+                    'entry' => $entry['Logbook_Name'],
+                    'status' => $entry['Logbook_Status'] ?? 'Waiting for approval',
+                    'file' => 'logbook' . $entry['Logbook_ID'] . '.pdf',
+                    'agendas' => $entry['agendas'] ?? []
+                ];
+            }
+        }
+        echo json_encode($dataA);
+    ?>;
 
-    var logbookDataB = [
-        { id: 1, entry: 'Logbook 1', status: 'Approved', file: 'logbook1.pdf' },
-        { id: 2, entry: 'Logbook 2', status: 'Waiting for approval', file: 'logbook2.pdf' }
-    ];
+    var logbookDataB = <?php 
+        $dataB = [];
+        $counterB = 1;
+        foreach ($logbookEntries as $entry) {
+            if ($entry['course_id'] == $course2['Course_ID']) {
+                $dataB[] = [
+                    'id' => $counterB++,
+                    'logbook_id' => $entry['Logbook_ID'],
+                    'entry' => $entry['Logbook_Name'],
+                    'status' => $entry['Logbook_Status'] ?? 'Waiting for approval',
+                    'file' => 'logbook' . $entry['Logbook_ID'] . '.pdf',
+                    'agendas' => $entry['agendas'] ?? []
+                ];
+            }
+        }
+        echo json_encode($dataB);
+    ?>;
 
     var totalLogbooks = 10;
     var nextLogbookIdA = 10;
@@ -595,176 +644,12 @@ $fypSession = $student['FYP_Session'] ?? 'N/A';
         currentSection = 'B';
     });
 
-    // Add new row modal
-    var addModal = document.getElementById('addRowModal');
-    var agendaModal = document.getElementById('addAgendaModal');
-    var agendaContainer = document.getElementById('agendaContainer');
-
-    document.getElementById('addNewRowBtnA').addEventListener('click', function() {
-        currentSection = 'A';
-        document.getElementById('addLogbookForm').reset();
-        agendaList = [];
-        agendaContainer.innerHTML = '';
-        openModal(addModal);
-    });
-
-    document.getElementById('addNewRowBtnB').addEventListener('click', function() {
-        currentSection = 'B';
-        document.getElementById('addLogbookForm').reset();
-        agendaList = [];
-        agendaContainer.innerHTML = '';
-        openModal(addModal);
-    });
-
-    document.getElementById('closeAddModal').onclick = function() { closeModal(addModal); };
-    document.getElementById('cancelAddBtn').onclick = function() { closeModal(addModal); };
-
-    // Add Agenda button
-    document.getElementById('addAgendaBtn').addEventListener('click', function(e) {
-        e.preventDefault();
-        editingAgendaId = null;
-        document.getElementById('addAgendaForm').reset();
-        document.querySelector('#addAgendaModal .modal-title-custom').textContent = 'Add Agenda';
-        openModal(agendaModal);
-    });
-
-    document.getElementById('closeAgendaModal').onclick = function() { closeModal(agendaModal); };
-    document.getElementById('cancelAgendaBtn').onclick = function() { closeModal(agendaModal); };
-
-    // Save agenda
-    document.getElementById('addAgendaForm').addEventListener('submit', function(e) {
-        e.preventDefault();
-        var agendaName = document.getElementById('agendaNameInput').value;
-        var agendaExplanation = document.getElementById('agendaExplanationInput').value;
-        
-        if (!agendaName || !agendaExplanation) {
-            alert('Please fill in all fields');
-            return;
-        }
-        
-        if (editingAgendaId !== null) {
-            // Update existing agenda
-            var agendaIndex = agendaList.findIndex(function(a) { return a.id === editingAgendaId; });
-            if (agendaIndex !== -1) {
-                agendaList[agendaIndex].name = agendaName;
-                agendaList[agendaIndex].explanation = agendaExplanation;
-            }
-            editingAgendaId = null;
-        } else {
-            // Add new agenda
-            var agenda = {
-                id: Date.now(),
-                name: agendaName,
-                explanation: agendaExplanation
-            };
-            agendaList.push(agenda);
-        }
-        
-        renderAgendaList();
-        closeModal(agendaModal);
-        this.reset();
-    });
-
-    function renderAgendaList() {
-        agendaContainer.innerHTML = '';
-        agendaList.forEach(function(agenda) {
-            var agendaItem = document.createElement('div');
-            agendaItem.className = 'agenda-item';
-            agendaItem.style.cssText = 'border: 1px solid #ddd; padding: 10px; margin-bottom: 10px; border-radius: 5px; background-color: #f9f9f9;';
-            agendaItem.innerHTML = 
-                '<div style="display: flex; justify-content: space-between; align-items: start;">' +
-                    '<div style="flex: 1; word-wrap: break-word; overflow-wrap: break-word; min-width: 0;">' +
-                        '<strong style="display: block; margin-bottom: 5px; word-wrap: break-word;">' + agenda.name + '</strong>' +
-                        '<p style="margin: 0; font-size: 14px; color: #666; word-wrap: break-word; white-space: pre-wrap;">' + agenda.explanation + '</p>' +
-                    '</div>' +
-                    '<div style="display: flex; gap: 5px; flex-shrink: 0; margin-left: 10px;">' +
-                        '<button type="button" class="btn btn-sm btn-primary edit-agenda-btn" data-id="' + agenda.id + '">' +
-                            '<i class="bi bi-pencil"></i>' +
-                        '</button>' +
-                        '<button type="button" class="btn btn-sm btn-danger delete-agenda-btn" data-id="' + agenda.id + '">' +
-                            '<i class="bi bi-trash"></i>' +
-                        '</button>' +
-                    '</div>' +
-                '</div>';
-            agendaContainer.appendChild(agendaItem);
-        });
-        
-        // Attach edit event listeners
-        document.querySelectorAll('.edit-agenda-btn').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                var id = parseInt(this.getAttribute('data-id'));
-                editAgenda(id);
-            });
-        });
-        
-        // Attach delete event listeners
-        document.querySelectorAll('.delete-agenda-btn').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                var id = parseInt(this.getAttribute('data-id'));
-                deleteAgenda(id);
-            });
-        });
+    // Load extra entries saved via fullscreen add page
+    function loadExtraEntries() {
+        // Clear old localStorage data - now using database
+        localStorage.removeItem('logbookExtraA');
+        localStorage.removeItem('logbookExtraB');
     }
-
-    function editAgenda(id) {
-        var agenda = agendaList.find(function(a) { return a.id === id; });
-        if (agenda) {
-            editingAgendaId = id;
-            document.getElementById('agendaNameInput').value = agenda.name;
-            document.getElementById('agendaExplanationInput').value = agenda.explanation;
-            document.querySelector('#addAgendaModal .modal-title-custom').textContent = 'Edit Agenda';
-            openModal(agendaModal);
-        }
-    }
-
-    function deleteAgenda(id) {
-        if (confirm('Are you sure you want to delete this agenda?')) {
-            agendaList = agendaList.filter(function(agenda) { return agenda.id !== id; });
-            renderAgendaList();
-        }
-    }
-
-    document.getElementById('addLogbookForm').addEventListener('submit', function(e) {
-        e.preventDefault();
-        var entry = document.getElementById('logbookEntryInput').value;
-        
-        if (!entry) {
-            alert('Please enter logbook entry title');
-            return;
-        }
-        
-        if (agendaList.length === 0) {
-            alert('Please add at least one agenda');
-            return;
-        }
-        
-        var newEntry;
-        if (currentSection === 'A') {
-            newEntry = {
-                id: nextLogbookIdA++,
-                entry: entry,
-                status: 'Waiting for approval',
-                file: entry.replace(/\s+/g, '_') + '.pdf',
-                agendas: agendaList
-            };
-            logbookDataA.push(newEntry);
-        } else {
-            newEntry = {
-                id: nextLogbookIdB++,
-                entry: entry,
-                status: 'Waiting for approval',
-                file: entry.replace(/\s+/g, '_') + '.pdf',
-                agendas: agendaList
-            };
-            logbookDataB.push(newEntry);
-        }
-        
-        renderTable(currentSection);
-        closeModal(addModal);
-        this.reset();
-        agendaList = [];
-        agendaContainer.innerHTML = '';
-    });
 
     // PDF viewer modal
     document.getElementById('closePdfModal').onclick = function() {
@@ -776,6 +661,7 @@ $fypSession = $student['FYP_Session'] ?? 'N/A';
     window.onload = function() {
         document.getElementById("nameSide").style.display = "none";
         closeNav();
+        loadExtraEntries();
         renderTable('A');
         renderTable('B');
     };
