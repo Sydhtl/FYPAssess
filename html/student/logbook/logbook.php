@@ -400,12 +400,40 @@ if ($tableExists && $tableExists->num_rows > 0) {
 
     function deleteLogbook(id, section) {
         if (confirm('Are you sure you want to delete this logbook?')) {
-            if (section === 'A') {
-                logbookDataA = logbookDataA.filter(function(item) { return item.id !== id; });
-            } else {
-                logbookDataB = logbookDataB.filter(function(item) { return item.id !== id; });
+            // Get the actual Logbook_ID from the data
+            var logbookData = section === 'A' ? logbookDataA : logbookDataB;
+            var logbookEntry = logbookData.find(function(item) { return item.id === id; });
+            
+            if (!logbookEntry) {
+                alert('Logbook entry not found');
+                return;
             }
-            renderTable(section);
+            
+            var formData = new FormData();
+            formData.append('logbook_id', logbookEntry.logbook_id);
+            
+            fetch('delete_logbook.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Remove from local data and re-render
+                    if (section === 'A') {
+                        logbookDataA = logbookDataA.filter(function(item) { return item.id !== id; });
+                    } else {
+                        logbookDataB = logbookDataB.filter(function(item) { return item.id !== id; });
+                    }
+                    renderTable(section);
+                } else {
+                    alert('Error deleting logbook: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while deleting the logbook');
+            });
         }
     }
 

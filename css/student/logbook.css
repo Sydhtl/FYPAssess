@@ -31,7 +31,15 @@
 }
 
 .task-group.active {
-    display: block;
+    display: flex;
+    flex-direction: column;
+    min-height: 500px;
+}
+
+.task-group.active > div {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
 }
 
 .logbook-container {
@@ -112,6 +120,7 @@
     border: 1px solid #e0e0e0;
     padding: 0;
     margin-bottom: 15px;
+    min-height: 400px;
 }
 
 .table-wrapper {
@@ -252,6 +261,8 @@
     gap: 10px;
     font-family: 'Montserrat', Arial, sans-serif;
     font-weight: 600;
+    padding-bottom: 30px;
+    margin-top: auto;
 }
 
 .remaining-box {
