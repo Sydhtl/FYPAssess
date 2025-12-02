@@ -331,11 +331,19 @@ textarea.form-control.readonly-field[readonly]:active,
 
 #changeTitleBtn{
     background-color: white;
+    border: 2px solid black;
+    
+}
+#changeTitleBtn:hover{
+    background-color: white;
+    color: black!important;
+
     
 }
 /* Supervisor button normal hover */
 .supervisor-btn:hover {
-    background-color: #f0f0f0; /* existing hover color */
+    background-color: #f0f0f0; 
+    /* existing hover color */
 }
 
 /* Disable hover effect when the supervisor section is open */

@@ -86,8 +86,8 @@ try {
     $stmt3->execute();
     $stmt3->close();
 
-    // Insert into fyp_project
-    $stmt4 = $conn->prepare("INSERT INTO fyp_project (Student_ID, Project_Title) VALUES (?, ?)");
+    // Insert into fyp_project: store proposed title first with Waiting status
+    $stmt4 = $conn->prepare("INSERT INTO fyp_project (Student_ID, Proposed_Title, Title_Status) VALUES (?, ?, 'Waiting For Approval')");
     $stmt4->bind_param("ss", $upmId, $title1);
     $stmt4->execute();
     $stmt4->close();

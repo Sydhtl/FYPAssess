@@ -59,15 +59,15 @@ $checkResult = $stmt->get_result();
 $stmt->close();
 
 if ($checkResult->num_rows === 0) {
-    // Insert new record if it doesn't exist
-    $insertQuery = "INSERT INTO fyp_project (Student_ID, Proposed_Title) VALUES (?, ?)";
+    // Insert new record if it doesn't exist, set status to Waiting For Approval
+    $insertQuery = "INSERT INTO fyp_project (Student_ID, Proposed_Title, Title_Status) VALUES (?, ?, 'Waiting For Approval')";
     $stmt = $conn->prepare($insertQuery);
     $stmt->bind_param("ss", $studentId, $newTitle);
     $success = $stmt->execute();
     $stmt->close();
 } else {
-    // Update existing record
-    $updateQuery = "UPDATE fyp_project SET Proposed_Title = ? WHERE Student_ID = ?";
+    // Update existing record, set status to Waiting For Approval
+    $updateQuery = "UPDATE fyp_project SET Proposed_Title = ?, Title_Status = 'Waiting For Approval' WHERE Student_ID = ?";
     $stmt = $conn->prepare($updateQuery);
     $stmt->bind_param("ss", $newTitle, $studentId);
     $success = $stmt->execute();

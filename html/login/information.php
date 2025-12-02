@@ -179,11 +179,7 @@ if ($lecturerResult->num_rows > 0) {
                 <p id="UsernamePassword">Suggestion FYP Title  <span class="info-tooltip">ⓘ<span class="tooltip-text">Required.</span></span></p>
                 <textarea id="fypTitle1" name="title1" placeholder="Title 1" class="input-field" style="height: 60px; resize: none;" required><?php echo $student_title1; ?></textarea>
                 
-                <p id="UsernamePassword">Suggestion FYP Title 2 <span class="info-tooltip">ⓘ<span class="tooltip-text">Optional.</span></span></p>
-                <textarea id="fypTitle2" name="title2" placeholder="Title 2" class="input-field" style="height: 60px; resize: none;"><?php echo $student_title2; ?></textarea>
-                
-                <p id="UsernamePassword">Suggestion FYP Title 3 <span class="info-tooltip">ⓘ<span class="tooltip-text">Optional.</span></span></p>
-                <textarea id="fypTitle3" name="title3" placeholder="Title 3" class="input-field" style="height: 60px; resize: none;"><?php echo $student_title3; ?></textarea>
+                <!-- Only one suggested FYP title is allowed; remove extra fields -->
                 
                 <a href="#Studinfo" id="previous" style="text-decoration: none; display: inline-block; margin-right: 20px;">Previous</a>
                 <button type="submit" id="submitButton" style="display: inline-block;">Submit</button>

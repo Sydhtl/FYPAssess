@@ -16,13 +16,14 @@ $query = "SELECT
     s.Student_ID,
     s.Student_Name,
     s.Semester,
-    s.Department_ID,
     d.Programme_Name,
+    d.Department_ID,
     fs.FYP_Session,
     c.Course_Code,
     l.Lecturer_Name,
     fp.Project_Title,
-    fp.Proposed_Title 
+    fp.Proposed_Title,
+    fp.Title_Status 
 FROM student s
 LEFT JOIN department d ON s.Department_ID = d.Department_ID
 LEFT JOIN fyp_session fs ON s.FYP_Session_ID = fs.FYP_Session_ID
@@ -54,15 +55,35 @@ $semesterRaw = $student['Semester'] ?? 'N/A';
 $fypSession = $student['FYP_Session'] ?? 'N/A';
 $courseCode = $student['Course_Code'] ?? 'N/A';
 $supervisorName = $student['Lecturer_Name'] ?? 'N/A';
-$projectTitle = $student['Project_Title'] ?? 'No title assigned';
-// Check if there is a proposed title pending
+$titleStatus = $student['Title_Status'] ?? '';
 $proposedTitle = $student['Proposed_Title'] ?? '';
-$hasPendingTitle = !empty($proposedTitle);
+// If Approved, show Project_Title in the big box; otherwise show placeholder/no title
+$projectTitle = ($titleStatus === 'Approved')
+    ? ($student['Project_Title'] ?? 'No title assigned')
+    : ($student['Project_Title'] ?? 'No title assigned');
+// Pending box visibility: show only when NOT Approved and there is a proposed title
+$hasPendingTitle = ($titleStatus !== 'Approved') && !empty($proposedTitle);
+$statusLabelText = ($titleStatus === 'Approved')
+    ? 'Proposed Title Accepted'
+    : (($titleStatus === 'Rejected') ? 'Proposed Title Rejected' : 'Proposed Title (Under Consideration)');
 
 $semesterDisplay = $semesterRaw . '-' . $fypSession;
 
+// --- Ensure Project_Title is updated when Approved ---
+if ($titleStatus === 'Approved' && !empty($proposedTitle)) {
+    // If Approved, copy Proposed_Title into Project_Title (idempotent)
+    $updateApproved = $conn->prepare("UPDATE fyp_project SET Project_Title = Proposed_Title WHERE Student_ID = ?");
+    if ($updateApproved) {
+        $updateApproved->bind_param("s", $studentId);
+        $updateApproved->execute();
+        $updateApproved->close();
+        // Refresh $projectTitle from DB context without requery: use proposedTitle as the current title
+        $projectTitle = $proposedTitle;
+    }
+}
+
 // --- 2. GET PAST TITLES (DYNAMIC) ---
-$pastTitlesBase = "SELECT 
+$pastTitlesQuery = "SELECT 
     l.Lecturer_Name as supervisor_name,
     fs.FYP_Session as session,
     s.Student_Name as student_name,
@@ -72,19 +93,12 @@ JOIN student s ON fp.Student_ID = s.Student_ID
 JOIN supervisor sup ON s.Supervisor_ID = sup.Supervisor_ID
 JOIN lecturer l ON sup.Lecturer_ID = l.Lecturer_ID
 JOIN fyp_session fs ON s.FYP_Session_ID = fs.FYP_Session_ID
-WHERE fp.Project_Title IS NOT NULL AND fp.Project_Title != '' AND l.Department_ID = ?";
-
-// If current session looks like YYYY/YYYY, filter to earlier sessions only
-$hasValidSession = isset($fypSession) && preg_match('/^\d{4}\/\d{4}$/', $fypSession);
-$pastTitlesQuery = $pastTitlesBase . ($hasValidSession ? " AND fs.FYP_Session < ?" : "") . " ORDER BY l.Lecturer_Name ASC, fs.FYP_Session DESC";
+WHERE fp.Project_Title IS NOT NULL AND fp.Project_Title != '' AND l.Department_ID = ?
+ORDER BY l.Lecturer_Name ASC, fs.FYP_Session DESC";
 
 $pastStmt = $conn->prepare($pastTitlesQuery);
-if ($pastStmt) {
-    if ($hasValidSession) {
-        $pastStmt->bind_param("is", $departmentId, $fypSession);
-    } else {
-        $pastStmt->bind_param("i", $departmentId);
-    }
+if ($pastStmt && $departmentId !== null) {
+    $pastStmt->bind_param("i", $departmentId);
     $pastStmt->execute();
     $pastResult = $pastStmt->get_result();
     $pastStmt->close();
@@ -223,23 +237,23 @@ if ($commentStmt) {
         <form id="fypInfoForm">
             <div class="row g-3">
                 <h4 class="section-title">FYP Information</h4>
-                <div class="col-md-6">
+                <div class="col-12">
                     <label class="form-label">Name</label>
                     <input type="text" class="form-control readonly-field" value="<?php echo htmlspecialchars($studentName); ?>" readonly>
                 </div>
-                <div class="col-md-6">
+                <div class="col-12">
                     <label class="form-label">Matric No</label>
                     <input type="text" class="form-control readonly-field" value="<?php echo htmlspecialchars($matricNo); ?>" readonly>
                 </div>
-                <div class="col-md-6">
+                <div class="col-12">
                     <label class="form-label">Programme</label>
                     <input type="text" class="form-control readonly-field" value="<?php echo htmlspecialchars($programmeName); ?>" readonly>
                 </div>
-                <div class="col-md-6">
+                <div class="col-12">
                     <label class="form-label">Semester</label>
                     <input type="text" class="form-control readonly-field" value="<?php echo htmlspecialchars($semesterDisplay); ?>" readonly>
                 </div>
-                <div class="col-md-6">
+                <div class="col-12">
                     <label class="form-label">Supervisor</label>
                     <input type="text" class="form-control readonly-field" value="<?php echo htmlspecialchars($supervisorName); ?>" readonly>
                 </div>
@@ -247,10 +261,45 @@ if ($commentStmt) {
                     <label class="form-label">Current FYP Title</label>
                     <textarea class="form-control readonly-field" id="fypTitle" rows="3" readonly><?php echo htmlspecialchars($projectTitle); ?></textarea>
                     
-                    <div id="pendingContainer" class="pending-title-box" style="display: <?php echo $hasPendingTitle ? 'block' : 'none'; ?>;">
-                        <span class="pending-label"><i class="bi bi-hourglass-split"></i> Proposed Title (Under Consideration):</span>
-                        <div id="pendingTitleText"><?php echo htmlspecialchars($proposedTitle); ?></div>
-                        <small class="text-muted">This title will replace the current title once approved by your supervisor.</small>
+                    <?php 
+                    // Status box logic: show label for all statuses; show proposed title only when not Approved
+                    $showStatusBox = !empty($titleStatus);
+                    $showProposedContent = ($titleStatus !== 'Approved') && !empty($proposedTitle);
+                    ?>
+                    <div id="pendingContainer" class="pending-title-box" style="
+                        display: <?php echo ($showStatusBox && ($showProposedContent || $titleStatus === 'Rejected' || $titleStatus === 'Waiting For Approval' || $titleStatus === 'Approved')) ? 'block' : 'none'; ?>;
+                        border: 1px solid <?php 
+                            echo ($titleStatus === 'Approved') ? '#2e7d32' 
+                                 : (($titleStatus === 'Rejected') ? '#c62828' : '#999'); ?>;
+                        background-color: <?php 
+                            echo ($titleStatus === 'Approved') ? '#e8f5e9' 
+                                 : (($titleStatus === 'Rejected') ? '#ffebee' : '#fffbea'); ?>;
+                        border-left-width: 6px;
+                    ">
+                        <span class="pending-label" style="color: <?php 
+                            echo ($titleStatus === 'Approved') ? '#2e7d32' 
+                                 : (($titleStatus === 'Rejected') ? '#c62828' : 'inherit'); ?>;">
+                            <?php if ($titleStatus === 'Approved'): ?>
+                                <i class="bi bi-check-circle-fill"></i> <?php echo htmlspecialchars($statusLabelText); ?>
+                            <?php elseif ($titleStatus === 'Rejected'): ?>
+                                <i class="bi bi-x-circle-fill"></i> <?php echo htmlspecialchars($statusLabelText); ?>
+                            <?php else: ?>
+                                <i class="bi bi-hourglass-split"></i> <?php echo htmlspecialchars($statusLabelText); ?>
+                            <?php endif; ?>
+                        </span>
+                        <?php if ($titleStatus === 'Approved'): ?>
+                            <small class="text-muted">This proposed title has been accepted by your supervisor.</small>
+                        <?php elseif ($titleStatus === 'Rejected'): ?>
+                            <small class="text-muted">This proposed title was rejected by your supervisor.</small>
+                        <?php endif; ?>
+                        <?php if ($showProposedContent): ?>
+                            <div id="pendingTitleText"><?php echo htmlspecialchars($proposedTitle); ?></div>
+                            <?php if ($titleStatus === 'Waiting For Approval'): ?>
+                                <small class="text-muted">This title will replace the current title once approved by your supervisor.</small>
+                            <?php endif; ?>
+                        <?php else: ?>
+                            <div id="pendingTitleText" style="display:none;"></div>
+                        <?php endif; ?>
                     </div>
 
                     <div class="mt-2 d-flex align-items-center">
@@ -586,6 +635,7 @@ if ($commentStmt) {
                 var supervisor = '<?php echo addslashes($supervisorName); ?>';
                 var fypTitle = document.getElementById('fypTitle').value || '<?php echo addslashes($projectTitle); ?>';
                 var proposedTitle = '<?php echo addslashes($proposedTitle); ?>';
+                var titleStatus = '<?php echo addslashes($titleStatus); ?>';
 
                 function renderPdf(doc) {
                     var pageWidth = 210;
@@ -659,15 +709,7 @@ if ($commentStmt) {
                         doc.text(titleLines, 20, yPos + 7);
                         yPos += 7 + (titleLines.length * 8);
 
-                        if (proposedTitle && proposedTitle.trim() !== '') {
-                            doc.setFont(undefined, 'bold');
-                            doc.text('Proposed Title (Under Consideration):', 20, yPos);
-                            doc.setFont(undefined, 'normal');
-                            var proposedLines = doc.splitTextToSize(proposedTitle, 170);
-                            ensureSpace(7 + (proposedLines.length * 8));
-                            doc.text(proposedLines, 20, yPos + 7);
-                            yPos += 7 + (proposedLines.length * 8);
-                        }
+                        // Do not include proposed title or status in the PDF; only show current FYP title and comments
 
                         // Comments section
                         doc.setLineWidth(0.5);
@@ -723,13 +765,7 @@ if ($commentStmt) {
                         doc.text(fLines, 20, y);
                         y += (fLines.length * 8);
 
-                        if (proposedTitle && proposedTitle.trim() !== '') {
-                            doc.setFont(undefined, 'bold'); doc.text('Proposed Title (Under Consideration):', 20, y); y += 7;
-                            doc.setFont(undefined, 'normal');
-                            var pLines = doc.splitTextToSize(proposedTitle, 170);
-                            doc.text(pLines, 20, y);
-                            y += (pLines.length * 8);
-                        }
+                        // Do not include proposed title or status in the PDF; only show current FYP title and comments
 
                         // Comments section (fallback)
                         doc.setLineWidth(0.5); doc.line(20, y, 190, y); y += 10;
