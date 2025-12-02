@@ -1,3 +1,4 @@
+<?php include '../../../php/coordinator_bootstrap.php'; ?>
 <!DOCTYPE html>
 <html>
 <head>
@@ -18,7 +19,7 @@
                 Close <span class="x-symbol">x</span>
             </a>
 
-            <span id="nameSide">HI, AZRINA BINTI KAMARUDDIN</span>
+            <span id="nameSide">HI, <?php echo htmlspecialchars($coordinatorName); ?></span>
 
             <a href="#supervisorMenu" class="role-header" data-role="supervisor">
                 <span class="role-text">Supervisor</span>
@@ -155,18 +156,18 @@
 
     <script>
         var collapsedWidth = "60px";
+        const expandedWidth = "220px";
 
         function openNav() {
-            var fullWidth = "220px";
             var sidebar = document.getElementById("mySidebar");
             var header = document.getElementById("containerAtas");
             var mainContent = document.getElementById("main");
             var menuIcon = document.querySelector(".menu-icon");
 
-            sidebar.style.width = fullWidth;
+            sidebar.style.width = expandedWidth;
 
-            if (mainContent) mainContent.style.marginLeft = fullWidth;
-            if (header) header.style.marginLeft = fullWidth;
+            if (mainContent) mainContent.style.marginLeft = expandedWidth;
+            if (header) header.style.marginLeft = expandedWidth;
 
             document.getElementById("nameSide").style.display = "block";
 
@@ -508,7 +509,7 @@
 
                     // Show/hide child links for the current menu (only when sidebar is expanded)
                     const sidebar = document.getElementById("mySidebar");
-                    const isSidebarExpanded = sidebar.style.width === "220px" || sidebar.style.width === "250px";
+                    const isSidebarExpanded = sidebar.style.width === expandedWidth;
 
                     menu.querySelectorAll('a').forEach(a => {
                         if (isSidebarExpanded) {

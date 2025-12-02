@@ -1,3 +1,4 @@
+<?php include '../../../php/coordinator_bootstrap.php'; ?>
 <!DOCTYPE html>
 <html>
 <head>
@@ -18,7 +19,7 @@
                 Close <span class="x-symbol">x</span>
             </a>
 
-            <span id="nameSide">HI, AZRINA BINTI KAMARUDDIN</span>
+            <span id="nameSide">HI, <?php echo htmlspecialchars($coordinatorName); ?></span>
 
             <a href="#supervisorMenu" class="role-header" data-role="supervisor">
                 <span class="role-text">Supervisor</span>

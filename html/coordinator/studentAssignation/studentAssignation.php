@@ -1,3 +1,27 @@
+<?php
+include '../../../php/mysqlConnect.php';
+session_start();
+
+if (!isset($_SESSION['upmId']) || !isset($_SESSION['role']) || $_SESSION['role'] !== 'Coordinator') {
+    header("Location: ../../login/Login.php");
+    exit();
+}
+
+$userId = $_SESSION['upmId'];
+$coordinatorName = 'Coordinator';
+
+// Try to get name from lecturer table (most coordinators are lecturers)
+if ($stmt = $conn->prepare("SELECT Lecturer_Name FROM lecturer WHERE Lecturer_ID = ? LIMIT 1")) {
+    $stmt->bind_param("s", $userId);
+    if ($stmt->execute()) {
+        $res = $stmt->get_result();
+        if ($row = $res->fetch_assoc()) {
+            $coordinatorName = $row['Lecturer_Name'] ?: $coordinatorName;
+        }
+    }
+    $stmt->close();
+}
+?>
 <!DOCTYPE html>
 <html>
 <head>
@@ -21,7 +45,7 @@
                 Close <span class="x-symbol">x</span>
             </a>
 
-            <span id="nameSide">HI, AZRINA BINTI KAMARUDDIN</span>
+            <span id="nameSide">HI, <?php echo htmlspecialchars($coordinatorName); ?></span>
 
             <a href="#supervisorMenu" class="role-header" data-role="supervisor">
                 <span class="role-text">Supervisor</span>
