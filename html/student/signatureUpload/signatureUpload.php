@@ -256,12 +256,30 @@ $fypSession = $student['FYP_Session'] ?? 'N/A';
             return;
         }
         
-        // Use the file from input or the already uploaded file
-        var fileToUpload = file || uploadedFile;
-        
-        // In a real application, you would upload the file to a server here
-        // Show success modal
-        openModal(uploadModal);
+        var formData = new FormData();
+        formData.append('signature_file', file || uploadedFile);
+
+        var saveBtn = document.getElementById('saveBtn');
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Uploading...';
+
+        fetch('save_signature.php', { method: 'POST', body: formData })
+            .then(async r => {
+                const raw = await r.text();
+                let data = {};
+                try { data = raw ? JSON.parse(raw) : {}; } catch(e) { throw new Error('Invalid JSON: ' + raw.substring(0,300)); }
+                if (!r.ok || !data.success) { throw new Error(data.error || ('HTTP ' + r.status)); }
+                return data;
+            })
+            .then(() => {
+                openModal(uploadModal);
+                fileSaved = true;
+            })
+            .catch(err => { alert('Upload error: ' + err.message); })
+            .finally(() => {
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'Save';
+            });
     });
 
     // Close upload modal and show preview
@@ -293,9 +311,37 @@ $fypSession = $student['FYP_Session'] ?? 'N/A';
     window.onload = function() {
         document.getElementById("nameSide").style.display = "none";
         closeNav();
+        // Preload existing signature (image/pdf/any file)
+        fetch('get_signature.php')
+            .then(r => {
+                if (!r.ok) throw new Error('No signature');
+                return r.blob();
+            })
+            .then(blob => {
+                var url = URL.createObjectURL(blob);
+                var type = blob.type || '';
+                var uploadPrompt = document.getElementById('uploadPrompt');
+                var filePreview = document.getElementById('filePreview');
+                var previewImage = document.getElementById('previewImage');
+                var previewFileName = document.getElementById('previewFileName');
+                uploadPrompt.style.display = 'none';
+                filePreview.style.display = 'block';
+                if (type.startsWith('image/')) {
+                    previewImage.src = url;
+                    previewImage.style.display = 'block';
+                    previewFileName.textContent = 'Existing signature (' + type + ')';
+                } else {
+                    // For non-image, show a simple link
+                    previewImage.style.display = 'none';
+                    previewFileName.innerHTML = 'Existing file (' + type + ') - <a href="'+url+'" target="_blank">Open/Download</a>';
+                }
+                fileSaved = true;
+            })
+            .catch(() => {
+                // No existing signature; keep prompt
+            });
     };
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
-

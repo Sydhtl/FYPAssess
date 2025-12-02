@@ -243,6 +243,7 @@ $courseId = isset($_GET['course_id']) ? (int)$_GET['course_id'] : null;
         var entryDate = document.getElementById('fullscreenLogbookDateInput').value;
         if(!entryTitle){ alert('Enter logbook entry title'); return; }
         if(!entryDate){ alert('Please select a date'); return; }
+        if(fullscreenAgendaList.length === 0){ alert('Please add at least one agenda before saving the logbook'); return; }
         
         // Send data to PHP backend
         var formData = new FormData();

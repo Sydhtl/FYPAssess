@@ -201,7 +201,7 @@ if ($tableExists && $tableExists->num_rows > 0) {
 
                 <div class="remaining-logbook">
                     <span>Remaining Logbook</span>
-                    <div class="remaining-box" id="remainingCountA">10</div>
+                    <div class="remaining-box" id="remainingCountA">6</div>
                 </div>
             </div>
         </div>
@@ -241,7 +241,7 @@ if ($tableExists && $tableExists->num_rows > 0) {
 
                 <div class="remaining-logbook">
                     <span>Remaining Logbook</span>
-                    <div class="remaining-box" id="remainingCountB">10</div>
+                    <div class="remaining-box" id="remainingCountB">6</div>
                 </div>
             </div>
         </div>
@@ -328,9 +328,9 @@ if ($tableExists && $tableExists->num_rows > 0) {
         echo json_encode($dataB);
     ?>;
 
-    var totalLogbooks = 10;
-    var nextLogbookIdA = 10;
-    var nextLogbookIdB = 3;
+    var totalLogbooks = 6;
+    var nextLogbookIdA = 6;
+    var nextLogbookIdB = 6;
     var currentSection = 'A';
     var agendaList = [];
     var editingAgendaId = null;
@@ -345,7 +345,7 @@ if ($tableExists && $tableExists->num_rows > 0) {
 
     function getStatusClass(status) {
         if (status === 'Approved') return 'status-approved';
-        if (status === 'Declined') return 'status-declined';
+        if (status === 'Rejected') return 'status-rejected';
         return 'status-waiting';
     }
 
@@ -437,15 +437,20 @@ if ($tableExists && $tableExists->num_rows > 0) {
         }
     }
 
+    // Inject server-derived student/course/session info
+    var studentNameDB = <?php echo json_encode($studentName); ?>;
+    var sessionDB = <?php echo json_encode(($fypSession ? $fypSession : 'N/A') . ' - ' . ($semesterRaw !== 'N/A' ? $semesterRaw : '')); ?>;
+    var courseCodeA = <?php echo json_encode($course1['Course_Code']); ?>;
+    var courseCodeB = <?php echo json_encode($course2['Course_Code']); ?>;
+
     function generateLogbookPdf(id, entry, status, section) {
         // Get jsPDF from the UMD bundle
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
         
-        var studentName = "NURUL SAIDAHTUL FATIHA BINTI SHAHARUDIN";
-        var courseCode = section === 'A' ? 'SWE4949A' : 'SWE4949B';
-        var courseName = section === 'A' ? 'Final Year Project A' : 'Final Year Project B';
-        var session = '2024/2025 - 2';
+        var studentName = studentNameDB || 'N/A';
+        var courseCode = section === 'A' ? (courseCodeA || 'N/A') : (courseCodeB || 'N/A');
+        var session = sessionDB || 'N/A';
         
         // Get logbook data with agendas
         var logbookData = section === 'A' ? logbookDataA : logbookDataB;

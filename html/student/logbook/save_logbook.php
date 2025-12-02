@@ -27,53 +27,41 @@ if ($studentId !== $_SESSION['upmId']) {
     exit();
 }
 
-$conn->begin_transaction();
+// Decode agendas early and validate at least one non-empty agenda
+$agendas = json_decode($agendasJson, true);
+if (!is_array($agendas)) { $agendas = []; }
+$validAgendaCount = 0;
+foreach ($agendas as $a) {
+    $t = trim($a['name'] ?? '');
+    $c = trim($a['explanation'] ?? '');
+    if ($t !== '' && $c !== '') { $validAgendaCount++; }
+}
+if ($validAgendaCount === 0) {
+    echo json_encode(['success' => false, 'error' => 'At least one agenda (title + explanation) is required']);
+    exit();
+}
 
+$conn->begin_transaction();
 try {
-    // Insert logbook entry - using correct column names
     $stmt = $conn->prepare("INSERT INTO logbook (Student_ID, course_id, Logbook_Name, Logbook_Date, Logbook_Status) VALUES (?, ?, ?, ?, 'Waiting for approval')");
-    
-    if (!$stmt) {
-        throw new Exception("Prepare failed: " . $conn->error);
-    }
-    
+    if (!$stmt) { throw new Exception("Prepare failed: " . $conn->error); }
     $stmt->bind_param("siss", $studentId, $courseId, $logbookTitle, $logbookDate);
-    
-    if (!$stmt->execute()) {
-        throw new Exception("Execute failed: " . $stmt->error);
-    }
-    
+    if (!$stmt->execute()) { throw new Exception("Execute failed: " . $stmt->error); }
     $logbookId = $conn->insert_id;
     $stmt->close();
-
-    // Decode agendas
-    $agendas = json_decode($agendasJson, true);
-    
-    // Insert agendas if any
-    if (is_array($agendas) && count($agendas) > 0) {
-        $stmtAgenda = $conn->prepare("INSERT INTO logbook_agenda (Logbook_ID, Agenda_Title, Agenda_Content) VALUES (?, ?, ?)");
-        
-        if (!$stmtAgenda) {
-            throw new Exception("Agenda prepare failed: " . $conn->error);
+    $stmtAgenda = $conn->prepare("INSERT INTO logbook_agenda (Logbook_ID, Agenda_Title, Agenda_Content) VALUES (?, ?, ?)");
+    if (!$stmtAgenda) { throw new Exception("Agenda prepare failed: " . $conn->error); }
+    foreach ($agendas as $agenda) {
+        $agendaTitle = trim($agenda['name'] ?? '');
+        $agendaContent = trim($agenda['explanation'] ?? '');
+        if ($agendaTitle !== '' && $agendaContent !== '') {
+            $stmtAgenda->bind_param("iss", $logbookId, $agendaTitle, $agendaContent);
+            if (!$stmtAgenda->execute()) { throw new Exception("Agenda execute failed: " . $stmtAgenda->error); }
         }
-        
-        foreach ($agendas as $agenda) {
-            $agendaTitle = $agenda['name'] ?? '';
-            $agendaContent = $agenda['explanation'] ?? '';
-            
-            if (!empty($agendaTitle) && !empty($agendaContent)) {
-                $stmtAgenda->bind_param("iss", $logbookId, $agendaTitle, $agendaContent);
-                if (!$stmtAgenda->execute()) {
-                    throw new Exception("Agenda execute failed: " . $stmtAgenda->error);
-                }
-            }
-        }
-        $stmtAgenda->close();
     }
-
+    $stmtAgenda->close();
     $conn->commit();
     echo json_encode(['success' => true, 'logbook_id' => $logbookId]);
-
 } catch (Exception $e) {
     $conn->rollback();
     echo json_encode(['success' => false, 'error' => $e->getMessage()]);

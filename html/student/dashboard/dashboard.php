@@ -32,6 +32,35 @@ $studentName = $student['Student_Name'] ?? 'N/A';
 $courseCode = $student['Course_Code'] ?? 'N/A';
 $semesterRaw = $student['Semester'] ?? 'N/A';
 $fypSession = $student['FYP_Session'] ?? 'N/A';
+
+// Logbook progress counts (Approved / Waiting / Rejected)
+$approvedCount = 0;
+$waitingCount = 0;
+$rejectedCount = 0;
+$requiredTotal = 6; // Fixed total required logbooks
+
+$logbookStatusQuery = "SHOW TABLES LIKE 'logbook'";
+$tableExists = $conn->query($logbookStatusQuery);
+if ($tableExists && $tableExists->num_rows > 0) {
+    $statusQuery = "SELECT Logbook_Status FROM logbook WHERE Student_ID = ?";
+    $stmtStatus = $conn->prepare($statusQuery);
+    if ($stmtStatus) {
+        $stmtStatus->bind_param("s", $studentId);
+        $stmtStatus->execute();
+        $resultStatus = $stmtStatus->get_result();
+        while ($rowStatus = $resultStatus->fetch_assoc()) {
+            $status = trim($rowStatus['Logbook_Status'] ?? '');
+            if ($status === 'Approved') {
+                $approvedCount++;
+            } elseif (strcasecmp($status, 'Declined') === 0 || $status === 'Rejected') {
+                $rejectedCount++;
+            } else {
+                $waitingCount++;
+            }
+        }
+        $stmtStatus->close();
+    }
+}
 ?>
 <!DOCTYPE html>
 <html>
@@ -98,7 +127,7 @@ $fypSession = $student['FYP_Session'] ?? 'N/A';
                 <span class="widget-icon"><i class="fa-solid fa-book"></i></span>
                 <div class="widget-content">
                     <span class="widget-title">Logbook Progress</span>
-                    <span id="logbookProgress" class="widget-value">4/10</span>
+                    <span id="logbookProgress" class="widget-value"><?php echo htmlspecialchars($approvedCount . '/' . $requiredTotal); ?></span>
                 </div>
             </div>
             <div class="widget">
@@ -224,21 +253,32 @@ $fypSession = $student['FYP_Session'] ?? 'N/A';
         document.addEventListener('DOMContentLoaded', function() {
             const ctx = document.getElementById('barChart');
             if (ctx) {
+                // Inject server-derived counts
+                var approvedCount = <?php echo json_encode($approvedCount); ?>;
+                var waitingCount = <?php echo json_encode($waitingCount); ?>;
+                var rejectedCount = <?php echo json_encode($rejectedCount); ?>;
+                var totalRequired = <?php echo json_encode($requiredTotal); ?>;
+
+                // Calculate percentages (cap at 0 if totalRequired is 0)
+                var approvedPct = totalRequired ? Math.round((approvedCount / totalRequired) * 100) : 0;
+                var waitingPct = totalRequired ? Math.round((waitingCount / totalRequired) * 100) : 0;
+                var rejectedPct = totalRequired ? Math.round((rejectedCount / totalRequired) * 100) : 0;
+
                 new Chart(ctx, {
                     type: 'bar',
                     data: {
-                        labels: ['Submitted', 'Waiting for approval', 'Not submitted'],
+                        labels: ['Approved', 'Waiting for approval', 'Rejected'],
                         datasets: [{
-                            label: 'Logbook Progress (%)', 
-                            data: [50, 33, 17], 
-                            raw_data: [3, 2, 1], 
-                            total_count: 6,
+                            label: 'Logbook Progress (%)',
+                            data: [approvedPct, waitingPct, rejectedPct],
+                            raw_data: [approvedCount, waitingCount, rejectedCount],
+                            total_count: totalRequired,
                             backgroundColor: [
-                                '#4CAF50', 
+                                '#4CAF50',
                                 '#FF9800',
                                 '#F44336'
                             ],
-                            borderColor: 'transparent', 
+                            borderColor: 'transparent',
                             borderWidth: 0,
                             barPercentage: 0.8,
                             categoryPercentage: 0.8
@@ -325,7 +365,7 @@ $fypSession = $student['FYP_Session'] ?? 'N/A';
                                         indicatorColor = '#4CAF50'; // Green
                                     } else if (label === 'Waiting for approval') {
                                         indicatorColor = '#FF9800'; // Orange
-                                    } else if (label === 'Not submitted') {
+                                    } else if (label === 'Rejected') {
                                         indicatorColor = '#F44336'; // Red
                                     }
 
