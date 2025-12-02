@@ -16,6 +16,7 @@ $query = "SELECT
     s.Student_ID,
     s.Student_Name,
     s.Semester,
+    s.Department_ID,
     d.Programme_Name,
     fs.FYP_Session,
     c.Course_Code,
@@ -48,6 +49,7 @@ $stmt->close();
 $studentName = $student['Student_Name'] ?? 'N/A';
 $matricNo = $student['Student_ID'] ?? 'N/A';
 $programmeName = $student['Programme_Name'] ?? 'N/A';
+$departmentId = isset($student['Department_ID']) ? (int)$student['Department_ID'] : null;
 $semesterRaw = $student['Semester'] ?? 'N/A';
 $fypSession = $student['FYP_Session'] ?? 'N/A';
 $courseCode = $student['Course_Code'] ?? 'N/A';
@@ -60,7 +62,7 @@ $hasPendingTitle = !empty($proposedTitle);
 $semesterDisplay = $semesterRaw . '-' . $fypSession;
 
 // --- 2. GET PAST TITLES (DYNAMIC) ---
-$pastTitlesQuery = "SELECT 
+$pastTitlesBase = "SELECT 
     l.Lecturer_Name as supervisor_name,
     fs.FYP_Session as session,
     s.Student_Name as student_name,
@@ -70,10 +72,25 @@ JOIN student s ON fp.Student_ID = s.Student_ID
 JOIN supervisor sup ON s.Supervisor_ID = sup.Supervisor_ID
 JOIN lecturer l ON sup.Lecturer_ID = l.Lecturer_ID
 JOIN fyp_session fs ON s.FYP_Session_ID = fs.FYP_Session_ID
-WHERE fp.Project_Title IS NOT NULL AND fp.Project_Title != ''
-ORDER BY l.Lecturer_Name ASC, fs.FYP_Session DESC";
+WHERE fp.Project_Title IS NOT NULL AND fp.Project_Title != '' AND l.Department_ID = ?";
 
-$pastResult = $conn->query($pastTitlesQuery);
+// If current session looks like YYYY/YYYY, filter to earlier sessions only
+$hasValidSession = isset($fypSession) && preg_match('/^\d{4}\/\d{4}$/', $fypSession);
+$pastTitlesQuery = $pastTitlesBase . ($hasValidSession ? " AND fs.FYP_Session < ?" : "") . " ORDER BY l.Lecturer_Name ASC, fs.FYP_Session DESC";
+
+$pastStmt = $conn->prepare($pastTitlesQuery);
+if ($pastStmt) {
+    if ($hasValidSession) {
+        $pastStmt->bind_param("is", $departmentId, $fypSession);
+    } else {
+        $pastStmt->bind_param("i", $departmentId);
+    }
+    $pastStmt->execute();
+    $pastResult = $pastStmt->get_result();
+    $pastStmt->close();
+} else {
+    $pastResult = false;
+}
 
 $pastDataStructure = [];
 $tempData = [];
@@ -109,6 +126,22 @@ foreach ($tempData as $supervisor => $sessions) {
         'supervisor' => $supervisor,
         'sessions' => $sessionList
     ];
+}
+
+// --- 3. GET COMMENTS FOR THIS STUDENT ---
+$commentsData = [];
+$commentStmt = $conn->prepare("SELECT Comment_ID, Given_Comment FROM `comment` WHERE Student_ID = ? ORDER BY Comment_ID ASC");
+if ($commentStmt) {
+    $commentStmt->bind_param("s", $studentId);
+    $commentStmt->execute();
+    $commentResult = $commentStmt->get_result();
+    while ($cRow = $commentResult->fetch_assoc()) {
+        $commentsData[] = [
+            'id' => (int)$cRow['Comment_ID'],
+            'text' => $cRow['Given_Comment'] ?? ''
+        ];
+    }
+    $commentStmt->close();
 }
 ?>
 <!DOCTYPE html>
@@ -433,6 +466,8 @@ foreach ($tempData as $supervisor => $sessions) {
 
         // --- PAST TITLES LOGIC ---
         var pastData = <?php echo json_encode($pastDataStructure); ?>;
+        // --- COMMENTS DATA ---
+        var commentsData = <?php echo json_encode($commentsData); ?>;
 
         function sortSessions(sessions, order) {
             var sorted = sessions.slice();
@@ -543,34 +578,182 @@ foreach ($tempData as $supervisor => $sessions) {
                 e.preventDefault();
                 const { jsPDF } = window.jspdf;
                 const doc = new jsPDF();
-                
+
                 var studentName = '<?php echo addslashes($studentName); ?>';
                 var matricNo = '<?php echo addslashes($matricNo); ?>';
                 var programme = '<?php echo addslashes($programmeName); ?>';
                 var semester = '<?php echo addslashes($semesterDisplay); ?>';
                 var supervisor = '<?php echo addslashes($supervisorName); ?>';
                 var fypTitle = document.getElementById('fypTitle').value || '<?php echo addslashes($projectTitle); ?>';
-                
-                function generatePdfWithoutLogo() {
-                     // ... (PDF Generation Logic similar to previous version, condensed for brevity here) ...
-                     // It is safe to use the previous logic here
-                     // Ensure pending status is checked if needed
-                     doc.setFontSize(18); doc.text('FYP Information', 105, 20, { align: 'center' });
-                     doc.save('FYP_Information_' + matricNo + '.pdf');
+                var proposedTitle = '<?php echo addslashes($proposedTitle); ?>';
+
+                function renderPdf(doc) {
+                    var pageWidth = 210;
+                    var yPos = 10;
+
+                    function ensureSpace(extraHeight) {
+                        if (yPos + extraHeight > 285) {
+                            doc.addPage();
+                            yPos = 20;
+                        }
+                    }
+
+                    var img = new Image();
+                    img.src = '../../../assets/UPMLogo.png';
+                    img.onload = function() {
+                        var logoWidth = 30;
+                        var logoHeight = 20;
+                        var xPos = (pageWidth - logoWidth) / 2;
+                        doc.addImage(img, 'PNG', xPos, yPos, logoWidth, logoHeight);
+                        yPos += 25;
+
+                        doc.setFontSize(18);
+                        doc.setFont(undefined, 'bold');
+                        doc.text('FYP Information', 105, yPos, { align: 'center' });
+                        yPos += 7;
+
+                        doc.setLineWidth(0.5);
+                        doc.line(20, yPos, 190, yPos);
+                        yPos += 10;
+
+                        doc.setFontSize(12);
+                        doc.setFont(undefined, 'bold');
+                        doc.text('Student Name:', 20, yPos);
+                        doc.setFont(undefined, 'normal');
+                        doc.text(studentName, 60, yPos);
+                        yPos += 8;
+
+                        doc.setFont(undefined, 'bold');
+                        doc.text('Matric No:', 20, yPos);
+                        doc.setFont(undefined, 'normal');
+                        doc.text(matricNo, 60, yPos);
+                        yPos += 8;
+
+                        doc.setFont(undefined, 'bold');
+                        doc.text('Programme:', 20, yPos);
+                        doc.setFont(undefined, 'normal');
+                        doc.text(programme, 60, yPos);
+                        yPos += 8;
+
+                        doc.setFont(undefined, 'bold');
+                        doc.text('Semester:', 20, yPos);
+                        doc.setFont(undefined, 'normal');
+                        doc.text(semester, 60, yPos);
+                        yPos += 8;
+
+                        doc.setFont(undefined, 'bold');
+                        doc.text('Supervisor:', 20, yPos);
+                        doc.setFont(undefined, 'normal');
+                        doc.text(supervisor, 60, yPos);
+                        yPos += 12;
+
+                        doc.setLineWidth(0.5);
+                        doc.line(20, yPos, 190, yPos);
+                        yPos += 10;
+
+                        doc.setFont(undefined, 'bold');
+                        doc.text('Current FYP Title:', 20, yPos);
+                        doc.setFont(undefined, 'normal');
+                        var titleLines = doc.splitTextToSize(fypTitle, 170);
+                        ensureSpace(7 + (titleLines.length * 8));
+                        doc.text(titleLines, 20, yPos + 7);
+                        yPos += 7 + (titleLines.length * 8);
+
+                        if (proposedTitle && proposedTitle.trim() !== '') {
+                            doc.setFont(undefined, 'bold');
+                            doc.text('Proposed Title (Under Consideration):', 20, yPos);
+                            doc.setFont(undefined, 'normal');
+                            var proposedLines = doc.splitTextToSize(proposedTitle, 170);
+                            ensureSpace(7 + (proposedLines.length * 8));
+                            doc.text(proposedLines, 20, yPos + 7);
+                            yPos += 7 + (proposedLines.length * 8);
+                        }
+
+                        // Comments section
+                        doc.setLineWidth(0.5);
+                        doc.line(20, yPos, 190, yPos);
+                        yPos += 10;
+                        doc.setFont(undefined, 'bold');
+                        doc.text('Comments:', 20, yPos);
+                        yPos += 7;
+                        doc.setFont(undefined, 'normal');
+                        if (Array.isArray(commentsData) && commentsData.length > 0) {
+                            commentsData.forEach(function(c, idx) {
+                                var cText = ((idx + 1) + '. ' + (c.text || '')).trim();
+                                var cLines = doc.splitTextToSize(cText, 170);
+                                ensureSpace(cLines.length * 8);
+                                doc.text(cLines, 20, yPos);
+                                yPos += (cLines.length * 8) + 3;
+                            });
+                        } else {
+                            ensureSpace(8);
+                            doc.text('(no comments)', 20, yPos);
+                            yPos += 8;
+                        }
+
+                        doc.setFontSize(8);
+                        doc.setFont(undefined, 'normal');
+                        doc.text('Generated on: ' + new Date().toLocaleString(), 105, 280, { align: 'center' });
+                        doc.text('FYPAssess - Final Year Project Assessment System', 105, 285, { align: 'center' });
+
+                        doc.save('FYP_Information_' + matricNo + '.pdf');
+                    };
+
+                    img.onerror = function() {
+                        // Fallback without logo
+                        doc.setFontSize(18);
+                        doc.setFont(undefined, 'bold');
+                        doc.text('FYP Information', 105, 20, { align: 'center' });
+                        doc.setLineWidth(0.5);
+                        doc.line(20, 25, 190, 25);
+
+                        doc.setFontSize(12);
+                        var y = 35;
+                        doc.setFont(undefined, 'bold'); doc.text('Student Name:', 20, y); doc.setFont(undefined, 'normal'); doc.text(studentName, 60, y); y += 8;
+                        doc.setFont(undefined, 'bold'); doc.text('Matric No:', 20, y); doc.setFont(undefined, 'normal'); doc.text(matricNo, 60, y); y += 8;
+                        doc.setFont(undefined, 'bold'); doc.text('Programme:', 20, y); doc.setFont(undefined, 'normal'); doc.text(programme, 60, y); y += 8;
+                        doc.setFont(undefined, 'bold'); doc.text('Semester:', 20, y); doc.setFont(undefined, 'normal'); doc.text(semester, 60, y); y += 8;
+                        doc.setFont(undefined, 'bold'); doc.text('Supervisor:', 20, y); doc.setFont(undefined, 'normal'); doc.text(supervisor, 60, y); y += 12;
+
+                        doc.setLineWidth(0.5);
+                        doc.line(20, y, 190, y); y += 10;
+                        doc.setFont(undefined, 'bold'); doc.text('Current FYP Title:', 20, y); y += 7;
+                        doc.setFont(undefined, 'normal');
+                        var fLines = doc.splitTextToSize(fypTitle, 170);
+                        doc.text(fLines, 20, y);
+                        y += (fLines.length * 8);
+
+                        if (proposedTitle && proposedTitle.trim() !== '') {
+                            doc.setFont(undefined, 'bold'); doc.text('Proposed Title (Under Consideration):', 20, y); y += 7;
+                            doc.setFont(undefined, 'normal');
+                            var pLines = doc.splitTextToSize(proposedTitle, 170);
+                            doc.text(pLines, 20, y);
+                            y += (pLines.length * 8);
+                        }
+
+                        // Comments section (fallback)
+                        doc.setLineWidth(0.5); doc.line(20, y, 190, y); y += 10;
+                        doc.setFont(undefined, 'bold'); doc.text('Comments:', 20, y); y += 7; doc.setFont(undefined, 'normal');
+                        if (Array.isArray(commentsData) && commentsData.length > 0) {
+                            commentsData.forEach(function(c, idx){
+                                var cText = ((idx + 1) + '. ' + (c.text || '')).trim();
+                                var cLines = doc.splitTextToSize(cText, 170);
+                                doc.text(cLines, 20, y);
+                                y += (cLines.length * 8) + 3;
+                            });
+                        } else {
+                            doc.text('(no comments)', 20, y); y += 8;
+                        }
+
+                        doc.setFontSize(8);
+                        doc.setFont(undefined, 'normal');
+                        doc.text('Generated on: ' + new Date().toLocaleString(), 105, 280, { align: 'center' });
+                        doc.text('FYPAssess - Final Year Project Assessment System', 105, 285, { align: 'center' });
+                        doc.save('FYP_Information_' + matricNo + '.pdf');
+                    };
                 }
-                
-                var img = new Image();
-                img.src = '../../../assets/UPMLogo.png';
-                img.onload = function() {
-                    doc.addImage(img, 'PNG', 20, 10, 30, 20);
-                    // ... Full PDF generation logic here ...
-                    // Basic fallback for brevity
-                    doc.setFontSize(12);
-                    doc.text('Name: ' + studentName, 20, 40);
-                    doc.text('Title: ' + fypTitle, 20, 50);
-                    doc.save('FYP_Information_' + matricNo + '.pdf');
-                };
-                img.onerror = function() { generatePdfWithoutLogo(); };
+
+                renderPdf(doc);
             });
         }
     };

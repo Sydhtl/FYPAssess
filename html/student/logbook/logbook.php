@@ -492,17 +492,12 @@ if ($tableExists && $tableExists->num_rows > 0) {
             doc.text(courseCode, 70, yPos);
             yPos += lineHeight;
             
-            doc.setFont(undefined, 'bold');
-            doc.text('Course Name:', 20, yPos);
-            doc.setFont(undefined, 'normal');
-            doc.text(courseName, 70, yPos);
-            yPos += lineHeight;
             
             doc.setFont(undefined, 'bold');
             doc.text('Session:', 20, yPos);
             doc.setFont(undefined, 'normal');
             doc.text(session, 70, yPos);
-            yPos += lineHeight + 5;
+            yPos += lineHeight ;
             
             doc.setFont(undefined, 'bold');
             doc.text('Logbook Entry:', 20, yPos);
@@ -585,16 +580,10 @@ if ($tableExists && $tableExists->num_rows > 0) {
             yPos += lineHeight;
             
             doc.setFont(undefined, 'bold');
-            doc.text('Course Name:', 20, yPos);
-            doc.setFont(undefined, 'normal');
-            doc.text(courseName, 70, yPos);
-            yPos += lineHeight;
-            
-            doc.setFont(undefined, 'bold');
             doc.text('Session:', 20, yPos);
             doc.setFont(undefined, 'normal');
             doc.text(session, 70, yPos);
-            yPos += lineHeight + 5;
+            yPos += lineHeight ;
             
             doc.setFont(undefined, 'bold');
             doc.text('Logbook Entry:', 20, yPos);
