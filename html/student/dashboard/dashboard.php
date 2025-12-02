@@ -15,10 +15,12 @@ $query = "SELECT
     s.Student_Name,
     s.Semester,
     fs.FYP_Session,
-    c.Course_Code
+    c.Course_Code,
+    fp.Title_Status
 FROM student s
 LEFT JOIN fyp_session fs ON s.FYP_Session_ID = fs.FYP_Session_ID
 LEFT JOIN course c ON fs.Course_ID = c.Course_ID
+LEFT JOIN fyp_project fp ON fp.Student_ID = s.Student_ID
 WHERE s.Student_ID = ?";
 
 $stmt = $conn->prepare($query);
@@ -32,6 +34,19 @@ $studentName = $student['Student_Name'] ?? 'N/A';
 $courseCode = $student['Course_Code'] ?? 'N/A';
 $semesterRaw = $student['Semester'] ?? 'N/A';
 $fypSession = $student['FYP_Session'] ?? 'N/A';
+$titleStatus = trim($student['Title_Status'] ?? '');
+
+// Map DB title status to display text for widget
+if ($titleStatus === 'Approved') {
+    $approvalDisplay = 'APPROVED';
+} elseif ($titleStatus === 'Rejected' || strcasecmp($titleStatus, 'Declined') === 0) {
+    $approvalDisplay = 'REJECTED';
+} elseif ($titleStatus === '') {
+    $approvalDisplay = 'PENDING';
+} else {
+    // Any other status (e.g., Waiting For Approval) treated as pending
+    $approvalDisplay = 'PENDING';
+}
 
 // Logbook progress counts (Approved / Waiting / Rejected)
 $approvedCount = 0;
@@ -120,7 +135,7 @@ if ($tableExists && $tableExists->num_rows > 0) {
                 <span class="widget-icon"><i class="fa-solid fa-check-circle"></i></span>
                 <div class="widget-content">
                     <span class="widget-title">Title Approval Status</span>
-                    <span id="approvalStatus" class="widget-value status-approved">APPROVED</span>
+                    <span id="approvalStatus" class="widget-value"><?php echo htmlspecialchars($approvalDisplay); ?></span>
                 </div>
             </div>
             <div class="widget">
