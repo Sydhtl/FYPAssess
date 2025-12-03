@@ -60,22 +60,24 @@ try {
     $stmt1->execute();
     $stmt1->close();
 
-    // Look up FYP_Session_ID
-    $stmt2 = $conn->prepare("SELECT FYP_Session_ID FROM fyp_session WHERE FYP_Session = ? AND Semester = ? AND Course_ID = ?");
-    $stmt2->bind_param("sii", $sessionName, $semesterInt, $courseCodeInt);
+    // Check if FYP_Session already exists with the same Course_ID, Semester, and FYP_Session
+    // This ensures we don't create duplicate sessions
+    $stmt2 = $conn->prepare("SELECT FYP_Session_ID FROM fyp_session WHERE Course_ID = ? AND Semester = ? AND FYP_Session = ?");
+    $stmt2->bind_param("iis", $courseCodeInt, $semesterInt, $sessionName);
     $stmt2->execute();
     $result = $stmt2->get_result();
 
-    if ($result->num_rows == 0) {
-        // Session not found → create it
-        $stmtInsert = $conn->prepare("INSERT INTO fyp_session (FYP_Session, Semester, Course_ID) VALUES (?, ?, ?)");
-        $stmtInsert->bind_param("sii", $sessionName, $semesterInt, $courseCodeInt);
+    if ($result->num_rows > 0) {
+        // FYP_Session already exists → use existing FYP_Session_ID
+        $row = $result->fetch_assoc();
+        $fypSessionId = $row['FYP_Session_ID'];
+    } else {
+        // FYP_Session does not exist → create new one
+        $stmtInsert = $conn->prepare("INSERT INTO fyp_session (Course_ID, Semester, FYP_Session) VALUES (?, ?, ?)");
+        $stmtInsert->bind_param("iis", $courseCodeInt, $semesterInt, $sessionName);
         $stmtInsert->execute();
         $fypSessionId = $stmtInsert->insert_id;
         $stmtInsert->close();
-    } else {
-        $row = $result->fetch_assoc();
-        $fypSessionId = $row['FYP_Session_ID'];
     }
     $stmt2->close();
 

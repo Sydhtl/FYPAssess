@@ -21,6 +21,200 @@ if ($stmt = $conn->prepare("SELECT Lecturer_Name FROM lecturer WHERE Lecturer_ID
     }
     $stmt->close();
 }
+
+// Get filter values from URL or set defaults
+$selectedYear = isset($_GET['year']) ? $_GET['year'] : '';
+$selectedSemester = isset($_GET['semester']) ? $_GET['semester'] : '';
+
+// Fetch distinct FYP Sessions (years) from fyp_session table
+$yearOptions = [];
+$yearQuery = "SELECT DISTINCT FYP_Session FROM fyp_session ORDER BY FYP_Session DESC";
+if ($yearResult = $conn->query($yearQuery)) {
+    while ($row = $yearResult->fetch_assoc()) {
+        $yearOptions[] = $row['FYP_Session'];
+    }
+    $yearResult->free();
+}
+
+// Set default year if not selected
+if (empty($selectedYear) && !empty($yearOptions)) {
+    $selectedYear = $yearOptions[0];
+}
+
+// Fetch distinct Semesters from fyp_session table
+$semesterOptions = [];
+$semesterQuery = "SELECT DISTINCT Semester FROM fyp_session ORDER BY Semester";
+if ($semesterResult = $conn->query($semesterQuery)) {
+    while ($row = $semesterResult->fetch_assoc()) {
+        $semesterOptions[] = $row['Semester'];
+    }
+    $semesterResult->free();
+}
+
+// Set default semester if not selected
+if (empty($selectedSemester) && !empty($semesterOptions)) {
+    $selectedSemester = $semesterOptions[0];
+}
+
+// Get all FYP_Session_IDs for the selected year and semester in the coordinator's department
+$fypSessionIds = [];
+$fypSessionQuery = "SELECT DISTINCT fs.FYP_Session_ID 
+                    FROM fyp_session fs
+                    INNER JOIN course c ON fs.Course_ID = c.Course_ID
+                    INNER JOIN lecturer l ON c.Department_ID = l.Department_ID
+                    WHERE l.Lecturer_ID = ? 
+                    AND fs.FYP_Session = ? 
+                    AND fs.Semester = ?";
+if ($stmt = $conn->prepare($fypSessionQuery)) {
+    $stmt->bind_param("ssi", $userId, $selectedYear, $selectedSemester);
+    if ($stmt->execute()) {
+        $result = $stmt->get_result();
+        while ($row = $result->fetch_assoc()) {
+            $fypSessionIds[] = $row['FYP_Session_ID'];
+        }
+    }
+    $stmt->close();
+}
+
+// Use only ONE FYP_Session_ID for display (not summing across multiple courses)
+// But keep all FYP_Session_IDs for saving purposes
+$displayFypSessionId = !empty($fypSessionIds) ? $fypSessionIds[0] : null;
+
+// Fetch total student count from student table based on ONE FYP_Session_ID only
+$totalStudents = 0;
+if ($displayFypSessionId) {
+    $studentCountQuery = "SELECT COUNT(*) as total FROM student WHERE FYP_Session_ID = ?";
+    
+    if ($stmt = $conn->prepare($studentCountQuery)) {
+        $stmt->bind_param("i", $displayFypSessionId);
+        
+        if ($stmt->execute()) {
+            $result = $stmt->get_result();
+            if ($row = $result->fetch_assoc()) {
+                $totalStudents = (int)$row['total'];
+            }
+        }
+        $stmt->close();
+    }
+}
+
+// Fetch supervisors (lecturers) from the same department with their quota history
+// Use only ONE FYP_Session_ID for display (not summing - quota is the same for all courses)
+$lecturerData = [];
+if ($displayFypSessionId) {
+    $lecturerQuery = "SELECT 
+                        l.Lecturer_ID,
+                        l.Lecturer_Name,
+                        s.Supervisor_ID,
+                        COALESCE(sqh.Quota, 0) as Quota
+                      FROM lecturer l
+                      INNER JOIN supervisor s ON l.Lecturer_ID = s.Lecturer_ID
+                      LEFT JOIN supervisor_quota_history sqh ON s.Supervisor_ID = sqh.Supervisor_ID 
+                          AND sqh.FYP_Session_ID = ?
+                      WHERE l.Department_ID = (
+                          SELECT Department_ID FROM lecturer WHERE Lecturer_ID = ?
+                      )
+                      ORDER BY l.Lecturer_Name";
+    
+    if ($stmt = $conn->prepare($lecturerQuery)) {
+        $stmt->bind_param("is", $displayFypSessionId, $userId);
+        
+        if ($stmt->execute()) {
+            $result = $stmt->get_result();
+            while ($row = $result->fetch_assoc()) {
+                $lecturerData[] = [
+                    'id' => $row['Supervisor_ID'],
+                    'lecturer_id' => $row['Lecturer_ID'],
+                    'name' => $row['Lecturer_Name'],
+                    'quota' => (int)$row['Quota'],
+                    'remaining_quota' => (int)$row['Quota'] // Will be calculated based on actual assignments
+                ];
+            }
+        }
+        $stmt->close();
+    }
+}
+
+// Encode lecturer data as JSON for JavaScript
+$lecturerDataJson = json_encode($lecturerData);
+
+// Fetch students for the selected year/semester across ALL matching FYP_Session_IDs
+// (i.e., across all Course_IDs in the coordinator's department for that year/semester)
+// Also load existing supervisor and assessor names from student_enrollment
+$studentsData = [];
+$courseFilterOptions = [];
+if (!empty($fypSessionIds)) {
+    $placeholders = implode(',', array_fill(0, count($fypSessionIds), '?'));
+    $studentsQuery = "SELECT 
+                          s.Student_ID,
+                          s.Student_Name,
+                          s.Course_ID,
+                          c.Course_Code,
+                          lsup.Lecturer_Name AS Supervisor_Name,
+                          la1.Lecturer_Name AS Assessor1_Name,
+                          la2.Lecturer_Name AS Assessor2_Name
+                      FROM student s
+                      LEFT JOIN student_enrollment se 
+                          ON se.Student_ID = s.Student_ID 
+                          AND se.Fyp_Session_ID = s.FYP_Session_ID
+                      LEFT JOIN supervisor sup 
+                          ON se.Supervisor_ID = sup.Supervisor_ID
+                      LEFT JOIN lecturer lsup 
+                          ON sup.Lecturer_ID = lsup.Lecturer_ID
+                      LEFT JOIN assessor a1 
+                          ON se.Assessor_ID_1 = a1.Assessor_ID
+                      LEFT JOIN lecturer la1 
+                          ON a1.Lecturer_ID = la1.Lecturer_ID
+                      LEFT JOIN assessor a2 
+                          ON se.Assessor_ID_2 = a2.Assessor_ID
+                      LEFT JOIN lecturer la2 
+                          ON a2.Lecturer_ID = la2.Lecturer_ID
+                      INNER JOIN course c
+                          ON s.Course_ID = c.Course_ID
+                      WHERE s.FYP_Session_ID IN ($placeholders)
+                      AND s.Department_ID = (
+                          SELECT Department_ID FROM lecturer WHERE Lecturer_ID = ?
+                      )
+                      ORDER BY s.Student_Name";
+
+    if ($stmt = $conn->prepare($studentsQuery)) {
+        // Bind all FYP_Session_IDs and then userId
+        $types = str_repeat('i', count($fypSessionIds)) . 's';
+        $params = array_merge($fypSessionIds, [$userId]);
+        $stmt->bind_param($types, ...$params);
+
+        if ($stmt->execute()) {
+            $result = $stmt->get_result();
+            $seenCourses = [];
+            while ($row = $result->fetch_assoc()) {
+                // Build course filter options (unique Course_ID/Course_Code)
+                $courseKey = $row['Course_ID'] . '|' . $row['Course_Code'];
+                if (!isset($seenCourses[$courseKey])) {
+                    $courseFilterOptions[] = [
+                        'Course_ID' => $row['Course_ID'],
+                        'Course_Code' => $row['Course_Code']
+                    ];
+                    $seenCourses[$courseKey] = true;
+                }
+
+                $studentsData[] = [
+                    'id' => $row['Student_ID'],
+                    'name' => $row['Student_Name'],
+                    'supervisor' => $row['Supervisor_Name'] ?? null,
+                    'assessor1' => $row['Assessor1_Name'] ?? null,
+                    'assessor2' => $row['Assessor2_Name'] ?? null,
+                    'course_id' => $row['Course_ID'],
+                    'course_code' => $row['Course_Code'],
+                    'selected' => false
+                ];
+            }
+        }
+        $stmt->close();
+    }
+}
+
+$studentsDataJson = json_encode($studentsData);
+$courseFilterOptionsJson = json_encode($courseFilterOptions);
 ?>
 <!DOCTYPE html>
 <html>
@@ -123,17 +317,24 @@ if ($stmt = $conn->prepare("SELECT Lecturer_Name FROM lecturer WHERE Lecturer_ID
         <div class="filters-section">
             <div class="filter-group">
                 <label for="yearFilter">Year</label>
-                <select id="yearFilter">
-                    <option value="2024/2025" selected>2024/2025</option>
-                    <option value="2023/2024">2023/2024</option>
-                    <option value="2025/2026">2025/2026</option>
+                <select id="yearFilter" onchange="reloadPageWithFilters()">
+                    <?php foreach ($yearOptions as $year): ?>
+                        <option value="<?php echo htmlspecialchars($year); ?>" 
+                                <?php echo ($year == $selectedYear) ? 'selected' : ''; ?>>
+                            <?php echo htmlspecialchars($year); ?>
+                        </option>
+                    <?php endforeach; ?>
                 </select>
             </div>
             <div class="filter-group">
                 <label for="semesterFilter">Semester</label>
-                <select id="semesterFilter">
-                    <option value="1">1</option>
-                    <option value="2" selected>2</option>
+                <select id="semesterFilter" onchange="reloadPageWithFilters()">
+                    <?php foreach ($semesterOptions as $semester): ?>
+                        <option value="<?php echo htmlspecialchars($semester); ?>" 
+                                <?php echo ($semester == $selectedSemester) ? 'selected' : ''; ?>>
+                            <?php echo htmlspecialchars($semester); ?>
+                        </option>
+                    <?php endforeach; ?>
                 </select>
             </div>
         </div>
@@ -144,14 +345,14 @@ if ($stmt = $conn->prepare("SELECT Lecturer_Name FROM lecturer WHERE Lecturer_ID
                 <span class="widget-icon"><i class="fa-solid fa-user-tie"></i></span>
                 <div class="widget-content">
                     <span class="widget-title">Total Lecturer</span>
-                    <span class="widget-value" id="totalLecturer">20</span>
+                    <span class="widget-value" id="totalLecturer"><?php echo count($lecturerData); ?></span>
                 </div>
             </div>
             <div class="summary-box widget">
                 <span class="widget-icon"><i class="fa-solid fa-users"></i></span>
                 <div class="widget-content">
                     <span class="widget-title">Total Students</span>
-                    <span class="widget-value" id="totalStudents">129</span>
+                    <span class="widget-value" id="totalStudents"><?php echo $totalStudents; ?></span>
                 </div>
             </div>
         </div>
@@ -243,11 +444,30 @@ if ($stmt = $conn->prepare("SELECT Lecturer_Name FROM lecturer WHERE Lecturer_ID
                     <div class="quota-table-container">
                         <!-- Top Action Bar -->
                         <div class="top-action-bar">
-                            <!-- Left Actions: Search -->
+                            <!-- Left Actions: Search + Course Filter -->
                             <div class="left-actions">
                                 <div class="search-section">
                                     <i class="bi bi-search"></i>
                                     <input type="text" id="studentSearch" placeholder="Search student name..." />
+                                </div>
+                                <div class="course-filter-section">
+                                    <label for="courseFilter" class="filter-label">Course</label>
+                                    <div class="download-dropdown course-filter-dropdown">
+                                        <button class="btn-download" type="button" onclick="toggleCourseFilterDropdown()">
+                                            <span id="courseFilterLabel">Both</span>
+                                            <i class="bi bi-chevron-down dropdown-arrow"></i>
+                                        </button>
+                                        <div class="download-dropdown-menu" id="courseFilterMenu">
+                                            <a href="javascript:void(0)" class="download-option" data-course-id="both">
+                                                <span>Both</span>
+                                            </a>
+                                            <?php foreach ($courseFilterOptions as $courseOpt): ?>
+                                                <a href="javascript:void(0)" class="download-option" data-course-id="<?php echo htmlspecialchars($courseOpt['Course_ID']); ?>">
+                                                    <span><?php echo htmlspecialchars($courseOpt['Course_Code']); ?></span>
+                                                </a>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                             
@@ -319,7 +539,7 @@ if ($stmt = $conn->prepare("SELECT Lecturer_Name FROM lecturer WHERE Lecturer_ID
                         <!-- Sticky Footer -->
                         <div class="table-footer">
                             <div class="remaining-student">
-                                Total Students: <span id="totalStudentCount">129</span>
+                                Total Students: <span id="totalStudentCount"><?php echo $totalStudents; ?></span>
                             </div>
                             <div class="actions">
                                 <button class="btn btn-light border" onclick="resetAssignments()">Cancel</button>
@@ -333,6 +553,20 @@ if ($stmt = $conn->prepare("SELECT Lecturer_Name FROM lecturer WHERE Lecturer_ID
     </div>
 
     <script>
+        // --- FILTER RELOAD FUNCTION ---
+        function reloadPageWithFilters() {
+            const yearFilter = document.getElementById('yearFilter').value;
+            const semesterFilter = document.getElementById('semesterFilter').value;
+            
+            // Build URL with query parameters
+            const params = new URLSearchParams();
+            if (yearFilter) params.append('year', yearFilter);
+            if (semesterFilter) params.append('semester', semesterFilter);
+            
+            // Reload page with new parameters
+            window.location.href = 'studentAssignation.php?' + params.toString();
+        }
+
         // --- SIDEBAR FUNCTIONS ---
         var collapsedWidth = "60px";
 
@@ -395,61 +629,23 @@ if ($stmt = $conn->prepare("SELECT Lecturer_Name FROM lecturer WHERE Lecturer_ID
         }
 
         // --- LECTURER QUOTA ASSIGNATION ---
-        // Sample lecturer data
-        // Note: quota starts at 0 and coordinator can set it manually
-        // remainingQuota is calculated based on quota and actual student assignments
-        const lecturers = [
-            { id: 1, name: "Dr. Ahmad Faiz bin Ismail", quota: 0, remainingQuota: 0 },
-            { id: 2, name: "Prof. Madya Dr. Noraini binti Hassan", quota: 0, remainingQuota: 0 },
-            { id: 3, name: "Dr. Siti Nurhaliza binti Ahmad", quota: 0, remainingQuota: 0 },
-            { id: 4, name: "Dr. Muhammad Hafiz bin Abdullah", quota: 0, remainingQuota: 0 },
-            { id: 5, name: "Dr. Nurul Izzah binti Mohd", quota: 0, remainingQuota: 0 },
-            { id: 6, name: "Dr. Azman bin Hassan", quota: 0, remainingQuota: 0 },
-            { id: 7, name: "Dr. Rosnah binti Ramli", quota: 0, remainingQuota: 0 },
-            { id: 8, name: "Dr. Khairul Azmi bin Ismail", quota: 0, remainingQuota: 0 },
-            { id: 9, name: "Dr. Zuraida binti Ahmad", quota: 0, remainingQuota: 0 },
-            { id: 10, name: "Dr. Nor Azman bin Hashim", quota: 0, remainingQuota: 0 },
-            { id: 11, name: "Dr. Fadzilah binti Mohd", quota: 0, remainingQuota: 0 },
-            { id: 12, name: "Dr. Hafizul Fahri bin Hanafi", quota: 0, remainingQuota: 0 },
-            { id: 13, name: "Dr. Siti Aisyah binti Yusof", quota: 0, remainingQuota: 0 },
-            { id: 14, name: "Dr. Mohd Azlan bin Ali", quota: 0, remainingQuota: 0 },
-            { id: 15, name: "Dr. Nurul Hidayah binti Kamarudin", quota: 0, remainingQuota: 0 },
-            { id: 16, name: "Dr. Ahmad Farhan bin Mohd", quota: 0, remainingQuota: 0 },
-            { id: 17, name: "Dr. Siti Fatimah binti Abdul", quota: 0, remainingQuota: 0 },
-            { id: 18, name: "Dr. Muhammad Haziq bin Razak", quota: 0, remainingQuota: 0 },
-            { id: 19, name: "Dr. Nurul Aini binti Hashim", quota: 0, remainingQuota: 0 },
-            { id: 20, name: "Dr. Azhar bin Ismail", quota: 0, remainingQuota: 0 }
-        ];
-
+        // Load lecturer data from PHP
+        const lecturers = <?php echo $lecturerDataJson; ?>;
+        
         let filteredLecturers = [...lecturers];
-        let totalStudents = 129;
 
         // --- STUDENT DISTRIBUTION ---
-        // Sample student data - Generate more students for demonstration
-        // In production, this would come from the backend
-        const studentNames = [
-            "Aiman Hakim bin Roslan", "Nurul Izzah binti Rahim", "Hafizuddin bin Karim",
-            "Siti Aisyah binti Ahmad", "Muhammad Firdaus bin Ismail", "Nora Aziz binti Hassan",
-            "Ahmad Zulkifli bin Abdullah", "Siti Fatimah binti Mohd", "Nurul Huda binti Rahman",
-            "Muhammad Haziq bin Razak", "Ahmad Firdaus bin Hassan", "Nurul Aini binti Ahmad",
-            "Hafizul Fahri bin Hanafi", "Siti Nurhaliza binti Ismail", "Muhammad Azlan bin Ali",
-            "Nora Aisyah binti Mohd", "Ahmad Farhan bin Abdullah", "Nurul Izzati binti Razak",
-            "Hafizuddin bin Karim", "Siti Aisyah binti Ahmad", "Muhammad Firdaus bin Ismail"
-        ];
-        
-        const students = [];
-        for (let i = 0; i < studentNames.length; i++) {
-            students.push({
-                id: i + 1,
-                name: studentNames[i],
-                supervisor: null,
-                assessor1: null,
-                assessor2: null,
-                selected: false
-            });
-        }
+        // Real student data from backend based on selected sessions and department
+        const students = <?php echo $studentsDataJson; ?>;
+        const courseFilterOptions = <?php echo $courseFilterOptionsJson ?? '[]'; ?>;
+        // Selected year & semester from PHP (used in exports)
+        const selectedYear = <?php echo json_encode($selectedYear); ?>;
+        const selectedSemester = <?php echo json_encode($selectedSemester); ?>;
 
         let filteredStudents = [...students];
+        let currentCourseFilter = 'both'; // 'both' or specific Course_ID
+        // total students for this year+semester across all courses is taken from the distribution list
+        let totalStudents = students.length;
         let openDropdown = null; // Track which dropdown is currently open
 
         // Initialize page
@@ -471,7 +667,7 @@ if ($stmt = $conn->prepare("SELECT Lecturer_Name FROM lecturer WHERE Lecturer_ID
                 const row = document.createElement('tr');
                 // Calculate remaining quota based on actual student assignments
                 const assignedCount = students.filter(s => s.supervisor === lecturer.name).length;
-                lecturer.remainingQuota = Math.max(0, lecturer.quota - assignedCount);
+                lecturer.remaining_quota = Math.max(0, lecturer.quota - assignedCount);
                 
                 row.innerHTML = `
                     <td>${index + 1}</td>
@@ -485,7 +681,7 @@ if ($stmt = $conn->prepare("SELECT Lecturer_Name FROM lecturer WHERE Lecturer_ID
                                onchange="updateQuota(${lecturer.id}, this.value)"
                                oninput="updateRemainingStudent()" />
                     </td>
-                    <td class="remaining-quota" id="remaining-${lecturer.id}">${lecturer.remainingQuota}</td>
+                    <td class="remaining-quota" id="remaining-${lecturer.id}">${lecturer.remaining_quota}</td>
                 `;
                 tbody.appendChild(row);
             });
@@ -500,7 +696,7 @@ if ($stmt = $conn->prepare("SELECT Lecturer_Name FROM lecturer WHERE Lecturer_ID
                 // Initialize remaining quota to quota when quota is set
                 // Then update based on actual student assignments
                 const assignedCount = students.filter(s => s.supervisor === lecturer.name).length;
-                lecturer.remainingQuota = Math.max(0, quotaValue - assignedCount);
+                lecturer.remaining_quota = Math.max(0, quotaValue - assignedCount);
                 updateRemainingQuota(lecturerId);
                 updateRemainingStudent();
                 // Re-render student table to update supervisor dropdowns
@@ -516,11 +712,11 @@ if ($stmt = $conn->prepare("SELECT Lecturer_Name FROM lecturer WHERE Lecturer_ID
             if (lecturer) {
                 // Count how many students have this lecturer as supervisor
                 const assignedCount = students.filter(s => s.supervisor === lecturer.name).length;
-                lecturer.remainingQuota = Math.max(0, lecturer.quota - assignedCount);
+                lecturer.remaining_quota = Math.max(0, lecturer.quota - assignedCount);
                 
                 const element = document.getElementById(`remaining-${lecturerId}`);
                 if (element) {
-                    element.textContent = lecturer.remainingQuota;
+                    element.textContent = lecturer.remaining_quota;
                 }
             }
         }
@@ -528,12 +724,15 @@ if ($stmt = $conn->prepare("SELECT Lecturer_Name FROM lecturer WHERE Lecturer_ID
         // Update all remaining quotas based on student distribution
         function updateAllRemainingQuotas() {
             lecturers.forEach(lecturer => {
+                // Count how many students have this lecturer as supervisor
                 const assignedCount = students.filter(s => s.supervisor === lecturer.name).length;
-                lecturer.remainingQuota = Math.max(0, lecturer.quota - assignedCount);
+                // Calculate remaining quota
+                lecturer.remaining_quota = Math.max(0, lecturer.quota - assignedCount);
                 
+                // Update display in lecturer quota table (if visible)
                 const element = document.getElementById(`remaining-${lecturer.id}`);
                 if (element) {
-                    element.textContent = lecturer.remainingQuota;
+                    element.textContent = lecturer.remaining_quota;
                 }
             });
         }
@@ -676,10 +875,7 @@ if ($stmt = $conn->prepare("SELECT Lecturer_Name FROM lecturer WHERE Lecturer_ID
             }
 
             // Show confirmation modal
-            const quotaPerLecturer = Math.floor(remaining / lecturersWithoutQuota.length);
-            const remainder = remaining % lecturersWithoutQuota.length;
-            const message = `Assign ${remaining} remaining students to ${lecturersWithoutQuota.length} lecturers without quota?<br><br>
-                Each lecturer will receive approximately ${quotaPerLecturer} ${quotaPerLecturer !== 1 ? 'students' : 'student'}.`;
+            const message = `Assign ${remaining} remaining students to ${lecturersWithoutQuota.length} lecturers without quota?`;
 
             assignModal.innerHTML = `
                 <div class="modal-dialog">
@@ -720,7 +916,7 @@ if ($stmt = $conn->prepare("SELECT Lecturer_Name FROM lecturer WHERE Lecturer_ID
                     const quotaToAssign = quotaPerLecturer + (index < remainder ? 1 : 0);
                     lecturers[lecturerIndex].quota = quotaToAssign;
                     // Initialize remaining quota to quota when quota is assigned
-                    lecturers[lecturerIndex].remainingQuota = quotaToAssign;
+                    lecturers[lecturerIndex].remaining_quota = quotaToAssign;
                     distributed += quotaToAssign;
                     
                     // Update the input field
@@ -781,7 +977,7 @@ if ($stmt = $conn->prepare("SELECT Lecturer_Name FROM lecturer WHERE Lecturer_ID
         function performClearAll() {
             lecturers.forEach(lecturer => {
                 lecturer.quota = 0;
-                lecturer.remainingQuota = 0;
+                lecturer.remaining_quota = 0;
                 const input = document.querySelector(`input[data-lecturer-id="${lecturer.id}"]`);
                 if (input) {
                     input.value = 0;
@@ -837,7 +1033,7 @@ if ($stmt = $conn->prepare("SELECT Lecturer_Name FROM lecturer WHERE Lecturer_ID
             openResetModal();
         }
 
-        // Download as PDF
+        // Download as PDF (Lecturer Quota Assignation)
         function downloadAsPDF() {
             try {
                 const { jsPDF } = window.jspdf;
@@ -853,24 +1049,27 @@ if ($stmt = $conn->prepare("SELECT Lecturer_Name FROM lecturer WHERE Lecturer_ID
                 doc.setTextColor(120, 0, 0); // #780000 color
                 doc.text('Lecturer Quota Assignation Report', 14, 20);
                 
-                // Add summary information
+                // Add summary information (Year, Semester, Course, totals)
+                const courseLabel = getCurrentCourseLabel();
                 doc.setFontSize(11);
                 doc.setTextColor(0, 0, 0); // Black color
-                doc.text(`Total Lecturer: ${lecturers.length}`, 14, 35);
-                doc.text(`Total Students: ${totalStudents}`, 14, 42);
-                doc.text(`Remaining Students: ${document.getElementById('remainingStudent').textContent}`, 14, 49);
+                doc.text(`Year: ${selectedYear}    Semester: ${selectedSemester}`, 14, 30);
+                doc.text(`Course: ${courseLabel}`, 14, 36);
+                doc.text(`Total Lecturer: ${lecturers.length}`, 14, 42);
+                doc.text(`Total Students (all courses): ${totalStudents}`, 14, 48);
+                doc.text(`Remaining Students: ${document.getElementById('remainingStudent').textContent}`, 14, 54);
                 
                 // Prepare table data
                 const tableData = lecturers.map((lecturer, index) => [
                     index + 1,
                     lecturer.name,
-                    lecturer.quota.toString(),
-                    lecturer.remainingQuota.toString()
+                    String(lecturer.quota != null ? lecturer.quota : 0),
+                    String(lecturer.remaining_quota != null ? lecturer.remaining_quota : 0)
                 ]);
                 
                 // Add table using autoTable plugin
                 doc.autoTable({
-                    startY: 55,
+                    startY: 60,
                     head: [['No.', 'Name', 'Quota', 'Remaining Quota']],
                     body: tableData,
                     theme: 'striped',
@@ -957,9 +1156,9 @@ if ($stmt = $conn->prepare("SELECT Lecturer_Name FROM lecturer WHERE Lecturer_ID
             }
         }
 
-        // Download as Excel
+        // Download as Excel (Lecturer Quota Assignation)
         function downloadAsExcel() {
-            // Create CSV content
+            // Build table data
             const tableData = lecturers.map((lecturer, index) => ({
                 no: index + 1,
                 name: lecturer.name,
@@ -967,17 +1166,22 @@ if ($stmt = $conn->prepare("SELECT Lecturer_Name FROM lecturer WHERE Lecturer_ID
                 remaining: lecturer.remainingQuota
             }));
 
+            const courseLabel = getCurrentCourseLabel();
+
             // Create CSV content
-            let csvContent = 'No.,Name,Quota,Remaining Quota\n';
+            let csvContent = '';
+            csvContent += `Year,${selectedYear}\n`;
+            csvContent += `Semester,${selectedSemester}\n`;
+            csvContent += `Course,${courseLabel}\n`;
+            csvContent += `Total Lecturer,${lecturers.length}\n`;
+            csvContent += `Total Students (all courses),${totalStudents}\n`;
+            csvContent += `Remaining Students,${document.getElementById('remainingStudent').textContent}\n\n`;
+
+            csvContent += 'No.,Name,Quota,Remaining Quota\n';
             
             tableData.forEach(row => {
                 csvContent += `${row.no},"${row.name}",${row.quota},${row.remaining}\n`;
             });
-
-            // Add summary at the end
-            csvContent += `\nTotal Lecturer,${lecturers.length}\n`;
-            csvContent += `Total Students,${totalStudents}\n`;
-            csvContent += `Remaining Students,${document.getElementById('remainingStudent').textContent}\n`;
 
             // Create blob and download
             const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -1011,66 +1215,96 @@ if ($stmt = $conn->prepare("SELECT Lecturer_Name FROM lecturer WHERE Lecturer_ID
 
         // Save quotas
         function saveQuotas() {
-            // Here you would typically send data to server
+            // Get current year and semester from filters
+            const year = document.getElementById('yearFilter').value;
+            const semester = document.getElementById('semesterFilter').value;
+            
+            // Prepare quota data
             const quotaData = lecturers.map(lecturer => ({
-                id: lecturer.id,
-                name: lecturer.name,
+                supervisor_id: lecturer.id,
                 quota: lecturer.quota
             }));
 
-            console.log('Saving quotas:', quotaData);
+            // Prepare request data
+            const requestData = {
+                year: year,
+                semester: semester,
+                quotas: quotaData
+            };
+
+            // Show loading state (optional - you can add a loading spinner here)
             
-            // In a real application, you would make an AJAX call here
-            // fetch('/api/save-quotas', { method: 'POST', body: JSON.stringify(quotaData) })
-            //     .then(response => response.json())
-            //     .then(data => {
-            //         // Update remaining quotas after successful save
-            //         updateAllRemainingQuotas();
-            //         // Re-render student table if Student Distribution tab is active
-            //         if (document.querySelector('.task-group[data-group="distribution"].active')) {
-            //             renderStudentTable();
-            //         }
-            //         showSaveSuccess();
-            //     })
-            //     .catch(error => {
-            //         showSaveError(error);
-            //     });
-            
-            // For now, update remaining quotas and re-render student table immediately
-            // First, ensure all remaining quotas are properly initialized
-            lecturers.forEach(lecturer => {
-                // If quota is set but remainingQuota is not properly initialized, initialize it
-                if (lecturer.quota > 0 && lecturer.remainingQuota === undefined) {
-                    const assignedCount = students.filter(s => s.supervisor === lecturer.name).length;
-                    lecturer.remainingQuota = Math.max(0, lecturer.quota - assignedCount);
+            // Make AJAX call to save quotas
+            fetch('../../../php/phpCoordinator/save_quotas.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(requestData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update remaining quotas after successful save
+                    updateAllRemainingQuotas();
+                    
+                    // Re-render student table if Student Distribution tab is active
+                    if (document.querySelector('.task-group[data-group="distribution"].active')) {
+                        renderStudentTable();
+                    }
+                    
+                    // Also re-render lecturer table to update remaining quota display
+                    renderLecturerTable();
+                    
+                    // Show success modal
+                    showSaveSuccess(data.is_latest);
+                } else {
+                    // Show error modal
+                    showSaveError(data.message || 'Failed to save quotas');
                 }
+            })
+            .catch(error => {
+                console.error('Error saving quotas:', error);
+                showSaveError('An error occurred while saving quotas. Please try again.');
             });
-            
-            // Update remaining quotas based on current student assignments
-            updateAllRemainingQuotas();
-            
-            // Re-render student table if Student Distribution tab is active
-            // This will update supervisor dropdowns to show only lecturers with remaining quota
-            if (document.querySelector('.task-group[data-group="distribution"].active')) {
-                renderStudentTable();
-            }
-            
-            // Also re-render lecturer table to update remaining quota display
-            renderLecturerTable();
-            
-            // Show success modal
-            showSaveSuccess();
         }
 
         // Show save success modal
-        function showSaveSuccess() {
+        function showSaveSuccess(isLatest) {
+            let message = 'Quotas saved successfully!';
+            if (isLatest) {
+                message += ' The supervisor table has been updated with the latest quotas.';
+            } else {
+                message += ' Quotas have been saved to history.';
+            }
+            
             saveModal.innerHTML = `
                 <div class="modal-dialog">
                     <div class="modal-content-custom">
                         <span class="close-btn" id="closeSaveModal">&times;</span>
                         <div class="modal-icon"><i class="bi bi-check-circle-fill"></i></div>
                         <div class="modal-title-custom">Quotas Saved</div>
-                        <div class="modal-message">Quotas saved successfully!</div>
+                        <div class="modal-message">${message}</div>
+                        <div style="display:flex; justify-content:center;">
+                            <button id="okSave" class="btn btn-success" type="button">OK</button>
+                        </div>
+                    </div>
+                </div>`;
+
+            saveModal.querySelector('#closeSaveModal').onclick = closeSaveModal;
+            saveModal.querySelector('#okSave').onclick = closeSaveModal;
+            openSaveModal();
+        }
+
+        // Show save error modal
+        function showSaveError(errorMessage) {
+            saveModal.innerHTML = `
+                <div class="modal-dialog">
+                    <div class="modal-content-custom">
+                        <span class="close-btn" id="closeSaveModal">&times;</span>
+                        <div class="modal-icon" style="color: #dc3545;"><i class="bi bi-exclamation-triangle-fill"></i></div>
+                        <div class="modal-title-custom">Save Failed</div>
+                        <div class="modal-message">${errorMessage}</div>
                         <div style="display:flex; justify-content:center;">
                             <button id="okSave" class="btn btn-success" type="button">OK</button>
                         </div>
@@ -1133,70 +1367,183 @@ if ($stmt = $conn->prepare("SELECT Lecturer_Name FROM lecturer WHERE Lecturer_ID
         function initializeStudentDistribution() {
             // Update remaining quotas based on current student assignments
             updateAllRemainingQuotas();
-            renderStudentTable();
+            // Default: show all courses
+            currentCourseFilter = 'both';
+            applyStudentFilters();
             initializeStudentSearch();
             updateTotalStudentCount();
+            // Ensure event listeners are attached
+            attachDropdownEventListeners();
+
+            // Initialize custom course filter dropdown
+            const courseFilterMenu = document.getElementById('courseFilterMenu');
+            const courseFilterLabel = document.getElementById('courseFilterLabel');
+            if (courseFilterMenu && courseFilterLabel) {
+                courseFilterMenu.addEventListener('click', function(e) {
+                    const option = e.target.closest('.download-option');
+                    if (!option) return;
+                    const courseId = option.getAttribute('data-course-id') || 'both';
+                    const labelText = (option.querySelector('span')?.textContent || 'Both').trim();
+                    currentCourseFilter = courseId;
+                    courseFilterLabel.textContent = labelText;
+                    applyStudentFilters();
+                    closeCourseFilterDropdown();
+                });
+            }
+        }
+
+        // Get display label for current course filter (for headers/exports)
+        function getCurrentCourseLabel() {
+            if (!courseFilterOptions || !Array.isArray(courseFilterOptions)) {
+                return 'Both';
+            }
+            if (currentCourseFilter === 'both') {
+                if (courseFilterOptions.length === 0) return 'Both';
+                const codes = courseFilterOptions.map(c => c.Course_Code).filter(Boolean);
+                if (codes.length > 1) {
+                    return 'Both (' + codes.join(', ') + ')';
+                }
+                return codes[0] || 'Both';
+            }
+            const match = courseFilterOptions.find(c => String(c.Course_ID) === String(currentCourseFilter));
+            if (match) {
+                return match.Course_Code || ('Course ' + currentCourseFilter);
+            }
+            return 'Course ' + currentCourseFilter;
+        }
+
+        // Apply search + course filters to students
+        function applyStudentFilters() {
+            const courseIdFilter = currentCourseFilter;
+            const searchInput = document.getElementById('studentSearch');
+            const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
+
+            filteredStudents = students.filter(student => {
+                // Course filter
+                if (courseIdFilter !== 'both') {
+                    if (String(student.course_id) !== String(courseIdFilter)) {
+                        return false;
+                    }
+                }
+                // Name search filter
+                if (searchTerm) {
+                    return (student.name || '').toLowerCase().includes(searchTerm);
+                }
+                return true;
+            });
+
+            renderStudentTable();
+        }
+
+        // Toggle course filter dropdown
+        function toggleCourseFilterDropdown() {
+            const dropdown = document.getElementById('courseFilterMenu');
+            const button = document.querySelector('.course-filter-dropdown .btn-download');
+
+            // Close other download dropdowns
+            document.querySelectorAll('.download-dropdown-menu.show').forEach(menu => {
+                if (menu !== dropdown) {
+                    menu.classList.remove('show');
+                }
+            });
+
+            document.querySelectorAll('.btn-download.active').forEach(btn => {
+                if (btn !== button) {
+                    btn.classList.remove('active');
+                }
+            });
+
+            if (dropdown) {
+                dropdown.classList.toggle('show');
+            }
+            if (button) {
+                button.classList.toggle('active');
+            }
+        }
+
+        function closeCourseFilterDropdown() {
+            const dropdown = document.getElementById('courseFilterMenu');
+            const button = document.querySelector('.course-filter-dropdown .btn-download');
+            if (dropdown) {
+                dropdown.classList.remove('show');
+            }
+            if (button) {
+                button.classList.remove('active');
+            }
         }
 
         // Render student table
         function renderStudentTable() {
             const tbody = document.getElementById('studentTableBody');
-            if (!tbody) return;
+            if (!tbody) {
+                console.error('Student table body not found');
+                return;
+            }
             
             tbody.innerHTML = '';
 
+            if (!filteredStudents || filteredStudents.length === 0) {
+                console.warn('No students to render');
+                return;
+            }
+
             filteredStudents.forEach((student, index) => {
                 const row = document.createElement('tr');
+                const studentId = student.id;
+                const supervisorName = student.supervisor || 'Select Supervisor';
+                const assessor1Name = student.assessor1 || 'Select Assessor 1';
+                const assessor2Name = student.assessor2 || 'Select Assessor 2';
+                
                 row.innerHTML = `
                     <td>${index + 1}</td>
-                    <td>${student.name}</td>
+                    <td>${student.name || 'Unknown'}</td>
                     <td>
                         <div class="custom-dropdown">
-                            <button class="dropdown-btn" type="button" onclick="toggleLecturerDropdown(${student.id}, 'supervisor')">
-                                <span class="dropdown-text">${student.supervisor || 'Select Supervisor'}</span>
+                            <button class="dropdown-btn" type="button" onclick="toggleLecturerDropdown('${studentId}', 'supervisor')">
+                                <span class="dropdown-text">${supervisorName}</span>
                                 <i class="bi bi-chevron-down"></i>
                             </button>
-                            <div class="dropdown-menu" id="dropdown-supervisor-${student.id}">
+                            <div class="dropdown-menu" id="dropdown-supervisor-${studentId}">
                                 <div class="dropdown-search">
                                     <i class="bi bi-search"></i>
-                                    <input type="text" placeholder="Search lecturer..." oninput="filterDropdownLecturers(${student.id}, 'supervisor', this.value)" />
+                                    <input type="text" placeholder="Search lecturer..." oninput="filterDropdownLecturers('${studentId}', 'supervisor', this.value)" />
                                 </div>
-                                <div class="dropdown-options" id="options-supervisor-${student.id}">
-                                    ${generateLecturerOptions(student.id, 'supervisor', null)}
+                                <div class="dropdown-options" id="options-supervisor-${studentId}">
+                                    ${generateLecturerOptions(studentId, 'supervisor', null)}
                                 </div>
                             </div>
                         </div>
                     </td>
                     <td>
                         <div class="custom-dropdown">
-                            <button class="dropdown-btn" type="button" onclick="toggleLecturerDropdown(${student.id}, 'assessor1')">
-                                <span class="dropdown-text">${student.assessor1 || 'Select Assessor 1'}</span>
+                            <button class="dropdown-btn" type="button" onclick="toggleLecturerDropdown('${studentId}', 'assessor1')">
+                                <span class="dropdown-text">${assessor1Name}</span>
                                 <i class="bi bi-chevron-down"></i>
                             </button>
-                            <div class="dropdown-menu" id="dropdown-assessor1-${student.id}">
+                            <div class="dropdown-menu" id="dropdown-assessor1-${studentId}">
                                 <div class="dropdown-search">
                                     <i class="bi bi-search"></i>
-                                    <input type="text" placeholder="Search lecturer..." oninput="filterDropdownLecturers(${student.id}, 'assessor1', this.value)" />
+                                    <input type="text" placeholder="Search lecturer..." oninput="filterDropdownLecturers('${studentId}', 'assessor1', this.value)" />
                                 </div>
-                                <div class="dropdown-options" id="options-assessor1-${student.id}">
-                                    ${generateLecturerOptions(student.id, 'assessor1', student.supervisor)}
+                                <div class="dropdown-options" id="options-assessor1-${studentId}">
+                                    ${generateLecturerOptions(studentId, 'assessor1', student.supervisor)}
                                 </div>
                             </div>
                         </div>
                     </td>
                     <td>
                         <div class="custom-dropdown">
-                            <button class="dropdown-btn" type="button" onclick="toggleLecturerDropdown(${student.id}, 'assessor2')">
-                                <span class="dropdown-text">${student.assessor2 || 'Select Assessor 2'}</span>
+                            <button class="dropdown-btn" type="button" onclick="toggleLecturerDropdown('${studentId}', 'assessor2')">
+                                <span class="dropdown-text">${assessor2Name}</span>
                                 <i class="bi bi-chevron-down"></i>
                             </button>
-                            <div class="dropdown-menu" id="dropdown-assessor2-${student.id}">
+                            <div class="dropdown-menu" id="dropdown-assessor2-${studentId}">
                                 <div class="dropdown-search">
                                     <i class="bi bi-search"></i>
-                                    <input type="text" placeholder="Search lecturer..." oninput="filterDropdownLecturers(${student.id}, 'assessor2', this.value)" />
+                                    <input type="text" placeholder="Search lecturer..." oninput="filterDropdownLecturers('${studentId}', 'assessor2', this.value)" />
                                 </div>
-                                <div class="dropdown-options" id="options-assessor2-${student.id}">
-                                    ${generateLecturerOptions(student.id, 'assessor2', student.supervisor)}
+                                <div class="dropdown-options" id="options-assessor2-${studentId}">
+                                    ${generateLecturerOptions(studentId, 'assessor2', student.supervisor)}
                                 </div>
                             </div>
                         </div>
@@ -1204,27 +1551,83 @@ if ($stmt = $conn->prepare("SELECT Lecturer_Name FROM lecturer WHERE Lecturer_ID
                 `;
                 tbody.appendChild(row);
             });
+            
+            // After rendering, attach event listeners using event delegation for better reliability
+            attachDropdownEventListeners();
+        }
+        
+        // Attach event listeners using event delegation
+        function attachDropdownEventListeners() {
+            // Use event delegation for dropdown options
+            const tbody = document.getElementById('studentTableBody');
+            if (tbody) {
+                // Remove existing listener if any
+                tbody.removeEventListener('click', handleDropdownOptionClick);
+                // Add new listener
+                tbody.addEventListener('click', handleDropdownOptionClick);
+            }
+        }
+        
+        // Handle dropdown option clicks
+        function handleDropdownOptionClick(e) {
+            const option = e.target.closest('.dropdown-option');
+            if (option && !option.classList.contains('disabled')) {
+                const studentId = option.getAttribute('data-student-id');
+                const role = option.getAttribute('data-role');
+                const lecturerName = option.getAttribute('data-lecturer-name');
+                
+                if (studentId && role && lecturerName) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    selectLecturer(studentId, role, lecturerName);
+                }
+            }
         }
 
         // Generate lecturer options for dropdown
         function generateLecturerOptions(studentId, role, excludeSupervisor) {
             const student = students.find(s => s.id === studentId);
-            if (!student) return '';
+            if (!student) {
+                console.error('Student not found:', studentId);
+                return '<div class="dropdown-option disabled">Student not found</div>';
+            }
+
+            // Ensure lecturers array exists and has data
+            if (!lecturers || lecturers.length === 0) {
+                console.error('No lecturers available');
+                return '<div class="dropdown-option disabled">No lecturers available</div>';
+            }
 
             let options = '';
+            let optionCount = 0;
+            
             lecturers.forEach(lecturer => {
-                // For supervisor role, only show lecturers with quota > 0 and remaining quota > 0
+                if (!lecturer || !lecturer.name) {
+                    return; // Skip invalid lecturer entries
+                }
+
+                // For supervisor role, check quota and remaining quota
                 if (role === 'supervisor') {
                     // Calculate remaining quota on the fly to ensure accuracy
+                    // Count how many students have this lecturer as supervisor
                     const assignedCount = students.filter(s => s.supervisor === lecturer.name).length;
                     const currentRemainingQuota = Math.max(0, lecturer.quota - assignedCount);
                     
-                    // Only show if lecturer has quota > 0 and remaining quota > 0
-                    // OR if this lecturer is already selected as supervisor (to allow changing)
-                    if (lecturer.quota <= 0 || (currentRemainingQuota <= 0 && student.supervisor !== lecturer.name)) {
-                        return;
+                    // Show lecturer if:
+                    // 1. Lecturer has quota > 0 AND remaining quota > 0
+                    // OR 2. This lecturer is already selected as supervisor for this student (to allow changing/keeping)
+                    // OR 3. Lecturer has quota = 0 but is already selected (edge case)
+                    if (lecturer.quota <= 0 && student.supervisor !== lecturer.name) {
+                        return; // No quota assigned and not currently selected
+                    }
+                    
+                    if (currentRemainingQuota <= 0 && student.supervisor !== lecturer.name) {
+                        return; // No remaining quota and not currently selected
                     }
                 }
+                
+                // For assessors, show all lecturers (no quota restriction)
+                // But exclude certain lecturers based on other rules below
                 
                 // Exclude supervisor from assessor dropdowns
                 if (excludeSupervisor && lecturer.name === excludeSupervisor) {
@@ -1247,15 +1650,23 @@ if ($stmt = $conn->prepare("SELECT Lecturer_Name FROM lecturer WHERE Lecturer_ID
                     (role === 'assessor1' && student.assessor1 === lecturer.name) ||
                     (role === 'assessor2' && student.assessor2 === lecturer.name);
 
+                // Use data attributes for better reliability instead of inline onclick
+                // Escape HTML to prevent XSS
+                const escapedName = lecturer.name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+                
                 options += `
                     <div class="dropdown-option ${isSelected ? 'selected' : ''}" 
-                         onclick="selectLecturer(${studentId}, '${role}', '${lecturer.name.replace(/'/g, "\\'")}')">
+                         data-student-id="${studentId}"
+                         data-role="${role}"
+                         data-lecturer-name="${lecturer.name.replace(/"/g, '&quot;')}"
+                         style="cursor: pointer;">
                         ${lecturer.name}
                     </div>
                 `;
+                optionCount++;
             });
 
-            if (options === '') {
+            if (options === '' || optionCount === 0) {
                 options = '<div class="dropdown-option disabled">No options available</div>';
             }
 
@@ -1264,8 +1675,15 @@ if ($stmt = $conn->prepare("SELECT Lecturer_Name FROM lecturer WHERE Lecturer_ID
 
         // Toggle lecturer dropdown
         function toggleLecturerDropdown(studentId, role) {
-            const dropdownId = `dropdown-${role}-${studentId}`;
+            // Convert studentId to string for consistency
+            const studentIdStr = String(studentId);
+            const dropdownId = `dropdown-${role}-${studentIdStr}`;
             const dropdown = document.getElementById(dropdownId);
+
+            if (!dropdown) {
+                console.error('Dropdown not found:', dropdownId);
+                return;
+            }
 
             // Close all other dropdowns
             document.querySelectorAll('.dropdown-menu.show').forEach(menu => {
@@ -1275,19 +1693,36 @@ if ($stmt = $conn->prepare("SELECT Lecturer_Name FROM lecturer WHERE Lecturer_ID
             });
 
             // Toggle current dropdown
-            if (dropdown) {
-                dropdown.classList.toggle('show');
-                if (dropdown.classList.contains('show')) {
-                    openDropdown = dropdownId;
-                    // Reset search when opening
-                    const searchInput = dropdown.querySelector('.dropdown-search input');
-                    if (searchInput) {
-                        searchInput.value = '';
-                        filterDropdownLecturers(studentId, role, '');
-                    }
+            const isOpening = !dropdown.classList.contains('show');
+            dropdown.classList.toggle('show');
+            
+            if (dropdown.classList.contains('show')) {
+                openDropdown = dropdownId;
+                
+                // Update remaining quotas before showing dropdown to ensure accurate options
+                updateAllRemainingQuotas();
+                
+                // Refresh the options in the dropdown to show current remaining quota
+                // Convert studentId to match the type used in students array
+                const student = students.find(s => String(s.id) === studentIdStr || s.id === studentId);
+                const excludeSupervisor = role === 'supervisor' ? null : (student ? student.supervisor : null);
+                const optionsContainer = document.getElementById(`options-${role}-${studentIdStr}`);
+                
+                if (optionsContainer) {
+                    const newOptions = generateLecturerOptions(studentId, role, excludeSupervisor);
+                    optionsContainer.innerHTML = newOptions;
                 } else {
-                    openDropdown = null;
+                    console.error('Options container not found:', `options-${role}-${studentIdStr}`);
                 }
+                
+                // Reset search when opening
+                const searchInput = dropdown.querySelector('.dropdown-search input');
+                if (searchInput) {
+                    searchInput.value = '';
+                    filterDropdownLecturers(studentId, role, '');
+                }
+            } else {
+                openDropdown = null;
             }
         }
 
@@ -1311,11 +1746,26 @@ if ($stmt = $conn->prepare("SELECT Lecturer_Name FROM lecturer WHERE Lecturer_ID
 
         // Select lecturer for student
         function selectLecturer(studentId, role, lecturerName) {
-            const student = students.find(s => s.id === studentId);
-            if (!student) return;
+            // Convert studentId to string for consistency in finding student
+            const studentIdStr = String(studentId);
+            const student = students.find(s => String(s.id) === studentIdStr || s.id === studentId);
+            
+            if (!student) {
+                console.error('Student not found:', studentId);
+                return;
+            }
+            
+            if (!lecturerName) {
+                console.error('Lecturer name is empty');
+                return;
+            }
+
+            // Store previous supervisor to handle quota updates correctly
+            const previousSupervisor = student.supervisor;
 
             // Update student data
             if (role === 'supervisor') {
+                // If changing supervisor, update quotas
                 student.supervisor = lecturerName;
                 // Clear assessors if they were the supervisor
                 if (student.assessor1 === lecturerName) {
@@ -1347,6 +1797,7 @@ if ($stmt = $conn->prepare("SELECT Lecturer_Name FROM lecturer WHERE Lecturer_ID
             }
 
             // Update remaining quotas based on actual student assignments
+            // This will recalculate remaining quota for all lecturers
             updateAllRemainingQuotas();
 
             // Close dropdown
@@ -1357,7 +1808,8 @@ if ($stmt = $conn->prepare("SELECT Lecturer_Name FROM lecturer WHERE Lecturer_ID
                 openDropdown = null;
             }
 
-            // Re-render the row to update dropdowns
+            // Re-render the entire table to update all dropdowns with new remaining quotas
+            // This ensures other rows show updated available lecturers
             renderStudentTable();
         }
 
@@ -1476,39 +1928,68 @@ if ($stmt = $conn->prepare("SELECT Lecturer_Name FROM lecturer WHERE Lecturer_ID
             }
 
             if (type === 'supervisor' || type === 'both') {
-                // Assign supervisors
-                if (lecturersWithQuota.length >= 3) {
-                    // Group lecturers into 3 groups (divide evenly)
-                    const groupSize = Math.floor(lecturersWithQuota.length / 3);
-                    const groups = [];
-                    for (let i = 0; i < 3; i++) {
-                        const start = i * groupSize;
-                        const end = i === 2 ? lecturersWithQuota.length : (i + 1) * groupSize;
-                        groups.push(lecturersWithQuota.slice(start, end));
-                    }
+                // Assign supervisors RESPECTING lecturer quotas
+                // 1. Recalculate remaining quotas based on current assignments
+                updateAllRemainingQuotas();
 
-                    // Assign supervisors to students
-                    let studentIndex = 0;
-                    students.forEach(student => {
-                        const groupIndex = studentIndex % 3;
-                        const supervisorGroup = groups[groupIndex];
-                        
-                        if (supervisorGroup.length > 0) {
-                            const supervisorIndex = Math.floor(studentIndex / 3) % supervisorGroup.length;
-                            student.supervisor = supervisorGroup[supervisorIndex].name;
-                        }
-                        
-                        studentIndex++;
-                    });
-                } else {
-                    // Less than 3 lecturers - distribute evenly
-                    let studentIndex = 0;
-                    students.forEach(student => {
-                        const lecturerIndex = studentIndex % lecturersWithQuota.length;
-                        student.supervisor = lecturersWithQuota[lecturerIndex].name;
-                        studentIndex++;
-                    });
+                // 2. Build a working list of lecturers with remaining quota > 0
+                let supervisorsWithRemaining = lecturersWithQuota
+                    .map(l => ({
+                        ref: l,
+                        remaining: Math.max(0, l.remaining_quota || 0)
+                    }))
+                    .filter(x => x.remaining > 0);
+
+                if (supervisorsWithRemaining.length === 0) {
+                    // No available quota to assign supervisors
+                    assignModal.innerHTML = `
+                        <div class="modal-dialog">
+                            <div class="modal-content-custom">
+                                <span class="close-btn" id="closeAssignModal">&times;</span>
+                                <div class="modal-icon" style="color: #dc3545;"><i class="bi bi-exclamation-triangle-fill"></i></div>
+                                <div class="modal-title-custom">No Remaining Supervisor Quota</div>
+                                <div class="modal-message">All lecturers' supervisor quotas have been fully used. Please increase quotas in the Lecturer Quota Assignation tab.</div>
+                                <div style="display:flex; justify-content:center;">
+                                    <button id="okAssign" class="btn btn-success" type="button">OK</button>
+                                </div>
+                            </div>
+                        </div>`;
+                    assignModal.querySelector('#closeAssignModal').onclick = closeAssignModal;
+                    assignModal.querySelector('#okAssign').onclick = closeAssignModal;
+                    return;
                 }
+
+                // 3. Assign supervisors only to students who don't have one yet
+                const studentsNeedingSupervisor = students.filter(s => !s.supervisor);
+                let supIndex = 0;
+
+                studentsNeedingSupervisor.forEach(student => {
+                    // Find next lecturer with remaining quota > 0
+                    let attempts = 0;
+                    let assigned = false;
+                    while (attempts < supervisorsWithRemaining.length) {
+                        const idx = supIndex % supervisorsWithRemaining.length;
+                        const supEntry = supervisorsWithRemaining[idx];
+                        if (supEntry.remaining > 0) {
+                            // Assign this supervisor
+                            student.supervisor = supEntry.ref.name;
+                            supEntry.remaining -= 1;
+                            assigned = true;
+                            supIndex++;
+                            break;
+                        } else {
+                            supIndex++;
+                        }
+                        attempts++;
+                    }
+                    // If we couldn't assign anyone (all quotas exhausted), stop trying
+                    if (!assigned) {
+                        return;
+                    }
+                });
+
+                // 4. After assignment, update remaining_quota for display
+                updateAllRemainingQuotas();
             }
 
             if (type === 'assessor' || type === 'both') {
@@ -1675,18 +2156,8 @@ if ($stmt = $conn->prepare("SELECT Lecturer_Name FROM lecturer WHERE Lecturer_ID
             const searchInput = document.getElementById('studentSearch');
             if (!searchInput) return;
 
-            searchInput.addEventListener('input', function(e) {
-                const searchTerm = e.target.value.toLowerCase().trim();
-                
-                if (searchTerm === '') {
-                    filteredStudents = [...students];
-                } else {
-                    filteredStudents = students.filter(student => 
-                        student.name.toLowerCase().includes(searchTerm)
-                    );
-                }
-                
-                renderStudentTable();
+            searchInput.addEventListener('input', function() {
+                applyStudentFilters();
             });
         }
 
@@ -1694,7 +2165,13 @@ if ($stmt = $conn->prepare("SELECT Lecturer_Name FROM lecturer WHERE Lecturer_ID
         function updateTotalStudentCount() {
             const countElement = document.getElementById('totalStudentCount');
             if (countElement) {
-                countElement.textContent = students.length;
+                // show how many students are currently visible in the distribution table
+                countElement.textContent = filteredStudents.length;
+            }
+            // keep the top summary widget in sync with total students across all courses
+            const totalTop = document.getElementById('totalStudents');
+            if (totalTop) {
+                totalTop.textContent = totalStudents;
             }
         }
 
@@ -1722,35 +2199,74 @@ if ($stmt = $conn->prepare("SELECT Lecturer_Name FROM lecturer WHERE Lecturer_ID
             openResetModal();
         }
 
+        // Helper: get supervisor ID by lecturer name from lecturers array
+        function getSupervisorIdByName(lecturerName) {
+            if (!lecturerName || !lecturers || lecturers.length === 0) return null;
+            const match = lecturers.find(l => l && l.name === lecturerName);
+            return match ? match.id : null;
+        }
+
         // Save assignments
         function saveAssignments() {
-            const assignmentData = students.map(student => ({
-                id: student.id,
-                name: student.name,
-                supervisor: student.supervisor,
-                assessor1: student.assessor1,
-                assessor2: student.assessor2
-            }));
+            // Build payload with both names and IDs for supervisor/assessors
+            const assignmentData = students.map(student => {
+                const supervisorId = getSupervisorIdByName(student.supervisor);
+                const assessor1Id = getSupervisorIdByName(student.assessor1);
+                const assessor2Id = getSupervisorIdByName(student.assessor2);
 
-            console.log('Saving assignments:', assignmentData);
-            
-            // Show success modal
-            saveModal.innerHTML = `
-                <div class="modal-dialog">
-                    <div class="modal-content-custom">
-                        <span class="close-btn" id="closeSaveModal">&times;</span>
-                        <div class="modal-icon"><i class="bi bi-check-circle-fill"></i></div>
-                        <div class="modal-title-custom">Assignments Saved</div>
-                        <div class="modal-message">Student assignments saved successfully!</div>
-                        <div style="display:flex; justify-content:center;">
-                            <button id="okSave" class="btn btn-success" type="button">OK</button>
-                        </div>
-                    </div>
-                </div>`;
+                return {
+                    id: student.id,
+                    name: student.name,
+                    supervisor: student.supervisor,
+                    assessor1: student.assessor1,
+                    assessor2: student.assessor2,
+                    supervisor_id: supervisorId,
+                    assessor1_id: assessor1Id,
+                    assessor2_id: assessor2Id
+                };
+            });
 
-            saveModal.querySelector('#closeSaveModal').onclick = closeSaveModal;
-            saveModal.querySelector('#okSave').onclick = closeSaveModal;
-            openSaveModal();
+            // Make AJAX call to save assignments to backend
+            fetch('../../../php/phpCoordinator/save_assignments.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ assignments: assignmentData })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // On success, optionally refresh quotas and table
+                    updateAllRemainingQuotas();
+                    renderStudentTable();
+
+                    // Show success modal
+                    saveModal.innerHTML = `
+                        <div class="modal-dialog">
+                            <div class="modal-content-custom">
+                                <span class="close-btn" id="closeSaveModal">&times;</span>
+                                <div class="modal-icon"><i class="bi bi-check-circle-fill"></i></div>
+                                <div class="modal-title-custom">Assignments Saved</div>
+                                <div class="modal-message">${data.message || 'Student assignments saved successfully!'}</div>
+                                <div style="display:flex; justify-content:center;">
+                                    <button id="okSave" class="btn btn-success" type="button">OK</button>
+                                </div>
+                            </div>
+                        </div>`;
+
+                    saveModal.querySelector('#closeSaveModal').onclick = closeSaveModal;
+                    saveModal.querySelector('#okSave').onclick = closeSaveModal;
+                    openSaveModal();
+                } else {
+                    // Show error using existing error modal helper
+                    showSaveError(data.message || 'Failed to save student assignments.');
+                }
+            })
+            .catch(error => {
+                console.error('Error saving assignments:', error);
+                showSaveError('An error occurred while saving assignments. Please try again.');
+            });
         }
 
         // Download Distribution as PDF
@@ -1766,13 +2282,16 @@ if ($stmt = $conn->prepare("SELECT Lecturer_Name FROM lecturer WHERE Lecturer_ID
                 doc.setTextColor(120, 0, 0);
                 doc.text('Student Distribution Report', 14, 20);
                 
-                // Add summary
+                // Add year, semester, and course summary (follow current page filter)
+                const courseLabel = getCurrentCourseLabel();
                 doc.setFontSize(11);
                 doc.setTextColor(0, 0, 0);
-                doc.text(`Total Students: ${students.length}`, 14, 35);
+                doc.text(`Year: ${selectedYear}    Semester: ${selectedSemester}`, 14, 32);
+                doc.text(`Course: ${courseLabel}`, 14, 38);
+                doc.text(`Total Students (current view): ${filteredStudents.length}`, 14, 44);
                 
-                // Prepare table data
-                const tableData = students.map((student, index) => [
+                // Prepare table data from currently visible students (filteredStudents)
+                const tableData = filteredStudents.map((student, index) => [
                     index + 1,
                     student.name,
                     student.supervisor || '-',
@@ -1782,7 +2301,7 @@ if ($stmt = $conn->prepare("SELECT Lecturer_Name FROM lecturer WHERE Lecturer_ID
                 
                 // Add table
                 doc.autoTable({
-                    startY: 45,
+                    startY: 52,
                     head: [['No.', 'Name', 'Supervisor', 'Assessor 1', 'Assessor 2']],
                     body: tableData,
                     theme: 'striped',
@@ -1860,14 +2379,25 @@ if ($stmt = $conn->prepare("SELECT Lecturer_Name FROM lecturer WHERE Lecturer_ID
 
         // Download Distribution as Excel
         function downloadDistributionAsExcel() {
-            // Create CSV content
-            let csvContent = 'No.,Name,Supervisor,Assessor 1,Assessor 2\n';
-            
-            students.forEach((student, index) => {
-                csvContent += `${index + 1},"${student.name}",${student.supervisor || '-'},${student.assessor1 || '-'},${student.assessor2 || '-'}\n`;
-            });
+            // Create CSV content based on current view (filteredStudents)
+            const courseLabel = getCurrentCourseLabel();
+            let csvContent = '';
+            // Header info
+            csvContent += `Year,${selectedYear}\n`;
+            csvContent += `Semester,${selectedSemester}\n`;
+            csvContent += `Course,${courseLabel}\n`;
+            csvContent += `Total Students (current view),${filteredStudents.length}\n\n`;
 
-            csvContent += `\nTotal Students,${students.length}\n`;
+            // Table header
+            csvContent += 'No.,Name,Supervisor,Assessor 1,Assessor 2\n';
+            
+            filteredStudents.forEach((student, index) => {
+                const sup = student.supervisor || '-';
+                const a1  = student.assessor1 || '-';
+                const a2  = student.assessor2 || '-';
+                // Quote the text fields to be safe
+                csvContent += `${index + 1},"${student.name || ''}","${sup}","${a1}","${a2}"\n`;
+            });
 
             // Create blob and download
             const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -2227,7 +2757,7 @@ if ($stmt = $conn->prepare("SELECT Lecturer_Name FROM lecturer WHERE Lecturer_ID
 
         // Close dropdown when clicking outside
         document.addEventListener('click', function(event) {
-            // Handle all download dropdowns
+            // Handle all download dropdowns (including course filter)
             const allDownloadDropdowns = document.querySelectorAll('.download-dropdown');
             allDownloadDropdowns.forEach(dropdown => {
                 if (!dropdown.contains(event.target)) {

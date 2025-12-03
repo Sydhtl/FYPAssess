@@ -97,17 +97,24 @@
         <div class="filters-section">
             <div class="filter-group">
                 <label for="yearFilter">Year</label>
-                <select id="yearFilter" class="filter-select">
-                    <option value="2024/2025" selected>2024/2025</option>
-                    <option value="2023/2024">2023/2024</option>
-                    <option value="2025/2026">2025/2026</option>
+                <select id="yearFilter" class="filter-select" onchange="reloadPageWithFilters()">
+                    <?php foreach ($yearOptions as $year): ?>
+                        <option value="<?php echo htmlspecialchars($year); ?>" 
+                                <?php echo ($year == $selectedYear) ? 'selected' : ''; ?>>
+                            <?php echo htmlspecialchars($year); ?>
+                        </option>
+                    <?php endforeach; ?>
                 </select>
             </div>
             <div class="filter-group">
                 <label for="semesterFilter">Semester</label>
-                <select id="semesterFilter" class="filter-select">
-                    <option value="1">1</option>
-                    <option value="2" selected>2</option>
+                <select id="semesterFilter" class="filter-select" onchange="reloadPageWithFilters()">
+                    <?php foreach ($semesterOptions as $semester): ?>
+                        <option value="<?php echo htmlspecialchars($semester); ?>" 
+                                <?php echo ($semester == $selectedSemester) ? 'selected' : ''; ?>>
+                            <?php echo htmlspecialchars($semester); ?>
+                        </option>
+                    <?php endforeach; ?>
                 </select>
             </div>
         </div>
@@ -385,6 +392,20 @@
     <div id="fypFormModal" class="custom-modal"></div>
 
     <script>
+        // --- FILTER RELOAD FUNCTION ---
+        function reloadPageWithFilters() {
+            const yearFilter = document.getElementById('yearFilter').value;
+            const semesterFilter = document.getElementById('semesterFilter').value;
+            
+            // Build URL with query parameters
+            const params = new URLSearchParams();
+            if (yearFilter) params.append('year', yearFilter);
+            if (semesterFilter) params.append('semester', semesterFilter);
+            
+            // Reload page with new parameters
+            window.location.href = 'markSubmission.php?' + params.toString();
+        }
+
         const collapsedWidth = "60px";
         const expandedWidth = "220px";
 

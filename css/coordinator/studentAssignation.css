@@ -110,6 +110,28 @@
   border-color: #780000;
 }
 
+.course-filter-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.course-filter-section .filter-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #666;
+}
+
+.course-filter-section .course-filter-dropdown .btn-download {
+  background-color: #fff;
+  color: #333;
+  border: 2px solid #ddd;
+}
+
+.course-filter-section .course-filter-dropdown .btn-download:hover {
+  background-color: #f8f9fa;
+}
+
 /* Scrollable Table Container */
 .table-scroll-container {
   width: 100%;
@@ -439,10 +461,11 @@
 }
 
 .filters-section {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 15px;
   margin-bottom: 20px;
-  align-items: center;
+  align-items: end;
 }
 
 .filter-group {
@@ -457,18 +480,28 @@
   color: #666;
 }
 
-.filter-group select {
+.filter-group select,
+.filter-select {
   padding: 8px 12px;
   border: 2px solid #ddd;
   border-radius: 8px;
   font-size: 14px;
   font-family: 'Montserrat', Arial, sans-serif;
   min-width: 150px;
+  background-color: white;
+  cursor: pointer;
+  transition: border-color 0.2s;
 }
 
-.filter-group select:focus {
+.filter-group select:focus,
+.filter-select:focus {
   outline: none;
   border-color: #780000;
+}
+
+.filter-group select:hover,
+.filter-select:hover {
+  border-color: #999;
 }
 
 /* Distribution Tab Placeholder */
@@ -496,6 +529,10 @@
 
 /* Tablets */
 @media (max-width: 992px) {
+  .filters-section {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
   .top-action-bar {
     flex-direction: row;
     align-items: flex-start;
@@ -518,6 +555,20 @@
   .search-section {
     width: 100%;
     max-width: 100%;
+  }
+
+  .course-filter-section {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .course-filter-section .download-dropdown {
+    width: 100%;
+  }
+
+  .course-filter-section .btn-download {
+    width: 100%;
+    justify-content: space-between;
   }
 
   .btn-assign,
@@ -557,6 +608,21 @@
 
 /* Small tablets and large phones */
 @media (max-width: 768px) {
+  .filters-section {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .filter-group {
+    width: 100%;
+  }
+
+  .filter-group select,
+  .filter-select {
+    width: 100%;
+    min-width: unset;
+  }
+
   .top-action-bar {
     flex-direction: column;
     gap: 12px;
@@ -567,6 +633,11 @@
     width: 100%;
     flex: 1 1 100%;
     min-width: unset;
+  }
+
+  .course-filter-section {
+    margin-top: 8px;
+    width: 100%;
   }
 
   .right-actions {
@@ -642,6 +713,23 @@
 
 /* Mobile phones */
 @media (max-width: 576px) {
+  .filters-section {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .filter-group label {
+    font-size: 13px;
+  }
+
+  .filter-group select,
+  .filter-select {
+    width: 100%;
+    min-width: unset;
+    padding: 8px 10px;
+    font-size: 13px;
+  }
+
   .top-action-bar {
     gap: 10px;
   }
