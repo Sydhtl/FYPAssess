@@ -132,7 +132,24 @@
                     <div class="mark-content-container">
                         <div class="container-header">
                             <div class="view-dropdown-wrapper">
-                                
+                                <div class="search-sort-container">
+                                    <div class="search-wrapper">
+                                        <i class="bi bi-search search-icon"></i>
+                                        <input type="text" id="fypStudentSearch" class="search-input" placeholder="Search by name or matric no...">
+                                    </div>
+                                    <div class="sort-wrapper">
+                                        <select id="fypCourseFilter" class="sort-dropdown" onchange="filterFYPTable()">
+                                            <option value="all">All Courses</option>
+                                        </select>
+                                        <select id="fypStatusFilter" class="sort-dropdown" onchange="filterFYPTable()">
+                                            <option value="all">All Status</option>
+                                            <option value="approved">Approved</option>
+                                            <option value="waiting">Waiting for Approval</option>
+                                            <option value="rejected">Rejected</option>
+                                            <option value="not submitted">Not Submitted</option>
+                                        </select>
+                                    </div>
+                                </div>
                             </div>
                             <div class="download-actions">
                              
@@ -409,7 +426,75 @@
         const collapsedWidth = "60px";
         const expandedWidth = "220px";
 
-        const fypTitleSubmissionData = [
+        // Load student data from PHP backend (filtered by year and semester)
+        const studentsDataFromBackend = <?php echo $studentsDataJson; ?>;
+        
+        // Get unique courses for filter dropdown
+        const courseOptions = <?php echo json_encode($fypSessionIds); ?>;
+        
+        // Transform backend data to match the existing structure
+        const fypTitleSubmissionData = studentsDataFromBackend.map((student, index) => {
+            // Determine status based on backend data
+            let status = 'not submitted';
+            let statusDisplay = 'Not Submitted';
+            
+            if (student.status === 'Approved') {
+                status = 'approved';
+                statusDisplay = 'Approved';
+            } else if (student.status === 'Rejected') {
+                status = 'rejected';
+                statusDisplay = 'Rejected';
+            } else if (student.status === 'Waiting for Approval') {
+                status = 'waiting';
+                statusDisplay = 'Waiting for Approval';
+            }
+            
+            const hasSubmission = student.status !== 'Not Submitted';
+            
+            return {
+                id: student.id,
+                matricNo: student.id, // Using Student_ID as matricNo
+                name: student.name,
+                status: status,
+                statusDisplay: statusDisplay,
+                fypSessionId: student.fypSessionId,
+                // extra raw fields from backend for PDF generation
+                courseCode: student.courseCode || '',
+                semester: student.semester || '',
+                fypSession: student.fypSession || '',
+                address: student.address || '',
+                phone: student.phone || '',
+                programme: student.programme || '',
+                minor: student.minor || '',
+                cgpa: student.cgpa || '',
+                titleStatus: student.titleStatus || '',
+                supervisorName: student.supervisorName || '',
+                comments: hasSubmission ? `Status: ${statusDisplay}` : 'No submission received yet.',
+                submission: hasSubmission ? {
+                    courseTitle: 'Final Year Project',
+                    courseCode: student.courseCode || 'N/A',
+                    creditHour: '4',
+                    semester: student.semester || '<?php echo htmlspecialchars($selectedSemester); ?>',
+                    fypSession: student.fypSession || '<?php echo htmlspecialchars($selectedYear); ?>',
+                    studentName: student.name,
+                    currentAddress: student.address || '-',
+                    telNo: student.phone || '-',
+                    programme: student.programme || 'N/A',
+                    minor: student.minor || 'N/A',
+                    cgpa: student.cgpa !== null && student.cgpa !== undefined ? String(student.cgpa) : '-',
+                    currentTitle: student.projectTitle || '-',
+                    proposedTitle: student.proposedTitle || '-',
+                    titleStatus: student.titleStatus || '-',
+                    supervisorName: student.supervisorName || '-'
+                } : null
+            };
+        });
+
+        // Store original data for filtering
+        let filteredFYPData = [...fypTitleSubmissionData];
+
+        // Keep the original hardcoded data structure for SWE4949-A and SWE4949-B
+        const fypTitleSubmissionDataOld = [
             { 
                 id: 1, 
                 matricNo: '214673', 
@@ -669,6 +754,8 @@
 
         document.addEventListener('DOMContentLoaded', function() {
             initializeTabs();
+            populateCourseFilter();
+            initializeFYPSearch();
             renderFYPTable();
             renderTable('swe4949a');
             renderTable('swe4949b');
@@ -711,25 +798,96 @@
             }
         });
 
+        function populateCourseFilter() {
+            const courseFilter = document.getElementById('fypCourseFilter');
+            if (!courseFilter) return;
+
+            // Get unique FYP Session IDs from the data
+            const uniqueSessions = [...new Set(fypTitleSubmissionData.map(s => s.fypSessionId))];
+            
+            // Clear existing options except "All Courses"
+            courseFilter.innerHTML = '<option value="all">All Courses</option>';
+            
+            // Add option for each unique session
+            uniqueSessions.forEach(sessionId => {
+                if (sessionId) {
+                    const option = document.createElement('option');
+                    option.value = sessionId;
+                    option.textContent = `Course ID: ${sessionId}`;
+                    courseFilter.appendChild(option);
+                }
+            });
+        }
+
+        function initializeFYPSearch() {
+            const searchInput = document.getElementById('fypStudentSearch');
+            if (!searchInput) return;
+
+            searchInput.addEventListener('input', function(e) {
+                filterFYPTable();
+            });
+        }
+
+        function filterFYPTable() {
+            const searchTerm = document.getElementById('fypStudentSearch')?.value.toLowerCase() || '';
+            const courseFilter = document.getElementById('fypCourseFilter')?.value || 'all';
+            const statusFilter = document.getElementById('fypStatusFilter')?.value || 'all';
+
+            filteredFYPData = fypTitleSubmissionData.filter(item => {
+                // Search filter
+                const matchesSearch = !searchTerm || 
+                    item.name.toLowerCase().includes(searchTerm) || 
+                    item.matricNo.toLowerCase().includes(searchTerm);
+
+                // Course filter
+                const matchesCourse = courseFilter === 'all' || 
+                    item.fypSessionId == courseFilter;
+
+                // Status filter
+                const matchesStatus = statusFilter === 'all' || 
+                    item.status === statusFilter;
+
+                return matchesSearch && matchesCourse && matchesStatus;
+            });
+
+            renderFYPTable();
+        }
+
         function renderFYPTable() {
             const tbody = document.getElementById('markTableBodyFYP');
             if (!tbody) return;
 
             tbody.innerHTML = '';
 
-            if (!fypTitleSubmissionData.length) {
+            if (!filteredFYPData.length) {
                 tbody.innerHTML = `<tr><td colspan="6" class="empty-state">No FYP title submission data available</td></tr>`;
                 return;
             }
 
-            fypTitleSubmissionData.forEach((item, index) => {
+            filteredFYPData.forEach((item, index) => {
                 const row = document.createElement('tr');
-                const statusClass = item.status === 'submitted' ? 'status-submitted' : 'status-not-submitted';
-                const statusText = item.status === 'submitted' ? 'Submitted' : 'Not Submitted';
+                
+                // Determine status class and text
+                let statusClass = '';
+                let statusText = '';
+                
+                if (item.status === 'approved') {
+                    statusClass = 'status-approved';
+                    statusText = 'Approved';
+                } else if (item.status === 'rejected') {
+                    statusClass = 'status-rejected';
+                    statusText = 'Rejected';
+                } else if (item.status === 'waiting') {
+                    statusClass = 'status-waiting';
+                    statusText = 'Waiting for Approval';
+                } else {
+                    statusClass = 'status-not-submitted';
+                    statusText = 'Not Submitted';
+                }
                 
                 let submissionHTML = '';
                 if (item.submission) {
-                    submissionHTML = `<a href="javascript:void(0)" onclick="openFYPFormModal(${item.id})" class="submission-link">
+                    submissionHTML = `<a href="javascript:void(0)" onclick="openFYPFormModal('${item.id}')" class="submission-link">
                         <i class="bi bi-file-earmark-pdf"></i> View Submission
                     </a>`;
                 } else {
@@ -738,7 +896,8 @@
 
                 let downloadHTML = '';
                 if (item.submission) {
-                    downloadHTML = `<button class="btn-download-table" onclick="downloadFYPFormPDF(${item.id})" title="Download as PDF">
+                    // Pass ID as string to avoid type mismatch issues
+                    downloadHTML = `<button class="btn-download-table" onclick="downloadFYPFormPDF('${item.id}')" title="Download as PDF">
                         <i class="bi bi-download"></i> Download
                     </button>`;
                 } else {
@@ -1028,7 +1187,7 @@
                         index + 1,
                         item.matricNo,
                         item.name,
-                        item.status === 'submitted' ? 'Submitted' : 'Not Submitted',
+                        item.statusDisplay || 'Not Submitted',
                         item.submission ? 'Yes' : 'No'
                     ];
                     if (includeComments) {
@@ -1108,7 +1267,7 @@
                         index + 1,
                         item.matricNo,
                         item.name,
-                        item.status === 'submitted' ? 'Submitted' : 'Not Submitted',
+                        item.statusDisplay || 'Not Submitted',
                         item.submission ? 'Yes' : 'No'
                     ];
                     if (includeComments) {
@@ -1195,6 +1354,376 @@
         }
 
         function openFYPFormModal(studentId) {
+            const student = fypTitleSubmissionData.find(item => item.id === studentId);
+            if (!student || !student.submission) {
+                openModal('Error', 'Submission data not found.');
+                return;
+            }
+            
+            // Generate and open PDF in new tab
+            generateFYPSubmissionPdf(studentId);
+        }
+        
+        function generateFYPSubmissionPdf(studentId) {
+            const student = fypTitleSubmissionData.find(item => item.id === studentId);
+            if (!student || !student.submission) {
+                openModal('Error', 'Submission data not found.');
+                return;
+            }
+            
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const sub = student.submission;
+            
+            // Load and add UPM logo
+            var img = new Image();
+            img.src = '../../../assets/UPMLogo.png';
+            img.onload = function() {
+                // Add logo centered at top
+                var logoWidth = 30;
+                var logoHeight = 20;
+                var pageWidth = 210;
+                var xPos = (pageWidth - logoWidth) / 2;
+                doc.addImage(img, 'PNG', xPos, 10, logoWidth, logoHeight);
+                
+                // Title
+                doc.setFontSize(18);
+                doc.setFont(undefined, 'bold');
+                doc.text('FYP Title Submission', 105, 35, { align: 'center' });
+                
+                // Line separator
+                doc.setLineWidth(0.5);
+                doc.line(20, 40, 190, 40);
+                
+                // Content
+                doc.setFontSize(12);
+                doc.setFont(undefined, 'normal');
+                
+                var yPos = 50;
+                var lineHeight = 10;
+                
+                // Course Information Section
+                doc.setFont(undefined, 'bold');
+                var courseInfoWidth = doc.getTextWidth('Course Information');
+                doc.text('Course Information', 20, yPos);
+                doc.setLineWidth(0.3);
+                doc.line(20, yPos + 1, 20 + courseInfoWidth, yPos + 1);
+                doc.setFont(undefined, 'normal');
+                yPos += lineHeight;
+                
+                doc.setFont(undefined, 'bold');
+                doc.text('Course Code:', 20, yPos);
+                doc.setFont(undefined, 'normal');
+                doc.text(sub.courseCode || 'N/A', 70, yPos);
+                yPos += lineHeight;
+                
+                doc.setFont(undefined, 'bold');
+                doc.text('Semester:', 20, yPos);
+                doc.setFont(undefined, 'normal');
+                doc.text((sub.fypSession || 'N/A') + ' - ' + (sub.semester || 'N/A'), 70, yPos);
+                yPos += lineHeight + 5;
+                
+                // Line separator
+                doc.setLineWidth(0.5);
+                doc.line(20, yPos, 190, yPos);
+                yPos += 10;
+                
+                // Student Information Section
+                doc.setFont(undefined, 'bold');
+                var studentInfoWidth = doc.getTextWidth('Student Information');
+                doc.text('Student Information', 20, yPos);
+                doc.setLineWidth(0.3);
+                doc.line(20, yPos + 1, 20 + studentInfoWidth, yPos + 1);
+                doc.setFont(undefined, 'normal');
+                yPos += lineHeight;
+                
+                doc.setFont(undefined, 'bold');
+                doc.text('Student Name:', 20, yPos);
+                doc.setFont(undefined, 'normal');
+                doc.text(sub.studentName || 'N/A', 70, yPos);
+                yPos += lineHeight;
+                
+                doc.setFont(undefined, 'bold');
+                doc.text('Matric No:', 20, yPos);
+                doc.setFont(undefined, 'normal');
+                doc.text(student.matricNo || 'N/A', 70, yPos);
+                yPos += lineHeight;
+                
+                doc.setFont(undefined, 'bold');
+                doc.text('Current Address:', 20, yPos);
+                doc.setFont(undefined, 'normal');
+                var addressLines = doc.splitTextToSize(sub.currentAddress || 'N/A', 120);
+                doc.text(addressLines, 70, yPos);
+                yPos += lineHeight * addressLines.length;
+                
+                doc.setFont(undefined, 'bold');
+                doc.text('Tel. No:', 20, yPos);
+                doc.setFont(undefined, 'normal');
+                doc.text(sub.telNo || 'N/A', 70, yPos);
+                yPos += lineHeight;
+                
+                doc.setFont(undefined, 'bold');
+                doc.text('Programme:', 20, yPos);
+                doc.setFont(undefined, 'normal');
+                var programmeLines = doc.splitTextToSize(sub.programme || 'N/A', 120);
+                doc.text(programmeLines, 70, yPos);
+                yPos += lineHeight * programmeLines.length;
+                
+                doc.setFont(undefined, 'bold');
+                doc.text('Minor:', 20, yPos);
+                doc.setFont(undefined, 'normal');
+                doc.text(sub.minor || 'N/A', 70, yPos);
+                yPos += lineHeight;
+                
+                doc.setFont(undefined, 'bold');
+                doc.text('CGPA:', 20, yPos);
+                doc.setFont(undefined, 'normal');
+                doc.text((sub.cgpa ? sub.cgpa.toString() : 'N/A'), 70, yPos);
+                yPos += lineHeight + 5;
+                
+                // Line separator
+                doc.setLineWidth(0.5);
+                doc.line(20, yPos, 190, yPos);
+                yPos += 10;
+                
+                // Project Information Section
+                doc.setFont(undefined, 'bold');
+                var projectInfoWidth = doc.getTextWidth('Project Information');
+                doc.text('Project Information', 20, yPos);
+                doc.setLineWidth(0.3);
+                doc.line(20, yPos + 1, 20 + projectInfoWidth, yPos + 1);
+                doc.setFont(undefined, 'normal');
+                yPos += lineHeight;
+                
+                doc.setFont(undefined, 'bold');
+                doc.text('Current Title:', 20, yPos);
+                doc.setFont(undefined, 'normal');
+                var currentTitleLines = doc.splitTextToSize(sub.projectTitle || 'N/A', 120);
+                doc.text(currentTitleLines, 70, yPos);
+                yPos += lineHeight * currentTitleLines.length;
+                
+                doc.setFont(undefined, 'bold');
+                doc.text('Proposed Title:', 20, yPos);
+                doc.setFont(undefined, 'normal');
+                var proposedTitleLines = doc.splitTextToSize(sub.proposedTitle || 'N/A', 120);
+                doc.text(proposedTitleLines, 70, yPos);
+                yPos += lineHeight * proposedTitleLines.length;
+                
+                doc.setFont(undefined, 'bold');
+                doc.text('Status:', 20, yPos);
+                doc.setFont(undefined, 'normal');
+                
+                // Set color based on status
+                if (sub.titleStatus === 'Approved') {
+                    doc.setTextColor(40, 167, 69); // Green
+                } else if (sub.titleStatus === 'Rejected') {
+                    doc.setTextColor(220, 53, 69); // Red
+                } else {
+                    doc.setTextColor(212, 175, 55); // Gold for Waiting
+                }
+                doc.setFont(undefined, 'bold');
+                doc.text(student.statusDisplay || 'N/A', 70, yPos);
+                doc.setTextColor(0, 0, 0); // Reset to black
+                doc.setFont(undefined, 'normal');
+                yPos += lineHeight + 5;
+                
+                // Line separator
+                doc.setLineWidth(0.5);
+                doc.line(20, yPos, 190, yPos);
+                yPos += 10;
+                
+                // Supervisor Information Section
+                doc.setFont(undefined, 'bold');
+                var supervisorInfoWidth = doc.getTextWidth('Supervisor Information');
+                doc.text('Supervisor Information', 20, yPos);
+                doc.setLineWidth(0.3);
+                doc.line(20, yPos + 1, 20 + supervisorInfoWidth, yPos + 1);
+                doc.setFont(undefined, 'normal');
+                yPos += lineHeight;
+                
+                doc.setFont(undefined, 'bold');
+                doc.text('Supervisor Name:', 20, yPos);
+                doc.setFont(undefined, 'normal');
+                doc.text(sub.supervisorName || 'N/A', 70, yPos);
+                yPos += lineHeight;
+                
+                // Footer
+                doc.setFontSize(8);
+                doc.setFont(undefined, 'normal');
+                doc.text('Generated on: ' + new Date().toLocaleString(), 105, 280, { align: 'center' });
+                doc.text('FYPAssess - Final Year Project Assessment System', 105, 285, { align: 'center' });
+                
+                // Open PDF in new window
+                window.open(doc.output('bloburl'), '_blank');
+            };
+            
+            // Fallback without logo
+            img.onerror = function() {
+                doc.setFontSize(18);
+                doc.setFont(undefined, 'bold');
+                doc.text('FYP Title Submission', 105, 20, { align: 'center' });
+                
+                doc.setLineWidth(0.5);
+                doc.line(20, 25, 190, 25);
+                
+                doc.setFontSize(12);
+                doc.setFont(undefined, 'normal');
+                
+                var yPos = 35;
+                var lineHeight = 10;
+                
+                // Course Information
+                doc.setFont(undefined, 'bold');
+                var courseInfoWidth = doc.getTextWidth('Course Information');
+                doc.text('Course Information', 20, yPos);
+                doc.setLineWidth(0.3);
+                doc.line(20, yPos + 1, 20 + courseInfoWidth, yPos + 1);
+                doc.setFont(undefined, 'normal');
+                yPos += lineHeight;
+                
+                doc.setFont(undefined, 'bold');
+                doc.text('Course Code:', 20, yPos);
+                doc.setFont(undefined, 'normal');
+                doc.text(sub.courseCode || 'N/A', 70, yPos);
+                yPos += lineHeight;
+                
+                doc.setFont(undefined, 'bold');
+                doc.text('Semester:', 20, yPos);
+                doc.setFont(undefined, 'normal');
+                doc.text((sub.fypSession || 'N/A') + ' - ' + (sub.semester || 'N/A'), 70, yPos);
+                yPos += lineHeight + 5;
+                
+                doc.setLineWidth(0.5);
+                doc.line(20, yPos, 190, yPos);
+                yPos += 10;
+                
+                // Student Information
+                doc.setFont(undefined, 'bold');
+                var studentInfoWidth = doc.getTextWidth('Student Information');
+                doc.text('Student Information', 20, yPos);
+                doc.setLineWidth(0.3);
+                doc.line(20, yPos + 1, 20 + studentInfoWidth, yPos + 1);
+                doc.setFont(undefined, 'normal');
+                yPos += lineHeight;
+                
+                doc.setFont(undefined, 'bold');
+                doc.text('Student Name:', 20, yPos);
+                doc.setFont(undefined, 'normal');
+                doc.text(sub.studentName || 'N/A', 70, yPos);
+                yPos += lineHeight;
+                
+                doc.setFont(undefined, 'bold');
+                doc.text('Matric No:', 20, yPos);
+                doc.setFont(undefined, 'normal');
+                doc.text(student.matricNo || 'N/A', 70, yPos);
+                yPos += lineHeight;
+                
+                doc.setFont(undefined, 'bold');
+                doc.text('Current Address:', 20, yPos);
+                doc.setFont(undefined, 'normal');
+                var addressLines = doc.splitTextToSize(sub.currentAddress || 'N/A', 120);
+                doc.text(addressLines, 70, yPos);
+                yPos += lineHeight * addressLines.length;
+                
+                doc.setFont(undefined, 'bold');
+                doc.text('Tel. No:', 20, yPos);
+                doc.setFont(undefined, 'normal');
+                doc.text(sub.telNo || 'N/A', 70, yPos);
+                yPos += lineHeight;
+                
+                doc.setFont(undefined, 'bold');
+                doc.text('Programme:', 20, yPos);
+                doc.setFont(undefined, 'normal');
+                var programmeLines = doc.splitTextToSize(sub.programme || 'N/A', 120);
+                doc.text(programmeLines, 70, yPos);
+                yPos += lineHeight * programmeLines.length;
+                
+                doc.setFont(undefined, 'bold');
+                doc.text('Minor:', 20, yPos);
+                doc.setFont(undefined, 'normal');
+                doc.text(sub.minor || 'N/A', 70, yPos);
+                yPos += lineHeight;
+                
+                doc.setFont(undefined, 'bold');
+                doc.text('CGPA:', 20, yPos);
+                doc.setFont(undefined, 'normal');
+                doc.text((sub.cgpa ? sub.cgpa.toString() : 'N/A'), 70, yPos);
+                yPos += lineHeight + 5;
+                
+                doc.setLineWidth(0.5);
+                doc.line(20, yPos, 190, yPos);
+                yPos += 10;
+                
+                // Project Information
+                doc.setFont(undefined, 'bold');
+                var projectInfoWidth = doc.getTextWidth('Project Information');
+                doc.text('Project Information', 20, yPos);
+                doc.setLineWidth(0.3);
+                doc.line(20, yPos + 1, 20 + projectInfoWidth, yPos + 1);
+                doc.setFont(undefined, 'normal');
+                yPos += lineHeight;
+                
+                doc.setFont(undefined, 'bold');
+                doc.text('Current Title:', 20, yPos);
+                doc.setFont(undefined, 'normal');
+                var currentTitleLines = doc.splitTextToSize(sub.projectTitle || 'N/A', 120);
+                doc.text(currentTitleLines, 70, yPos);
+                yPos += lineHeight * currentTitleLines.length;
+                
+                doc.setFont(undefined, 'bold');
+                doc.text('Proposed Title:', 20, yPos);
+                doc.setFont(undefined, 'normal');
+                var proposedTitleLines = doc.splitTextToSize(sub.proposedTitle || 'N/A', 120);
+                doc.text(proposedTitleLines, 70, yPos);
+                yPos += lineHeight * proposedTitleLines.length;
+                
+                doc.setFont(undefined, 'bold');
+                doc.text('Status:', 20, yPos);
+                doc.setFont(undefined, 'normal');
+                
+                // Set color based on status
+                if (sub.titleStatus === 'Approved') {
+                    doc.setTextColor(40, 167, 69);
+                } else if (sub.titleStatus === 'Rejected') {
+                    doc.setTextColor(220, 53, 69);
+                } else {
+                    doc.setTextColor(212, 175, 55);
+                }
+                doc.setFont(undefined, 'bold');
+                doc.text(student.statusDisplay || 'N/A', 70, yPos);
+                doc.setTextColor(0, 0, 0);
+                doc.setFont(undefined, 'normal');
+                yPos += lineHeight + 5;
+                
+                doc.setLineWidth(0.5);
+                doc.line(20, yPos, 190, yPos);
+                yPos += 10;
+                
+                // Supervisor Information
+                doc.setFont(undefined, 'bold');
+                var supervisorInfoWidth = doc.getTextWidth('Supervisor Information');
+                doc.text('Supervisor Information', 20, yPos);
+                doc.setLineWidth(0.3);
+                doc.line(20, yPos + 1, 20 + supervisorInfoWidth, yPos + 1);
+                doc.setFont(undefined, 'normal');
+                yPos += lineHeight;
+                
+                doc.setFont(undefined, 'bold');
+                doc.text('Supervisor Name:', 20, yPos);
+                doc.setFont(undefined, 'normal');
+                doc.text(sub.supervisorName || 'N/A', 70, yPos);
+                yPos += lineHeight;
+                
+                doc.setFontSize(8);
+                doc.setFont(undefined, 'normal');
+                doc.text('Generated on: ' + new Date().toLocaleString(), 105, 280, { align: 'center' });
+                doc.text('FYPAssess - Final Year Project Assessment System', 105, 285, { align: 'center' });
+                
+                window.open(doc.output('bloburl'), '_blank');
+            };
+        }
+        
+        function oldOpenFYPFormModalCode(studentId) {
             const modal = document.getElementById('fypFormModal');
             if (!modal) return;
 
@@ -1367,13 +1896,7 @@
             openModal('Download Started', `Downloading ${studentsWithSubmissions.length} PDF file(s). Please check your downloads folder.`);
         }
 
-        function downloadFYPFormPDF(studentId) {
-            const student = fypTitleSubmissionData.find(item => item.id === studentId);
-            if (!student || !student.submission) {
-                openModal('Error', 'Submission data not found.');
-                return;
-            }
-
+        function createFYPFormPDFDoc(student) {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF('p', 'pt', 'a4');
             const sub = student.submission;
@@ -1435,7 +1958,7 @@
             doc.text(titleText, (pageWidth - titleWidth) / 2, yPos);
             doc.setFont('helvetica', 'normal');
             doc.setFontSize(9);
-            const semesterText = `(SEMESTER ${sub.semester} SESSION 2024/2025)`;
+            const semesterText = `(SEMESTER ${sub.semester} SESSION ${sub.fypSession})`;
             const semesterWidth = doc.getTextWidth(semesterText);
             doc.text(semesterText, (pageWidth - semesterWidth) / 2, yPos + 15);
 
@@ -1458,6 +1981,14 @@
             }
 
             // Course Information
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(10);
+            var courseInfoWidth = doc.getTextWidth('Course Information');
+            doc.text('Course Information', margin, yPos);
+            doc.setLineWidth(0.3);
+            doc.line(margin, yPos + 2, margin + courseInfoWidth, yPos + 2);
+            yPos += lineHeight;
+            doc.setFontSize(9);
             drawFormField('Course Title', sub.courseTitle, yPos);
             yPos += lineHeight;
             drawFormField('Course Code', sub.courseCode, yPos);
@@ -1472,6 +2003,14 @@
             yPos += sectionSpacing;
 
             // Student Information
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(10);
+            var studentInfoWidth = doc.getTextWidth('Student Information');
+            doc.text('Student Information', margin, yPos);
+            doc.setLineWidth(0.3);
+            doc.line(margin, yPos + 2, margin + studentInfoWidth, yPos + 2);
+            yPos += lineHeight;
+            doc.setFontSize(9);
             drawFormField('Student\'s Name', sub.studentName, yPos);
             yPos += lineHeight;
             drawFormField('Matric No.', student.matricNo, yPos);
@@ -1483,61 +2022,52 @@
             drawFormField('Programme', sub.programme, yPos);
             yPos += lineHeight;
             drawFormField('Minor (If Related)', sub.minor, yPos);
-            yPos += sectionSpacing;
-
-            // Divider
-            doc.line(margin, yPos, pageWidth - margin, yPos);
-            yPos += sectionSpacing;
-
-            // Dissertation/Project Details
+            yPos += lineHeight;
             drawFormField('CGPA', sub.cgpa, yPos);
-            yPos += lineHeight;
-            drawFormField('Dissertation/Project Title', sub.dissertationTitle, yPos);
-            yPos += lineHeight;
-            drawFormField('First Choice', sub.firstChoice, yPos);
-            yPos += lineHeight;
-            drawFormField('Second Choice', sub.secondChoice, yPos);
-            yPos += lineHeight;
-            drawFormField('Third Choice', sub.thirdChoice, yPos);
             yPos += sectionSpacing;
 
             // Divider
             doc.line(margin, yPos, pageWidth - margin, yPos);
             yPos += sectionSpacing;
 
-            // Signature Section
-            const sigLineStart = margin + 150;
-            const sigLineEnd = pageWidth - margin - 200;
-            const dateLineStart = pageWidth - margin - 150;
-            const dateLineEnd = pageWidth - margin;
-
-            // Student Signature and Date
+            // Project Information
             doc.setFont('helvetica', 'bold');
-            doc.text('Student\' Signature:', margin, yPos);
-            doc.line(sigLineStart, yPos + 3, sigLineEnd, yPos + 3);
-            doc.text('Date:', dateLineStart, yPos);
-            doc.line(dateLineStart + 30, yPos + 3, dateLineEnd, yPos + 3);
-            yPos += lineHeight + 5;
+            doc.setFontSize(10);
+            var projectInfoWidth = doc.getTextWidth('Project Information');
+            doc.text('Project Information', margin, yPos);
+            doc.setLineWidth(0.3);
+            doc.line(margin, yPos + 2, margin + projectInfoWidth, yPos + 2);
+            yPos += lineHeight;
+            doc.setFontSize(9);
+            drawFormField('Current Title', sub.currentTitle, yPos);
+            yPos += lineHeight;
+            drawFormField('Proposed Title', sub.proposedTitle, yPos);
+            yPos += lineHeight;
+            drawFormField('Status of Proposed Title', sub.titleStatus, yPos);
+            yPos += lineHeight;
+            drawFormField('Supervisor Name', sub.supervisorName, yPos);
 
-            // Lecturer/SV and Coordinator Signature
-            doc.text('Lecturer\'s/SV\'s Signature:', margin, yPos);
-            doc.line(sigLineStart, yPos + 3, sigLineEnd, yPos + 3);
-            doc.text('Coordinator\'s Signature:', dateLineStart, yPos);
-            doc.line(dateLineStart + 30, yPos + 3, dateLineEnd, yPos + 3);
-            yPos += lineHeight + 5;
+            return doc;
+        }
 
-            // Lecturer Name and Date
-            doc.text('Lecturer\'s Name:', margin, yPos);
-            doc.line(sigLineStart, yPos + 3, sigLineEnd, yPos + 3);
-            doc.text('Date:', dateLineStart, yPos);
-            doc.line(dateLineStart + 30, yPos + 3, dateLineEnd, yPos + 3);
-            yPos += lineHeight + 5;
+        function viewFYPFormPDF(studentId) {
+            const student = fypTitleSubmissionData.find(item => String(item.id) === String(studentId));
+            if (!student || !student.submission) {
+                openModal('Error', 'Submission data not found.');
+                return;
+            }
+            const doc = createFYPFormPDFDoc(student);
+            const pdfUrl = doc.output('bloburl');
+            window.open(pdfUrl, '_blank');
+        }
 
-            // Coordinator Date
-            doc.text('Date:', dateLineStart, yPos);
-            doc.line(dateLineStart + 30, yPos + 3, dateLineEnd, yPos + 3);
-
-            // Save PDF
+        function downloadFYPFormPDF(studentId) {
+            const student = fypTitleSubmissionData.find(item => String(item.id) === String(studentId));
+            if (!student || !student.submission) {
+                openModal('Error', 'Submission data not found.');
+                return;
+            }
+            const doc = createFYPFormPDFDoc(student);
             const filename = `FYP_Registration_${student.matricNo}_${student.name.replace(/\s+/g, '_')}.pdf`;
             doc.save(filename);
         }

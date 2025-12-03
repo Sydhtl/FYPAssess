@@ -124,3 +124,84 @@ if (!empty($fypSessionIds)) {
 
 // Encode lecturer data as JSON for JavaScript
 $lecturerDataJson = json_encode($lecturerData);
+
+// Fetch students for the selected sessions and same department as coordinator with submission status
+$studentsData = [];
+if (!empty($fypSessionIds)) {
+    $placeholders = implode(',', array_fill(0, count($fypSessionIds), '?'));
+    
+    // Query to get students with their FYP title submission status and related info
+    $studentsQuery = "SELECT 
+                        s.Student_ID,
+                        s.Student_Name,
+                        s.FYP_Session_ID,
+                        s.Address,
+                        s.Phone_No,
+                        s.Minor,
+                        s.CGPA,
+                        s.Semester AS Student_Semester,
+                        fs.FYP_Session,
+                        c.Course_Code,
+                        d.Department_Name,
+                        fp.Title_Status,
+                        fp.Project_Title,
+                        fp.Proposed_Title,
+                        lec.Lecturer_Name AS Supervisor_Name
+                      FROM student s
+                      LEFT JOIN fyp_project fp ON s.Student_ID = fp.Student_ID
+                      LEFT JOIN fyp_session fs ON s.FYP_Session_ID = fs.FYP_Session_ID
+                      LEFT JOIN course c ON fs.Course_ID = c.Course_ID
+                      LEFT JOIN department d ON s.Department_ID = d.Department_ID
+                      LEFT JOIN supervisor sup ON s.Supervisor_ID = sup.Supervisor_ID
+                      LEFT JOIN lecturer lec ON sup.Lecturer_ID = lec.Lecturer_ID
+                      WHERE s.FYP_Session_ID IN ($placeholders)
+                      AND s.Department_ID = (
+                          SELECT Department_ID FROM lecturer WHERE Lecturer_ID = ?
+                      )
+                      ORDER BY s.Student_Name";
+
+    if ($stmt = $conn->prepare($studentsQuery)) {
+        $types = str_repeat('i', count($fypSessionIds)) . 's';
+        $params = array_merge($fypSessionIds, [$userId]);
+        $stmt->bind_param($types, ...$params);
+
+        if ($stmt->execute()) {
+            $result = $stmt->get_result();
+            while ($row = $result->fetch_assoc()) {
+                // Determine submission status based on Title_Status field
+                $titleStatus = $row['Title_Status'];
+                $submissionStatus = 'Not Submitted';
+                
+                if ($titleStatus === 'Approved') {
+                    $submissionStatus = 'Approved';
+                } elseif ($titleStatus === 'Rejected') {
+                    $submissionStatus = 'Rejected';
+                } elseif (!empty($titleStatus) && !empty($row['Proposed_Title'])) {
+                    $submissionStatus = 'Waiting for Approval';
+                }
+                
+                $studentsData[] = [
+                    'id' => $row['Student_ID'],
+                    'name' => $row['Student_Name'],
+                    'fypSessionId' => $row['FYP_Session_ID'],
+                    'status' => $submissionStatus,
+                    'projectTitle' => $row['Project_Title'],
+                    'proposedTitle' => $row['Proposed_Title'],
+                    'titleStatus' => $titleStatus,
+                    'courseCode' => $row['Course_Code'],
+                    'semester' => $row['Student_Semester'],
+                    'fypSession' => $row['FYP_Session'],
+                    'address' => $row['Address'],
+                    'phone' => $row['Phone_No'],
+                    'programme' => $row['Department_Name'],
+                    'minor' => $row['Minor'],
+                    'cgpa' => $row['CGPA'],
+                    'supervisorName' => $row['Supervisor_Name']
+                ];
+            }
+        }
+        $stmt->close();
+    }
+}
+
+$studentsDataJson = json_encode($studentsData);
