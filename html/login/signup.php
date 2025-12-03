@@ -17,7 +17,7 @@
     <div class="left">
         <div class="container1">
             <img src="../../assets/UPM Logoo.jpg" alt="UPM" width="300px" height="200px"> <br>
-            <b class="title">FYPAsses</b>
+            <b class="title">FYPAssess</b>
             <P class="fulltitle">Final Year Project Assessment System</P>
             <div class="description">Student and Lecturers FYP Portal</div>
         </div>
