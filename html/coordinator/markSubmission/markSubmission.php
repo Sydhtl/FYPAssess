@@ -802,20 +802,25 @@
             const courseFilter = document.getElementById('fypCourseFilter');
             if (!courseFilter) return;
 
-            // Get unique FYP Session IDs from the data
-            const uniqueSessions = [...new Set(fypTitleSubmissionData.map(s => s.fypSessionId))];
-            
-            // Clear existing options except "All Courses"
-            courseFilter.innerHTML = '<option value="all">All Courses</option>';
-            
-            // Add option for each unique session
-            uniqueSessions.forEach(sessionId => {
-                if (sessionId) {
-                    const option = document.createElement('option');
-                    option.value = sessionId;
-                    option.textContent = `Course ID: ${sessionId}`;
-                    courseFilter.appendChild(option);
+            // Build a map of FYP_Session_ID -> Course_Code so we can
+            // show the actual course code in the dropdown while still
+            // filtering by the underlying session ID.
+            const sessionToCourseCode = new Map();
+            fypTitleSubmissionData.forEach(s => {
+                if (s.fypSessionId && s.courseCode && !sessionToCourseCode.has(s.fypSessionId)) {
+                    sessionToCourseCode.set(s.fypSessionId, s.courseCode);
                 }
+            });
+
+            // Clear existing options and keep only the "All Courses" default
+            courseFilter.innerHTML = '<option value="all">All Courses</option>';
+
+            // Add option for each unique session, displaying the course code
+            sessionToCourseCode.forEach((courseCode, sessionId) => {
+                const option = document.createElement('option');
+                option.value = sessionId;        // still filter by session ID
+                option.textContent = courseCode; // show course code to the user
+                courseFilter.appendChild(option);
             });
         }
 
@@ -1498,7 +1503,8 @@
                 doc.setFont(undefined, 'bold');
                 doc.text('Current Title:', 20, yPos);
                 doc.setFont(undefined, 'normal');
-                var currentTitleLines = doc.splitTextToSize(sub.projectTitle || 'N/A', 120);
+                // Use the current title that comes from fyp_project.Project_Title via backend (student.projectTitle)
+                var currentTitleLines = doc.splitTextToSize(sub.currentTitle || 'N/A', 120);
                 doc.text(currentTitleLines, 70, yPos);
                 yPos += lineHeight * currentTitleLines.length;
                 

@@ -213,8 +213,23 @@ if (!empty($fypSessionIds)) {
     }
 }
 
+// Fetch assessment data (Course_ID and Assessment_Name mapping)
+$assessmentData = [];
+$assessmentQuery = "SELECT Course_ID, Assessment_Name FROM assessment ORDER BY Course_ID, Assessment_Name";
+if ($result = $conn->query($assessmentQuery)) {
+    while ($row = $result->fetch_assoc()) {
+        $courseId = $row['Course_ID'];
+        if (!isset($assessmentData[$courseId])) {
+            $assessmentData[$courseId] = [];
+        }
+        $assessmentData[$courseId][] = $row['Assessment_Name'];
+    }
+    $result->free();
+}
+
 $studentsDataJson = json_encode($studentsData);
 $courseFilterOptionsJson = json_encode($courseFilterOptions);
+$assessmentDataJson = json_encode($assessmentData);
 ?>
 <!DOCTYPE html>
 <html>
@@ -362,6 +377,7 @@ $courseFilterOptionsJson = json_encode($courseFilterOptions);
             <div class="tab-buttons">
                 <button class="task-tab active-tab" data-tab="quota">Lecturer Quota Assignation</button>
                 <button class="task-tab" data-tab="distribution">Student Distribution</button>
+                <button class="task-tab" data-tab="assessment">Assessment Session</button>
             </div>
 
             <div class="task-list-area">
@@ -548,6 +564,106 @@ $courseFilterOptionsJson = json_encode($courseFilterOptions);
                         </div>
                     </div>
                 </div>
+
+                <!-- Assessment Session Tab -->
+                <div class="task-group" data-group="assessment">
+                    <div class="quota-table-container">
+                        <!-- Top Action Bar -->
+                        <div class="top-action-bar">
+                            <!-- Left Actions: Search + Course Filter -->
+                            <div class="left-actions">
+                                <div class="search-section">
+                                    <i class="bi bi-search"></i>
+                                    <input type="text" id="assessmentStudentSearch" placeholder="Search student name..." />
+                                </div>
+                                <div class="course-filter-section">
+                                    <label for="assessmentCourseFilter" class="filter-label">Course</label>
+                                    <div class="download-dropdown course-filter-dropdown">
+                                        <button class="btn-download" type="button" onclick="toggleAssessmentCourseFilterDropdown()">
+                                            <span id="assessmentCourseFilterLabel">Both</span>
+                                            <i class="bi bi-chevron-down dropdown-arrow"></i>
+                                        </button>
+                                        <div class="download-dropdown-menu" id="assessmentCourseFilterMenu">
+                                            <a href="javascript:void(0)" class="download-option" data-course-id="both">
+                                                <span>Both</span>
+                                            </a>
+                                            <?php foreach ($courseFilterOptions as $courseOpt): ?>
+                                                <a href="javascript:void(0)" class="download-option" data-course-id="<?php echo htmlspecialchars($courseOpt['Course_ID']); ?>">
+                                                    <span><?php echo htmlspecialchars($courseOpt['Course_Code']); ?></span>
+                                                </a>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="sort-section">
+                                    <label for="assessmentSortBy" class="filter-label">Sort By</label>
+                                    <select id="assessmentSortBy" class="sort-dropdown" onchange="sortAssessmentTable()">
+                                        <option value="">All Dates</option>
+                                        <!-- Date options will be populated dynamically -->
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <!-- Right Actions: Buttons -->
+                            <div class="right-actions">
+                                <button class="btn-clear-all" onclick="clearAllAssessmentSessions()">
+                                    <i class="bi bi-x-circle"></i>
+                                    <span>Clear All</span>
+                                </button>
+                                <button class="btn-assign" onclick="openAssignAssessmentModal()">
+                                    <i class="bi bi-arrow-repeat"></i>
+                                    <span>Assign Remaining Automatically</span>
+                                </button>
+                                <div class="download-dropdown">
+                                    <button class="btn-download" onclick="toggleAssessmentDownloadDropdown()">
+                                        <i class="bi bi-download"></i>
+                                        <span>Download as...</span>
+                                        <i class="bi bi-chevron-down dropdown-arrow"></i>
+                                    </button>
+                                    <div class="download-dropdown-menu" id="assessmentDownloadDropdown">
+                                        <a href="javascript:void(0)" onclick="downloadAssessmentAsPDF(); closeAssessmentDownloadDropdown();" class="download-option">
+                                            <i class="bi bi-file-earmark-pdf"></i>
+                                            <span>Download as PDF</span>
+                                        </a>
+                                        <a href="javascript:void(0)" onclick="downloadAssessmentAsExcel(); closeAssessmentDownloadDropdown();" class="download-option">
+                                            <i class="bi bi-file-earmark-excel"></i>
+                                            <span>Download as Excel</span>
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Scrollable Table Container -->
+                        <div class="table-scroll-container">
+                            <table class="quota-table" id="assessmentSessionTable">
+                                <thead>
+                                    <tr>
+                                        <th>No.</th>
+                                        <th>Student Name</th>
+                                        <th>Date</th>
+                                        <th>Time</th>
+                                        <th>Venue</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="assessmentTableBody">
+                                    <!-- Table rows will be populated by JavaScript -->
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Sticky Footer -->
+                        <div class="table-footer">
+                            <div class="remaining-student">
+                                Total Students: <span id="assessmentStudentCount"><?php echo $totalStudents; ?></span>
+                            </div>
+                            <div class="actions">
+                                <button class="btn btn-light border" onclick="resetAssessmentSessions()">Cancel</button>
+                                <button class="btn btn-success" onclick="saveAssessmentSessions()">Save</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -648,6 +764,55 @@ $courseFilterOptionsJson = json_encode($courseFilterOptions);
         let totalStudents = students.length;
         let openDropdown = null; // Track which dropdown is currently open
 
+        // --- ASSESSMENT SESSION ---
+        // Assessment data from PHP (Course_ID -> Assessment_Name mapping)
+        const assessmentData = <?php echo $assessmentDataJson; ?>;
+        
+        // Assessment session data - initialize from students with supervisor and assessor info
+        // Will be loaded from database after page loads
+        let assessmentSessionData = students.map(student => ({
+            id: student.id,
+            name: student.name,
+            course_id: student.course_id,
+            course_code: student.course_code,
+            supervisor: student.supervisor,
+            assessor1: student.assessor1,
+            assessor2: student.assessor2,
+            date: '',
+            time: '',
+            venue: '',
+            assessment_name: assessmentData[student.course_id] ? assessmentData[student.course_id][0] : 'Assessment' // Get first assessment name for the course
+        }));
+        
+        // Load assessment session data from database
+        function loadAssessmentSessionsFromDatabase() {
+            fetch(`../../../php/phpCoordinator/fetch_assessment_sessions.php?year=${encodeURIComponent(selectedYear)}&semester=${encodeURIComponent(selectedSemester)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.sessions) {
+                        // Update assessmentSessionData with data from database
+                        data.sessions.forEach(session => {
+                            const assessmentStudent = assessmentSessionData.find(s => String(s.id) === String(session.student_id));
+                            if (assessmentStudent) {
+                                assessmentStudent.date = session.date || '';
+                                assessmentStudent.time = session.time || '';
+                                assessmentStudent.venue = session.venue || '';
+                            }
+                        });
+                        
+                        // Update filtered students and re-render table
+                        applyAssessmentFilters();
+                        populateDateSortDropdown();
+                        renderAssessmentTable();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading assessment sessions:', error);
+                });
+        }
+        let filteredAssessmentStudents = [...assessmentSessionData];
+        let currentAssessmentCourseFilter = 'both'; // 'both' or specific Course_ID
+
         // Initialize page
         document.addEventListener('DOMContentLoaded', function() {
             renderLecturerTable();
@@ -656,6 +821,9 @@ $courseFilterOptionsJson = json_encode($courseFilterOptions);
             initializeSearch();
             initializeRoleToggle();
             initializeStudentDistribution();
+            initializeAssessmentSession();
+            // Load assessment session data from database
+            loadAssessmentSessionsFromDatabase();
         });
 
         // Render lecturer table
@@ -1333,12 +1501,37 @@ $courseFilterOptionsJson = json_encode($courseFilterOptions);
                     taskGroups.forEach(group => {
                         if (group.getAttribute('data-group') === tabName) {
                             group.classList.add('active');
+                            // Render assessment table if switching to assessment tab
+                            if (tabName === 'assessment') {
+                                // Sync assessment session data with current student distribution
+                                syncAssessmentSessionData();
+                                // Reload assessment session data from database to show current state
+                                loadAssessmentSessionsFromDatabase();
+                            }
                         } else {
                             group.classList.remove('active');
                         }
                     });
+                    
+                    // Close all dropdowns when switching tabs
+                    closeAllDropdowns();
                 });
             });
+        }
+        
+        // Close all dropdowns helper
+        function closeAllDropdowns() {
+            document.querySelectorAll('.download-dropdown-menu.show').forEach(menu => menu.classList.remove('show'));
+            document.querySelectorAll('.btn-download.active').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.assign-dropdown-menu.show').forEach(menu => menu.classList.remove('show'));
+            document.querySelectorAll('.assign-dropdown .btn-assign.active').forEach(btn => btn.classList.remove('active'));
+            if (openDropdown) {
+                const openDropdownElement = document.getElementById(openDropdown);
+                if (openDropdownElement) {
+                    openDropdownElement.classList.remove('show');
+                    openDropdown = null;
+                }
+            }
         }
 
         // Initialize search
@@ -2427,6 +2620,1310 @@ $courseFilterOptionsJson = json_encode($courseFilterOptions);
             downloadModal.querySelector('#closeDownloadModal').onclick = closeDownloadModal;
             downloadModal.querySelector('#okDownload').onclick = closeDownloadModal;
             openDownloadModal();
+        }
+
+        // --- ASSESSMENT SESSION FUNCTIONS ---
+        
+        // Initialize Assessment Session
+        function initializeAssessmentSession() {
+            currentAssessmentCourseFilter = 'both';
+            applyAssessmentFilters();
+            initializeAssessmentSearch();
+            updateAssessmentStudentCount();
+            
+            // Initialize course filter dropdown
+            const assessmentCourseFilterMenu = document.getElementById('assessmentCourseFilterMenu');
+            const assessmentCourseFilterLabel = document.getElementById('assessmentCourseFilterLabel');
+            if (assessmentCourseFilterMenu && assessmentCourseFilterLabel) {
+                assessmentCourseFilterMenu.addEventListener('click', function(e) {
+                    const option = e.target.closest('.download-option');
+                    if (!option) return;
+                    const courseId = option.getAttribute('data-course-id') || 'both';
+                    const labelText = (option.querySelector('span')?.textContent || 'Both').trim();
+                    currentAssessmentCourseFilter = courseId;
+                    assessmentCourseFilterLabel.textContent = labelText;
+                    applyAssessmentFilters();
+                    closeAssessmentCourseFilterDropdown();
+                });
+            }
+            
+            // Initialize sort dropdown with dates
+            populateDateSortDropdown();
+            const sortDropdown = document.getElementById('assessmentSortBy');
+            if (sortDropdown) {
+                sortDropdown.value = ''; // Default to "All Dates"
+                sortAssessmentTable();
+            }
+        }
+
+        // Apply search + course filters to assessment students
+        function applyAssessmentFilters() {
+            const courseIdFilter = currentAssessmentCourseFilter;
+            const searchInput = document.getElementById('assessmentStudentSearch');
+            const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
+
+            filteredAssessmentStudents = assessmentSessionData.filter(student => {
+                // Course filter
+                if (courseIdFilter !== 'both') {
+                    if (String(student.course_id) !== String(courseIdFilter)) {
+                        return false;
+                    }
+                }
+                // Name search filter
+                if (searchTerm) {
+                    return (student.name || '').toLowerCase().includes(searchTerm);
+                }
+                return true;
+            });
+
+            // Repopulate date dropdown when filters change
+            populateDateSortDropdown();
+            
+            renderAssessmentTable();
+            updateAssessmentStudentCount();
+            // Apply sorting after filtering
+            sortAssessmentTable();
+        }
+
+        // Initialize assessment search
+        function initializeAssessmentSearch() {
+            const searchInput = document.getElementById('assessmentStudentSearch');
+            if (!searchInput) return;
+
+            searchInput.addEventListener('input', function() {
+                applyAssessmentFilters();
+            });
+        }
+
+        // Render assessment table
+        function renderAssessmentTable() {
+            const tbody = document.getElementById('assessmentTableBody');
+            if (!tbody) {
+                console.error('Assessment table body not found');
+                return;
+            }
+            
+            tbody.innerHTML = '';
+
+            if (!filteredAssessmentStudents || filteredAssessmentStudents.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No students available</td></tr>';
+                return;
+            }
+
+            // Venue options for dropdown
+            const venueOptions = [
+                'Lab 1',
+                'Lab 2',
+                'Lab 3',
+                'Lecture Hall A',
+                'Lecture Hall B',
+                'Lecture Hall C',
+                'Seminar Room 1',
+                'Seminar Room 2',
+                'Seminar Room 3',
+                'Conference Room 1',
+                'Conference Room 2',
+                'Online',
+                'Other'
+            ];
+
+            filteredAssessmentStudents.forEach((student, index) => {
+                const row = document.createElement('tr');
+                const studentId = student.id;
+                
+                // Build venue dropdown options
+                let venueOptionsHTML = '<option value="">Select Venue</option>';
+                venueOptions.forEach(venue => {
+                    const selected = student.venue === venue ? 'selected' : '';
+                    venueOptionsHTML += `<option value="${venue}" ${selected}>${venue}</option>`;
+                });
+                
+                row.innerHTML = `
+                    <td>${index + 1}</td>
+                    <td>${student.name || 'Unknown'}</td>
+                    <td>
+                        <input type="date" 
+                               class="form-control assessment-date-input" 
+                               value="${student.date || ''}"
+                               data-student-id="${studentId}"
+                               onchange="updateAssessmentDate('${studentId}', this.value)" />
+                    </td>
+                    <td>
+                        <input type="time" 
+                               class="form-control assessment-time-input" 
+                               value="${student.time || ''}"
+                               data-student-id="${studentId}"
+                               onchange="updateAssessmentTime('${studentId}', this.value)" />
+                    </td>
+                    <td>
+                        <select class="form-control assessment-venue-select" 
+                                data-student-id="${studentId}"
+                                onchange="updateAssessmentVenue('${studentId}', this.value)">
+                            ${venueOptionsHTML}
+                        </select>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // Update assessment date
+        function updateAssessmentDate(studentId, date) {
+            const student = assessmentSessionData.find(s => String(s.id) === String(studentId));
+            if (student) {
+                student.date = date;
+                // Repopulate date dropdown when date changes
+                populateDateSortDropdown();
+            }
+        }
+
+        // Update assessment time
+        function updateAssessmentTime(studentId, time) {
+            const student = assessmentSessionData.find(s => String(s.id) === String(studentId));
+            if (student) {
+                student.time = time;
+            }
+        }
+
+        // Update assessment venue
+        function updateAssessmentVenue(studentId, venue) {
+            const student = assessmentSessionData.find(s => String(s.id) === String(studentId));
+            if (student) {
+                student.venue = venue;
+            }
+        }
+
+        // Update assessment student count
+        function updateAssessmentStudentCount() {
+            const countElement = document.getElementById('assessmentStudentCount');
+            if (countElement) {
+                countElement.textContent = filteredAssessmentStudents.length;
+            }
+        }
+
+        // Toggle assessment course filter dropdown
+        function toggleAssessmentCourseFilterDropdown() {
+            const dropdown = document.getElementById('assessmentCourseFilterMenu');
+            const button = document.querySelector('.course-filter-dropdown .btn-download');
+
+            // Close other download dropdowns
+            document.querySelectorAll('.download-dropdown-menu.show').forEach(menu => {
+                if (menu !== dropdown) {
+                    menu.classList.remove('show');
+                }
+            });
+
+            document.querySelectorAll('.btn-download.active').forEach(btn => {
+                if (btn !== button) {
+                    btn.classList.remove('active');
+                }
+            });
+
+            if (dropdown) {
+                dropdown.classList.toggle('show');
+            }
+            if (button) {
+                button.classList.toggle('active');
+            }
+        }
+
+        function closeAssessmentCourseFilterDropdown() {
+            const dropdown = document.getElementById('assessmentCourseFilterMenu');
+            const button = document.querySelector('.course-filter-dropdown .btn-download');
+            if (dropdown) {
+                dropdown.classList.remove('show');
+            }
+            if (button) {
+                button.classList.remove('active');
+            }
+        }
+
+        // Populate date sort dropdown with unique dates from assessment session data
+        function populateDateSortDropdown() {
+            const sortDropdown = document.getElementById('assessmentSortBy');
+            if (!sortDropdown) return;
+            
+            // Get all unique dates from assessment session data
+            const uniqueDates = [...new Set(assessmentSessionData
+                .map(s => s.date)
+                .filter(d => d))].sort();
+            
+            // Clear existing options except "All Dates"
+            sortDropdown.innerHTML = '<option value="">All Dates</option>';
+            
+            // Add date options
+            uniqueDates.forEach(date => {
+                const option = document.createElement('option');
+                option.value = date;
+                // Format date for display (e.g., "2024-01-15" -> "Jan 15, 2024")
+                const dateObj = new Date(date);
+                const formattedDate = dateObj.toLocaleDateString('en-US', { 
+                    year: 'numeric', 
+                    month: 'short', 
+                    day: 'numeric' 
+                });
+                option.textContent = formattedDate;
+                sortDropdown.appendChild(option);
+            });
+        }
+
+        // Sort assessment table
+        let assessmentSortOrder = 'asc'; // 'asc' or 'desc'
+        function sortAssessmentTable() {
+            const selectedDate = document.getElementById('assessmentSortBy')?.value || '';
+            
+            // Filter by selected date if a date is selected
+            let studentsToSort = [...filteredAssessmentStudents];
+            if (selectedDate) {
+                studentsToSort = studentsToSort.filter(s => s.date === selectedDate);
+            }
+            
+            // Sort by date (from start to end), then by time, then by name
+            studentsToSort.sort((a, b) => {
+                let comparison = 0;
+                
+                // Sort by date first
+                if (a.date && b.date) {
+                    comparison = a.date.localeCompare(b.date);
+                } else if (a.date && !b.date) {
+                    comparison = -1;
+                } else if (!a.date && b.date) {
+                    comparison = 1;
+                } else {
+                    comparison = 0;
+                }
+                
+                // If same date, sort by time
+                if (comparison === 0 && a.time && b.time) {
+                    comparison = a.time.localeCompare(b.time);
+                } else if (comparison === 0 && a.time && !b.time) {
+                    comparison = -1;
+                } else if (comparison === 0 && !a.time && b.time) {
+                    comparison = 1;
+                }
+                
+                // If same date and time, sort by name
+                if (comparison === 0) {
+                    comparison = (a.name || '').localeCompare(b.name || '');
+                }
+                
+                return assessmentSortOrder === 'asc' ? comparison : -comparison;
+            });
+            
+            // Update filteredAssessmentStudents with sorted and filtered results
+            if (selectedDate) {
+                // If a date is selected, show only that date's students
+                filteredAssessmentStudents = studentsToSort;
+            } else {
+                // If "All Dates" is selected, show all students sorted by date
+                filteredAssessmentStudents = studentsToSort;
+            }
+            
+            renderAssessmentTable();
+        }
+
+        // Assign Assessment Sessions Modal
+        var assignAssessmentModal = document.createElement('div');
+        assignAssessmentModal.className = 'custom-modal';
+        assignAssessmentModal.id = 'assignAssessmentModal';
+        document.body.appendChild(assignAssessmentModal);
+
+        function openAssignAssessmentModal() {
+            // Count students without complete assessment session data
+            const studentsWithoutData = assessmentSessionData.filter(s => !s.date || !s.time || !s.venue);
+            const count = studentsWithoutData.length;
+
+            if (count === 0) {
+                assignAssessmentModal.innerHTML = `
+                    <div class="modal-dialog">
+                        <div class="modal-content-custom">
+                            <span class="close-btn" id="closeAssignAssessmentModal">&times;</span>
+                            <div class="modal-icon" style="color: #dc3545;"><i class="bi bi-exclamation-triangle-fill"></i></div>
+                            <div class="modal-title-custom">No Students to Assign</div>
+                            <div class="modal-message">All students already have assessment session data assigned (date, time, and venue).</div>
+                            <div style="display:flex; justify-content:center;">
+                                <button id="okNoStudents" class="btn btn-success" type="button">OK</button>
+                            </div>
+                        </div>
+                    </div>`;
+                assignAssessmentModal.querySelector('#closeAssignAssessmentModal').onclick = closeAssignAssessmentModal;
+                assignAssessmentModal.querySelector('#okNoStudents').onclick = closeAssignAssessmentModal;
+                openModal(assignAssessmentModal);
+                return;
+            }
+
+            // Show modal with date range inputs
+            assignAssessmentModal.innerHTML = `
+                <div class="modal-dialog" style="max-width: 500px;">
+                    <div class="modal-content-custom">
+                        <span class="close-btn" id="closeAssignAssessmentModal">&times;</span>
+                        <div class="modal-title-custom">Assign Assessment Sessions Automatically</div>
+                        <div class="modal-message" style="margin-bottom: 20px;">
+                            This will automatically assign assessment session data (date, time, and venue) to ${count} student(s) who don't have complete information.
+                        </div>
+                        <div style="margin-bottom: 15px;">
+                            <label for="startDate" style="display: block; margin-bottom: 5px; font-weight: 600; color: #333;">Start Date:</label>
+                            <input type="date" id="startDate" class="form-control" style="width: 100%; padding: 8px; border: 2px solid #ddd; border-radius: 8px; font-size: 14px;" required />
+                        </div>
+                        <div style="margin-bottom: 20px;">
+                            <label for="endDate" style="display: block; margin-bottom: 5px; font-weight: 600; color: #333;">End Date:</label>
+                            <input type="date" id="endDate" class="form-control" style="width: 100%; padding: 8px; border: 2px solid #ddd; border-radius: 8px; font-size: 14px;" required />
+                        </div>
+                        <div style="margin-top:15px; display:flex; gap:10px; justify-content:flex-end;">
+                            <button id="cancelAssignAssessment" class="btn btn-light border" type="button">Cancel</button>
+                            <button id="confirmAssignAssessment" class="btn btn-success" type="button">Assign</button>
+                        </div>
+                    </div>
+                </div>`;
+
+            assignAssessmentModal.querySelector('#closeAssignAssessmentModal').onclick = closeAssignAssessmentModal;
+            assignAssessmentModal.querySelector('#cancelAssignAssessment').onclick = closeAssignAssessmentModal;
+            assignAssessmentModal.querySelector('#confirmAssignAssessment').onclick = function() {
+                const startDate = document.getElementById('startDate').value;
+                const endDate = document.getElementById('endDate').value;
+                
+                if (!startDate || !endDate) {
+                    alert('Please select both start date and end date.');
+                    return;
+                }
+                
+                if (new Date(startDate) > new Date(endDate)) {
+                    alert('Start date must be before or equal to end date.');
+                    return;
+                }
+                
+                performAssignAssessmentSessions(startDate, endDate);
+            };
+            openModal(assignAssessmentModal);
+        }
+
+        function closeAssignAssessmentModal() {
+            closeModal(assignAssessmentModal);
+        }
+
+        // Sync assessment session data with current student distribution data
+        // This ensures assessment sessions use the latest supervisor and assessor assignments
+        function syncAssessmentSessionData() {
+            assessmentSessionData.forEach(assessmentStudent => {
+                const currentStudent = students.find(s => String(s.id) === String(assessmentStudent.id));
+                if (currentStudent) {
+                    // Update supervisor and assessors from current student distribution
+                    assessmentStudent.supervisor = currentStudent.supervisor;
+                    assessmentStudent.assessor1 = currentStudent.assessor1;
+                    assessmentStudent.assessor2 = currentStudent.assessor2;
+                }
+            });
+        }
+
+        // Perform automatic assignment of assessment sessions following student distribution 3-group logic
+        function performAssignAssessmentSessions(startDate, endDate) {
+            // IMPORTANT: Sync assessmentSessionData with current students data
+            // This ensures we use the latest supervisor and assessor assignments from student distribution
+            syncAssessmentSessionData();
+            
+            // Get students without complete assessment session data
+            const studentsNeedingAssignment = assessmentSessionData.filter(s => !s.date || !s.time || !s.venue);
+            
+            if (studentsNeedingAssignment.length === 0) {
+                closeAssignAssessmentModal();
+                return;
+            }
+
+            // Get unique supervisors from students who need assignment
+            const supervisorNames = [...new Set(studentsNeedingAssignment
+                .map(s => s.supervisor)
+                .filter(s => s))];
+            
+            if (supervisorNames.length === 0) {
+                alert('No supervisors found for students needing assignment. Please assign supervisors first.');
+                closeAssignAssessmentModal();
+                return;
+            }
+
+            // Use the SAME 3-group logic as student distribution
+            // Group supervisors into 3 groups (same as student distribution logic)
+            let lecturerGroups = [];
+            if (supervisorNames.length >= 3) {
+                // Group supervisors into 3 groups
+                const groupSize = Math.floor(supervisorNames.length / 3);
+                for (let i = 0; i < 3; i++) {
+                    const start = i * groupSize;
+                    const end = i === 2 ? supervisorNames.length : (i + 1) * groupSize;
+                    lecturerGroups.push(supervisorNames.slice(start, end));
+                }
+            } else {
+                // Less than 3 supervisors - create groups with available supervisors
+                for (let i = 0; i < supervisorNames.length; i++) {
+                    lecturerGroups.push([supervisorNames[i]]);
+                }
+                // Fill remaining groups with empty arrays
+                while (lecturerGroups.length < 3) {
+                    lecturerGroups.push([]);
+                }
+            }
+
+            // Group students by their supervisor's group (same as student distribution)
+            // This ensures we follow the student distribution grouping
+            const studentGroupsByDistribution = [[], [], []]; // 3 groups matching student distribution
+            
+            studentsNeedingAssignment.forEach(student => {
+                if (student.supervisor) {
+                    // Find which group the supervisor belongs to (same logic as student distribution)
+                    let supervisorGroupIndex = -1;
+                    for (let i = 0; i < lecturerGroups.length; i++) {
+                        if (lecturerGroups[i].includes(student.supervisor)) {
+                            supervisorGroupIndex = i;
+                            break;
+                        }
+                    }
+                    // Assign student to supervisor's group (matching student distribution)
+                    const groupIndex = supervisorGroupIndex >= 0 ? supervisorGroupIndex : 0;
+                    studentGroupsByDistribution[groupIndex].push(student);
+                } else {
+                    // No supervisor, assign to first group
+                    studentGroupsByDistribution[0].push(student);
+                }
+            });
+
+            // Now group students by supervisor within each distribution group
+            // All students with the same supervisor must present on the same day, same venue
+            // All students in the same 3-supervisor group (from distribution) must present on the same day
+            const assessmentGroups = [];
+            
+            studentGroupsByDistribution.forEach((distributionGroup, distGroupIndex) => {
+                if (distributionGroup.length === 0) return;
+                
+                // Get supervisors from the other 2 groups (for assessor reference)
+                const otherGroupIndices = [0, 1, 2].filter(idx => idx !== distGroupIndex);
+                const assessorGroup1 = lecturerGroups[otherGroupIndices[0]] || [];
+                const assessorGroup2 = lecturerGroups[otherGroupIndices[1]] || [];
+                
+                // Group students by supervisor within this distribution group
+                const studentsBySupervisor = {};
+                distributionGroup.forEach(student => {
+                    const supervisorName = student.supervisor || 'No Supervisor';
+                    if (!studentsBySupervisor[supervisorName]) {
+                        studentsBySupervisor[supervisorName] = [];
+                    }
+                    studentsBySupervisor[supervisorName].push(student);
+                });
+                
+                // All students in this distribution group (from all supervisors) should be on the same day
+                // because they assess each other (assessors are already assigned from student_enrollment)
+                const allStudentsInGroup = distributionGroup;
+                
+                if (allStudentsInGroup.length > 0) {
+                    assessmentGroups.push({
+                        distributionGroupIndex: distGroupIndex,
+                        supervisors: lecturerGroups[distGroupIndex] || [],
+                        students: allStudentsInGroup,
+                        studentsBySupervisor: studentsBySupervisor,
+                        assessorGroup1: assessorGroup1,
+                        assessorGroup2: assessorGroup2
+                    });
+                }
+            });
+
+            // Venue options
+            const venueOptions = [
+                'Lab 1',
+                'Lab 2',
+                'Lab 3',
+                'Lecture Hall A',
+                'Lecture Hall B',
+                'Lecture Hall C',
+                'Seminar Room 1',
+                'Seminar Room 2',
+                'Seminar Room 3',
+                'Conference Room 1',
+                'Conference Room 2',
+                'Online',
+                'Other'
+            ];
+
+            // Helper function to get time slots based on day of week
+            // Each presentation is 20 minutes, back-to-back (no gap)
+            // Break from 1 PM to 2 PM (13:00 to 14:00)
+            // Friday: only until 12 PM (12:00)
+            function getTimeSlotsForDate(dateStr) {
+                const date = new Date(dateStr);
+                const dayOfWeek = date.getDay(); // 0 = Sunday, 5 = Friday
+                const isFriday = dayOfWeek === 5;
+                
+                // Morning slots: 9:00 to 12:00 (every 20 minutes)
+                const morningSlots = [
+                    '09:00', '09:20', '09:40', '10:00', '10:20', '10:40',
+                    '11:00', '11:20', '11:40', '12:00'
+                ];
+                
+                // Afternoon slots: 2:00 PM (14:00) to 5:00 PM (17:00) (every 20 minutes)
+                const afternoonSlots = [
+                    '14:00', '14:20', '14:40', '15:00', '15:20', '15:40',
+                    '16:00', '16:20', '16:40', '17:00'
+                ];
+                
+                if (isFriday) {
+                    // Friday: only morning slots until 12:00
+                    return morningSlots;
+                } else {
+                    // Other days: morning + afternoon (with break from 1 PM to 2 PM)
+                    return [...morningSlots, ...afternoonSlots];
+                }
+            }
+            
+            // Get all possible time slots (will be filtered by date later)
+            const allTimeSlots = [
+                '09:00', '09:20', '09:40', '10:00', '10:20', '10:40',
+                '11:00', '11:20', '11:40', '12:00',
+                '14:00', '14:20', '14:40', '15:00', '15:20', '15:40',
+                '16:00', '16:20', '16:40', '17:00'
+            ];
+
+            // Convert dates to Date objects for calculation
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            const daysDiff = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+
+            // Track assessor schedules to avoid conflicts
+            // Format: { assessorName: { date_time: true } }
+            const assessorSchedule = {};
+            
+            // Track venue schedules to avoid conflicts
+            // Format: { venue: { date_time: true } }
+            const venueSchedule = {};
+
+            // Initialize schedules with existing assignments (to avoid conflicts with already assigned sessions)
+            assessmentSessionData.forEach(student => {
+                if (student.date && student.time) {
+                    const dateTimeKey = `${student.date}_${student.time}`;
+                    
+                    // Add existing assessor assignments
+                    if (student.assessor1) {
+                        if (!assessorSchedule[student.assessor1]) {
+                            assessorSchedule[student.assessor1] = {};
+                        }
+                        assessorSchedule[student.assessor1][dateTimeKey] = student.time; // Store time for overlap checking
+                    }
+                    if (student.assessor2) {
+                        if (!assessorSchedule[student.assessor2]) {
+                            assessorSchedule[student.assessor2] = {};
+                        }
+                        assessorSchedule[student.assessor2][dateTimeKey] = student.time; // Store time for overlap checking
+                    }
+                    
+                    // Add existing venue assignments
+                    if (student.venue) {
+                        if (!venueSchedule[student.venue]) {
+                            venueSchedule[student.venue] = {};
+                        }
+                        venueSchedule[student.venue][dateTimeKey] = student.time; // Store time for overlap checking
+                    }
+                }
+            });
+
+            // Helper function to convert time string to minutes for comparison
+            function timeToMinutes(timeStr) {
+                const [hours, minutes] = timeStr.split(':').map(Number);
+                return hours * 60 + minutes;
+            }
+            
+            // Helper function to check if two time slots overlap
+            // Each presentation is 20 minutes, so we need to check if times overlap within 20 minutes
+            function timesOverlap(time1, time2) {
+                const minutes1 = timeToMinutes(time1);
+                const minutes2 = timeToMinutes(time2);
+                const presentationDuration = 20; // 20 minutes
+                
+                // Check if time1 overlaps with time2's presentation window
+                // time2's window: time2 to time2 + 20 minutes
+                return (minutes1 >= minutes2 && minutes1 < minutes2 + presentationDuration) ||
+                       (minutes2 >= minutes1 && minutes2 < minutes1 + presentationDuration);
+            }
+            
+            // Helper function to check if a slot conflicts with existing assignments
+            function hasConflict(date, time, assessor1, assessor2, venue) {
+                // Check assessor conflicts - need to check for overlapping times, not just exact matches
+                if (assessor1 && assessorSchedule[assessor1]) {
+                    for (const existingTimeKey in assessorSchedule[assessor1]) {
+                        const [existingDate, existingTime] = existingTimeKey.split('_');
+                        if (existingDate === date && timesOverlap(time, existingTime)) {
+                            return true;
+                        }
+                    }
+                }
+                if (assessor2 && assessorSchedule[assessor2]) {
+                    for (const existingTimeKey in assessorSchedule[assessor2]) {
+                        const [existingDate, existingTime] = existingTimeKey.split('_');
+                        if (existingDate === date && timesOverlap(time, existingTime)) {
+                            return true;
+                        }
+                    }
+                }
+                
+                // Check venue conflicts - venues can't overlap at the same time
+                if (venue && venueSchedule[venue]) {
+                    for (const existingTimeKey in venueSchedule[venue]) {
+                        const [existingDate, existingTime] = existingTimeKey.split('_');
+                        if (existingDate === date && timesOverlap(time, existingTime)) {
+                            return true;
+                        }
+                    }
+                }
+                
+                return false;
+            }
+
+            // Helper function to reserve a slot
+            // Store the actual time (not just date_time key) to check for overlaps
+            function reserveSlot(date, time, assessor1, assessor2, venue) {
+                const dateTimeKey = `${date}_${time}`;
+                
+                if (assessor1) {
+                    if (!assessorSchedule[assessor1]) {
+                        assessorSchedule[assessor1] = {};
+                    }
+                    assessorSchedule[assessor1][dateTimeKey] = time; // Store time for overlap checking
+                }
+                
+                if (assessor2) {
+                    if (!assessorSchedule[assessor2]) {
+                        assessorSchedule[assessor2] = {};
+                    }
+                    assessorSchedule[assessor2][dateTimeKey] = time; // Store time for overlap checking
+                }
+                
+                if (venue) {
+                    if (!venueSchedule[venue]) {
+                        venueSchedule[venue] = {};
+                    }
+                    venueSchedule[venue][dateTimeKey] = time; // Store time for overlap checking
+                }
+            }
+
+            // Assign assessment sessions following student distribution groups
+            // Use assessors already assigned from student_enrollment table
+            // All students in the same distribution group (3 supervisors) present on the same day
+            // All students with the same supervisor present together (same day, same venue, one after another)
+            
+            // Fairly distribute groups across days using round-robin
+            assessmentGroups.forEach((assessmentGroup, groupIndex) => {
+                if (assessmentGroup.students.length === 0) return;
+                
+                const { students, studentsBySupervisor, supervisors } = assessmentGroup;
+                
+                // Fairly distribute groups across days (round-robin)
+                const dayIndex = groupIndex % daysDiff;
+                const currentDate = new Date(start);
+                currentDate.setDate(start.getDate() + dayIndex);
+                const targetDate = currentDate.toISOString().split('T')[0];
+                
+                // Try to find a slot for this entire group on the target date
+                let groupSlot = null;
+                const timeSlotsForDate = getTimeSlotsForDate(targetDate);
+                
+                // Try each venue
+                for (let v = 0; v < venueOptions.length && !groupSlot; v++) {
+                    const venue = venueOptions[v];
+                    
+                    // Try to find a starting time that can accommodate ALL students from this group
+                    // Need consecutive time slots for all students in the group
+                    for (let startTimeIndex = 0; startTimeIndex <= timeSlotsForDate.length - students.length && !groupSlot; startTimeIndex++) {
+                        // Check if we can assign consecutive slots starting from this index
+                        let canAssign = true;
+                        const tempAssessorSchedule = {};
+                        
+                        // Check each student from this group
+                        for (let i = 0; i < students.length; i++) {
+                            const student = students[i];
+                            const timeIndex = startTimeIndex + i;
+                            
+                            if (timeIndex >= timeSlotsForDate.length) {
+                                canAssign = false;
+                                break;
+                            }
+                            
+                            const time = timeSlotsForDate[timeIndex];
+                            
+                            // Use assessors already assigned from student_enrollment table
+                            const assessor1 = student.assessor1;
+                            const assessor2 = student.assessor2;
+                            
+                            // Check conflicts with existing schedule (from other groups or already assigned sessions)
+                            if (hasConflict(targetDate, time, assessor1, assessor2, venue)) {
+                                canAssign = false;
+                                break;
+                            }
+                            
+                            // Check conflicts within this group's students (assessors can't have overlapping times)
+                            // This ensures no assessor is in two places at once
+                            if (assessor1 && tempAssessorSchedule[assessor1]) {
+                                for (const existingTimeKey in tempAssessorSchedule[assessor1]) {
+                                    const [existingDate, existingTime] = existingTimeKey.split('_');
+                                    if (existingDate === targetDate && timesOverlap(time, existingTime)) {
+                                        canAssign = false;
+                                        break;
+                                    }
+                                }
+                                if (!canAssign) break;
+                            }
+                            if (assessor2 && tempAssessorSchedule[assessor2]) {
+                                for (const existingTimeKey in tempAssessorSchedule[assessor2]) {
+                                    const [existingDate, existingTime] = existingTimeKey.split('_');
+                                    if (existingDate === targetDate && timesOverlap(time, existingTime)) {
+                                        canAssign = false;
+                                        break;
+                                    }
+                                }
+                                if (!canAssign) break;
+                            }
+                            
+                            // Reserve in temp schedule
+                            const dateTimeKey = `${targetDate}_${time}`;
+                            if (assessor1) {
+                                if (!tempAssessorSchedule[assessor1]) tempAssessorSchedule[assessor1] = {};
+                                tempAssessorSchedule[assessor1][dateTimeKey] = time;
+                            }
+                            if (assessor2) {
+                                if (!tempAssessorSchedule[assessor2]) tempAssessorSchedule[assessor2] = {};
+                                tempAssessorSchedule[assessor2][dateTimeKey] = time;
+                            }
+                        }
+                        
+                        if (canAssign) {
+                            groupSlot = {
+                                date: targetDate,
+                                venue: venue,
+                                startTimeIndex: startTimeIndex
+                            };
+                        }
+                    }
+                }
+                
+                // If no slot found on target date, try other dates (fallback)
+                if (!groupSlot) {
+                    for (let d = 0; d < daysDiff && !groupSlot; d++) {
+                        const currentDate = new Date(start);
+                        currentDate.setDate(start.getDate() + d);
+                        const dateStr = currentDate.toISOString().split('T')[0];
+                        const timeSlotsForDate = getTimeSlotsForDate(dateStr);
+                        
+                        for (let v = 0; v < venueOptions.length && !groupSlot; v++) {
+                            const venue = venueOptions[v];
+                            
+                            for (let startTimeIndex = 0; startTimeIndex <= timeSlotsForDate.length - students.length && !groupSlot; startTimeIndex++) {
+                                let canAssign = true;
+                                const tempAssessorSchedule = {};
+                                
+                                for (let i = 0; i < students.length; i++) {
+                                    const student = students[i];
+                                    const timeIndex = startTimeIndex + i;
+                                    
+                                    if (timeIndex >= timeSlotsForDate.length) {
+                                        canAssign = false;
+                                        break;
+                                    }
+                                    
+                                    const time = timeSlotsForDate[timeIndex];
+                                    // Use assessors already assigned from student_enrollment table
+                                    const assessor1 = student.assessor1;
+                                    const assessor2 = student.assessor2;
+                                    
+                                    if (hasConflict(dateStr, time, assessor1, assessor2, venue)) {
+                                        canAssign = false;
+                                        break;
+                                    }
+                                    
+                                    if (assessor1 && tempAssessorSchedule[assessor1]) {
+                                        for (const existingTimeKey in tempAssessorSchedule[assessor1]) {
+                                            const [existingDate, existingTime] = existingTimeKey.split('_');
+                                            if (existingDate === dateStr && timesOverlap(time, existingTime)) {
+                                                canAssign = false;
+                                                break;
+                                            }
+                                        }
+                                        if (!canAssign) break;
+                                    }
+                                    if (assessor2 && tempAssessorSchedule[assessor2]) {
+                                        for (const existingTimeKey in tempAssessorSchedule[assessor2]) {
+                                            const [existingDate, existingTime] = existingTimeKey.split('_');
+                                            if (existingDate === dateStr && timesOverlap(time, existingTime)) {
+                                                canAssign = false;
+                                                break;
+                                            }
+                                        }
+                                        if (!canAssign) break;
+                                    }
+                                    
+                                    const dateTimeKey = `${dateStr}_${time}`;
+                                    if (assessor1) {
+                                        if (!tempAssessorSchedule[assessor1]) tempAssessorSchedule[assessor1] = {};
+                                        tempAssessorSchedule[assessor1][dateTimeKey] = time;
+                                    }
+                                    if (assessor2) {
+                                        if (!tempAssessorSchedule[assessor2]) tempAssessorSchedule[assessor2] = {};
+                                        tempAssessorSchedule[assessor2][dateTimeKey] = time;
+                                    }
+                                }
+                                
+                                if (canAssign) {
+                                    groupSlot = {
+                                        date: dateStr,
+                                        venue: venue,
+                                        startTimeIndex: startTimeIndex
+                                    };
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // Assign consecutive time slots to ALL students from this distribution group
+                // Students with the same supervisor are grouped together and present one after another
+                if (groupSlot) {
+                    const timeSlotsForDate = getTimeSlotsForDate(groupSlot.date);
+                    
+                    // Sort students by supervisor so students with same supervisor are together
+                    const sortedStudents = [...students].sort((a, b) => {
+                        const supA = a.supervisor || '';
+                        const supB = b.supervisor || '';
+                        return supA.localeCompare(supB);
+                    });
+                    
+                    sortedStudents.forEach((student, studentIndex) => {
+                        // Use assessors already assigned from student_enrollment table
+                        const assessor1 = student.assessor1;
+                        const assessor2 = student.assessor2;
+                        
+                        const timeIndex = groupSlot.startTimeIndex + studentIndex;
+                        const time = timeSlotsForDate[timeIndex];
+                        
+                        // ALL students from this distribution group have same date and venue
+                        // Students with same supervisor are consecutive (one after another)
+                        student.date = groupSlot.date;
+                        student.time = time;
+                        student.venue = groupSlot.venue;
+                        
+                        // Reserve the slot (assessors are already assigned from student_enrollment)
+                        reserveSlot(groupSlot.date, time, assessor1, assessor2, groupSlot.venue);
+                    });
+                } else {
+                    // If no group slot found, assign individually (fallback)
+                    // Still try to keep students with same supervisor together
+                    students.forEach((student, studentIndexInGroup) => {
+                        // Use assessors already assigned from student_enrollment table
+                        const assessor1 = student.assessor1;
+                        const assessor2 = student.assessor2;
+                        
+                        // Try to find a non-conflicting slot
+                        let assigned = false;
+                        for (let d = 0; d < daysDiff && !assigned; d++) {
+                            const currentDate = new Date(start);
+                            currentDate.setDate(start.getDate() + d);
+                            const dateStr = currentDate.toISOString().split('T')[0];
+                            const timeSlotsForDate = getTimeSlotsForDate(dateStr);
+                            
+                            for (let t = 0; t < timeSlotsForDate.length && !assigned; t++) {
+                                const time = timeSlotsForDate[t];
+                                
+                                for (let v = 0; v < venueOptions.length && !assigned; v++) {
+                                    const venue = venueOptions[v];
+                                    
+                                    if (!hasConflict(dateStr, time, assessor1, assessor2, venue)) {
+                                        student.date = dateStr;
+                                        student.time = time;
+                                        student.venue = venue;
+                                        
+                                        // Reserve the slot (assessors are already assigned from student_enrollment)
+                                        reserveSlot(dateStr, time, assessor1, assessor2, venue);
+                                        assigned = true;
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // If still not assigned, assign the first available slot from first day
+                        if (!assigned) {
+                            const currentDate = new Date(start);
+                            const dateStr = currentDate.toISOString().split('T')[0];
+                            const timeSlotsForDate = getTimeSlotsForDate(dateStr);
+                            student.date = dateStr;
+                            student.time = timeSlotsForDate.length > 0 ? timeSlotsForDate[0] : '09:00';
+                            student.venue = venueOptions[0];
+                            
+                            // Reserve the slot (assessors are already assigned from student_enrollment)
+                            reserveSlot(dateStr, student.time, assessor1, assessor2, venueOptions[0]);
+                        }
+                    });
+                }
+            });
+
+            // Repopulate date dropdown after assignment
+            populateDateSortDropdown();
+            
+            // Re-render table to show updated data
+            renderAssessmentTable();
+            closeAssignAssessmentModal();
+
+            // Show success modal
+            assignAssessmentModal.innerHTML = `
+                <div class="modal-dialog">
+                    <div class="modal-content-custom">
+                        <span class="close-btn" id="closeAssignAssessmentSuccess">&times;</span>
+                        <div class="modal-icon"><i class="bi bi-check-circle-fill"></i></div>
+                        <div class="modal-title-custom">Assessment Sessions Assigned</div>
+                        <div class="modal-message">Assessment session data has been automatically assigned to ${studentsNeedingAssignment.length} student(s) using 3-group logic. Conflicts have been avoided where possible.</div>
+                        <div style="display:flex; justify-content:center;">
+                            <button id="okAssigned" class="btn btn-success" type="button">OK</button>
+                        </div>
+                    </div>
+                </div>`;
+
+            assignAssessmentModal.querySelector('#closeAssignAssessmentSuccess').onclick = closeAssignAssessmentModal;
+            assignAssessmentModal.querySelector('#okAssigned').onclick = closeAssignAssessmentModal;
+        }
+
+        // Clear all assessment sessions
+        function clearAllAssessmentSessions() {
+            clearAllModal.innerHTML = `
+                <div class="modal-dialog">
+                    <div class="modal-content-custom">
+                        <span class="close-btn" id="closeClearAllModal">&times;</span>
+                        <div class="modal-title-custom">Clear All Assessment Sessions</div>
+                        <div class="modal-message">Are you sure you want to clear all assessment session data (date, time, venue)? All data will be removed.</div>
+                        <div style="margin-top:15px; display:flex; gap:10px; justify-content:flex-end;">
+                            <button id="cancelClearAll" class="btn btn-light border" type="button">Cancel</button>
+                            <button id="confirmClearAll" class="btn btn-success" type="button">Clear All</button>
+                        </div>
+                    </div>
+                </div>`;
+
+            clearAllModal.querySelector('#closeClearAllModal').onclick = closeClearAllModal;
+            clearAllModal.querySelector('#cancelClearAll').onclick = closeClearAllModal;
+            clearAllModal.querySelector('#confirmClearAll').onclick = function() {
+                performClearAllAssessmentSessions();
+            };
+            openClearAllModal();
+        }
+
+        // Perform clear all assessment sessions
+        function performClearAllAssessmentSessions() {
+            assessmentSessionData.forEach(student => {
+                student.date = '';
+                student.time = '';
+                student.venue = '';
+            });
+            
+            // Repopulate date dropdown after clearing
+            populateDateSortDropdown();
+            
+            renderAssessmentTable();
+
+            // Show success modal
+            clearAllModal.innerHTML = `
+                <div class="modal-dialog">
+                    <div class="modal-content-custom">
+                        <span class="close-btn" id="closeClearAllSuccess">&times;</span>
+                        <div class="modal-icon"><i class="bi bi-check-circle-fill"></i></div>
+                        <div class="modal-title-custom">Assessment Sessions Cleared</div>
+                        <div class="modal-message">All assessment session data has been cleared successfully.</div>
+                        <div style="display:flex; justify-content:center;">
+                            <button id="okCleared" class="btn btn-success" type="button">OK</button>
+                        </div>
+                    </div>
+                </div>`;
+
+            clearAllModal.querySelector('#closeClearAllSuccess').onclick = closeClearAllModal;
+            clearAllModal.querySelector('#okCleared').onclick = closeClearAllModal;
+        }
+
+        // Reset assessment sessions
+        function resetAssessmentSessions() {
+            resetModal.innerHTML = `
+                <div class="modal-dialog">
+                    <div class="modal-content-custom">
+                        <span class="close-btn" id="closeResetModal">&times;</span>
+                        <div class="modal-title-custom">Reset Assessment Sessions</div>
+                        <div class="modal-message">Are you sure you want to cancel all changes? This will reset all assessment session data to their previous values.</div>
+                        <div style="margin-top:15px; display:flex; gap:10px; justify-content:flex-end;">
+                            <button id="cancelReset" class="btn btn-light border" type="button">Cancel</button>
+                            <button id="confirmReset" class="btn btn-success" type="button">Reset</button>
+                        </div>
+                    </div>
+                </div>`;
+
+            resetModal.querySelector('#closeResetModal').onclick = closeResetModal;
+            resetModal.querySelector('#cancelReset').onclick = closeResetModal;
+            resetModal.querySelector('#confirmReset').onclick = function() {
+                location.reload();
+            };
+            openResetModal();
+        }
+
+        // Save assessment sessions
+        function saveAssessmentSessions() {
+            // Prepare assessment session data with all required information
+            const sessionData = assessmentSessionData.map(student => ({
+                student_id: student.id,
+                student_name: student.name,
+                date: student.date || null,
+                time: student.time || null,
+                venue: student.venue || null,
+                course_id: student.course_id,
+                course_code: student.course_code
+            }));
+
+            // Make AJAX call to save assessment sessions
+            fetch('../../../php/phpCoordinator/save_assessment_sessions.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ 
+                    sessions: sessionData,
+                    year: selectedYear,
+                    semester: selectedSemester
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Reload assessment session data from database after saving
+                    loadAssessmentSessionsFromDatabase();
+                    
+                    // Show success modal
+                    saveModal.innerHTML = `
+                        <div class="modal-dialog">
+                            <div class="modal-content-custom">
+                                <span class="close-btn" id="closeSaveModal">&times;</span>
+                                <div class="modal-icon"><i class="bi bi-check-circle-fill"></i></div>
+                                <div class="modal-title-custom">Assessment Sessions Saved</div>
+                                <div class="modal-message">${data.message || 'Assessment session data saved successfully!'}</div>
+                                <div style="display:flex; justify-content:center;">
+                                    <button id="okSave" class="btn btn-success" type="button">OK</button>
+                                </div>
+                            </div>
+                        </div>`;
+
+                    saveModal.querySelector('#closeSaveModal').onclick = closeSaveModal;
+                    saveModal.querySelector('#okSave').onclick = closeSaveModal;
+                    openSaveModal();
+                } else {
+                    showSaveError(data.message || 'Failed to save assessment session data.');
+                }
+            })
+            .catch(error => {
+                console.error('Error saving assessment sessions:', error);
+                showSaveError('An error occurred while saving assessment sessions. Please try again.');
+            });
+        }
+
+        // Download Assessment as PDF
+        function downloadAssessmentAsPDF() {
+            try {
+                const { jsPDF } = window.jspdf;
+                
+                const doc = new jsPDF();
+                doc.setFont('helvetica');
+                
+                // Add title
+                doc.setFontSize(18);
+                doc.setTextColor(120, 0, 0);
+                doc.text('Assessment Session Report', 14, 20);
+                
+                // Add year, semester, and course summary
+                const courseLabel = getAssessmentCourseLabel();
+                doc.setFontSize(11);
+                doc.setTextColor(0, 0, 0);
+                doc.text(`Year: ${selectedYear}    Semester: ${selectedSemester}`, 14, 32);
+                doc.text(`Course: ${courseLabel}`, 14, 38);
+                doc.text(`Total Students (current view): ${filteredAssessmentStudents.length}`, 14, 44);
+                
+                // Prepare table data
+                const tableData = filteredAssessmentStudents.map((student, index) => [
+                    index + 1,
+                    student.name,
+                    student.date || '-',
+                    student.time || '-',
+                    student.venue || '-'
+                ]);
+                
+                // Add table
+                doc.autoTable({
+                    startY: 52,
+                    head: [['No.', 'Student Name', 'Date', 'Time', 'Venue']],
+                    body: tableData,
+                    theme: 'striped',
+                    headStyles: {
+                        fillColor: [120, 0, 0],
+                        textColor: [255, 255, 255],
+                        fontStyle: 'bold',
+                        fontSize: 11
+                    },
+                    bodyStyles: {
+                        fontSize: 9
+                    },
+                    alternateRowStyles: {
+                        fillColor: [253, 240, 213]
+                    },
+                    styles: {
+                        cellPadding: 4,
+                        fontSize: 9
+                    }
+                });
+                
+                const finalY = doc.lastAutoTable.finalY;
+                doc.setFontSize(9);
+                doc.setTextColor(128, 128, 128);
+                const now = new Date();
+                const dateTime = now.toLocaleString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+                doc.text(`Generated on: ${dateTime}`, 14, finalY + 15);
+                
+                doc.save('assessment-session.pdf');
+
+                // Show success modal
+                downloadModal.innerHTML = `
+                    <div class="modal-dialog">
+                        <div class="modal-content-custom">
+                            <span class="close-btn" id="closeDownloadModal">&times;</span>
+                            <div class="modal-icon"><i class="bi bi-check-circle-fill"></i></div>
+                            <div class="modal-title-custom">Download Successful</div>
+                            <div class="modal-message">PDF file downloaded successfully!</div>
+                            <div style="display:flex; justify-content:center;">
+                                <button id="okDownload" class="btn btn-success" type="button">OK</button>
+                            </div>
+                        </div>
+                    </div>`;
+
+                downloadModal.querySelector('#closeDownloadModal').onclick = closeDownloadModal;
+                downloadModal.querySelector('#okDownload').onclick = closeDownloadModal;
+                openDownloadModal();
+            } catch (error) {
+                console.error('Error generating PDF:', error);
+                
+                downloadModal.innerHTML = `
+                    <div class="modal-dialog">
+                        <div class="modal-content-custom">
+                            <span class="close-btn" id="closeDownloadModal">&times;</span>
+                            <div class="modal-icon" style="color: #dc3545;"><i class="bi bi-exclamation-triangle-fill"></i></div>
+                            <div class="modal-title-custom">Download Failed</div>
+                            <div class="modal-message">An error occurred while generating the PDF. Please try again.</div>
+                            <div style="display:flex; justify-content:center;">
+                                <button id="okDownload" class="btn btn-success" type="button">OK</button>
+                            </div>
+                        </div>
+                    </div>`;
+
+                downloadModal.querySelector('#closeDownloadModal').onclick = closeDownloadModal;
+                downloadModal.querySelector('#okDownload').onclick = closeDownloadModal;
+                openDownloadModal();
+            }
+        }
+
+        // Download Assessment as Excel
+        function downloadAssessmentAsExcel() {
+            const courseLabel = getAssessmentCourseLabel();
+            let csvContent = '';
+            csvContent += `Year,${selectedYear}\n`;
+            csvContent += `Semester,${selectedSemester}\n`;
+            csvContent += `Course,${courseLabel}\n`;
+            csvContent += `Total Students (current view),${filteredAssessmentStudents.length}\n\n`;
+
+            csvContent += 'No.,Student Name,Date,Time,Venue\n';
+            
+            filteredAssessmentStudents.forEach((student, index) => {
+                csvContent += `${index + 1},"${student.name || ''}","${student.date || '-'}","${student.time || '-'}","${student.venue || '-'}"\n`;
+            });
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'assessment-session.csv';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+
+            // Show success modal
+            downloadModal.innerHTML = `
+                <div class="modal-dialog">
+                    <div class="modal-content-custom">
+                        <span class="close-btn" id="closeDownloadModal">&times;</span>
+                        <div class="modal-icon"><i class="bi bi-check-circle-fill"></i></div>
+                        <div class="modal-title-custom">Download Successful</div>
+                        <div class="modal-message">Excel file (CSV) downloaded successfully!</div>
+                        <div style="display:flex; justify-content:center;">
+                            <button id="okDownload" class="btn btn-success" type="button">OK</button>
+                        </div>
+                    </div>
+                </div>`;
+
+            downloadModal.querySelector('#closeDownloadModal').onclick = closeDownloadModal;
+            downloadModal.querySelector('#okDownload').onclick = closeDownloadModal;
+            openDownloadModal();
+        }
+
+        // Get display label for current assessment course filter
+        function getAssessmentCourseLabel() {
+            if (!courseFilterOptions || !Array.isArray(courseFilterOptions)) {
+                return 'Both';
+            }
+            if (currentAssessmentCourseFilter === 'both') {
+                if (courseFilterOptions.length === 0) return 'Both';
+                const codes = courseFilterOptions.map(c => c.Course_Code).filter(Boolean);
+                if (codes.length > 1) {
+                    return 'Both (' + codes.join(', ') + ')';
+                }
+                return codes[0] || 'Both';
+            }
+            const match = courseFilterOptions.find(c => String(c.Course_ID) === String(currentAssessmentCourseFilter));
+            if (match) {
+                return match.Course_Code || ('Course ' + currentAssessmentCourseFilter);
+            }
+            return 'Course ' + currentAssessmentCourseFilter;
+        }
+
+        // Toggle assessment download dropdown
+        function toggleAssessmentDownloadDropdown() {
+            const dropdown = document.getElementById('assessmentDownloadDropdown');
+            const button = document.querySelector('.download-dropdown .btn-download');
+            
+            // Close all other dropdowns
+            document.querySelectorAll('.download-dropdown-menu.show').forEach(menu => {
+                if (menu !== dropdown) {
+                    menu.classList.remove('show');
+                }
+            });
+            
+            document.querySelectorAll('.btn-download.active').forEach(btn => {
+                if (btn !== button) {
+                    btn.classList.remove('active');
+                }
+            });
+            
+            if (dropdown) {
+                dropdown.classList.toggle('show');
+            }
+            if (button) {
+                button.classList.toggle('active');
+            }
+        }
+
+        function closeAssessmentDownloadDropdown() {
+            const dropdown = document.getElementById('assessmentDownloadDropdown');
+            const button = document.querySelector('.download-dropdown .btn-download');
+            if (dropdown) {
+                dropdown.classList.remove('show');
+            }
+            if (button) {
+                button.classList.remove('active');
+            }
         }
 
 

@@ -69,6 +69,7 @@
   align-items: center;
   flex: 0 0 auto;
   min-width: 200px;
+  flex-wrap: wrap;
 }
 
 .right-actions {
@@ -114,6 +115,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  flex: 0 0 auto;
 }
 
 .course-filter-section .filter-label {
@@ -542,6 +544,7 @@
   .left-actions {
     flex: 0 1 300px;
     min-width: 250px;
+    flex-wrap: wrap;
   }
 
   .right-actions {
@@ -555,11 +558,15 @@
   .search-section {
     width: 100%;
     max-width: 100%;
+    flex: 1 1 100%;
   }
 
   .course-filter-section {
     width: 100%;
     justify-content: flex-start;
+    flex: 1 1 100%;
+    margin-top: 10px;
+    order: 2; /* Ensure course filter appears on new row after search */
   }
 
   .course-filter-section .download-dropdown {
@@ -633,11 +640,18 @@
     width: 100%;
     flex: 1 1 100%;
     min-width: unset;
+    flex-wrap: wrap;
+  }
+
+  .search-section {
+    width: 100%;
+    flex: 1 1 100%;
   }
 
   .course-filter-section {
-    margin-top: 8px;
+    margin-top: 10px;
     width: 100%;
+    flex: 1 1 100%;
   }
 
   .right-actions {
