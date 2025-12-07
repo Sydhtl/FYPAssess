@@ -597,10 +597,18 @@ $assessmentDataJson = json_encode($assessmentData);
                                 </div>
                                 <div class="sort-section">
                                     <label for="assessmentSortBy" class="filter-label">Sort By</label>
-                                    <select id="assessmentSortBy" class="sort-dropdown" onchange="sortAssessmentTable()">
-                                        <option value="">All Dates</option>
-                                        <!-- Date options will be populated dynamically -->
-                                    </select>
+                                    <div class="download-dropdown course-filter-dropdown">
+                                        <button class="btn-download" type="button" onclick="toggleAssessmentDateFilterDropdown()">
+                                            <span id="assessmentDateFilterLabel">All Dates</span>
+                                            <i class="bi bi-chevron-down dropdown-arrow"></i>
+                                        </button>
+                                        <div class="download-dropdown-menu" id="assessmentDateFilterMenu">
+                                            <a href="javascript:void(0)" class="download-option" data-date-value="">
+                                                <span>All Dates</span>
+                                            </a>
+                                            <!-- Date options will be populated dynamically -->
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                             
@@ -767,6 +775,30 @@ $assessmentDataJson = json_encode($assessmentData);
         // --- ASSESSMENT SESSION ---
         // Assessment data from PHP (Course_ID -> Assessment_Name mapping)
         const assessmentData = <?php echo $assessmentDataJson; ?>;
+        
+        // Base venue options
+        const baseVenueOptions = [
+            'KP1 Lab',
+            'iSpace,Block C',
+            'Seminar Room A',
+            'Putra Future Classroom',
+        ];
+        
+        // Get all venue options (base + custom from localStorage)
+        function getAllVenueOptions() {
+            const customVenues = JSON.parse(localStorage.getItem('customVenues') || '[]');
+            return [...baseVenueOptions, ...customVenues];
+        }
+        
+        // Save custom venue to localStorage
+        function addCustomVenue(venueName) {
+            if (!venueName || venueName.trim() === '') return;
+            const customVenues = JSON.parse(localStorage.getItem('customVenues') || '[]');
+            if (!customVenues.includes(venueName.trim())) {
+                customVenues.push(venueName.trim());
+                localStorage.setItem('customVenues', JSON.stringify(customVenues));
+            }
+        }
         
         // Assessment session data - initialize from students with supervisor and assessor info
         // Will be loaded from database after page loads
@@ -1525,6 +1557,8 @@ $assessmentDataJson = json_encode($assessmentData);
             document.querySelectorAll('.btn-download.active').forEach(btn => btn.classList.remove('active'));
             document.querySelectorAll('.assign-dropdown-menu.show').forEach(menu => menu.classList.remove('show'));
             document.querySelectorAll('.assign-dropdown .btn-assign.active').forEach(btn => btn.classList.remove('active'));
+            // Close date filter dropdown
+            closeAssessmentDateFilterDropdown();
             if (openDropdown) {
                 const openDropdownElement = document.getElementById(openDropdown);
                 if (openDropdownElement) {
@@ -2647,20 +2681,21 @@ $assessmentDataJson = json_encode($assessmentData);
                 });
             }
             
-            // Initialize sort dropdown with dates
+            // Initialize date filter dropdown
             populateDateSortDropdown();
-            const sortDropdown = document.getElementById('assessmentSortBy');
-            if (sortDropdown) {
-                sortDropdown.value = ''; // Default to "All Dates"
-                sortAssessmentTable();
-            }
+            currentAssessmentDateFilter = ''; // Default to "All Dates"
+            document.getElementById('assessmentDateFilterLabel').textContent = 'All Dates';
         }
 
-        // Apply search + course filters to assessment students
+        // Track selected date filter
+        let currentAssessmentDateFilter = ''; // '' for "All Dates" or specific date string
+
+        // Apply search + course + date filters to assessment students
         function applyAssessmentFilters() {
             const courseIdFilter = currentAssessmentCourseFilter;
             const searchInput = document.getElementById('assessmentStudentSearch');
             const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
+            const dateFilter = currentAssessmentDateFilter;
 
             filteredAssessmentStudents = assessmentSessionData.filter(student => {
                 // Course filter
@@ -2671,7 +2706,15 @@ $assessmentDataJson = json_encode($assessmentData);
                 }
                 // Name search filter
                 if (searchTerm) {
-                    return (student.name || '').toLowerCase().includes(searchTerm);
+                    if (!(student.name || '').toLowerCase().includes(searchTerm)) {
+                        return false;
+                    }
+                }
+                // Date filter
+                if (dateFilter) {
+                    if (student.date !== dateFilter) {
+                        return false;
+                    }
                 }
                 return true;
             });
@@ -2710,33 +2753,28 @@ $assessmentDataJson = json_encode($assessmentData);
                 return;
             }
 
-            // Venue options for dropdown
-            const venueOptions = [
-                'Lab 1',
-                'Lab 2',
-                'Lab 3',
-                'Lecture Hall A',
-                'Lecture Hall B',
-                'Lecture Hall C',
-                'Seminar Room 1',
-                'Seminar Room 2',
-                'Seminar Room 3',
-                'Conference Room 1',
-                'Conference Room 2',
-                'Online',
-                'Other'
-            ];
+            // Get all venue options (including custom ones)
+            const venueOptions = getAllVenueOptions();
 
             filteredAssessmentStudents.forEach((student, index) => {
                 const row = document.createElement('tr');
                 const studentId = student.id;
                 
-                // Build venue dropdown options
+                // Build venue dropdown with search and add custom option
+                const currentVenue = student.venue || '';
+                const isCustomVenue = currentVenue && !venueOptions.includes(currentVenue);
+                
+                // If student has a custom venue not in the list, add it temporarily
+                if (isCustomVenue) {
+                    venueOptions.push(currentVenue);
+                }
+                
                 let venueOptionsHTML = '<option value="">Select Venue</option>';
                 venueOptions.forEach(venue => {
                     const selected = student.venue === venue ? 'selected' : '';
                     venueOptionsHTML += `<option value="${venue}" ${selected}>${venue}</option>`;
                 });
+                venueOptionsHTML += '<option value="__CUSTOM__">+ Add Custom Venue</option>';
                 
                 row.innerHTML = `
                     <td>${index + 1}</td>
@@ -2756,11 +2794,22 @@ $assessmentDataJson = json_encode($assessmentData);
                                onchange="updateAssessmentTime('${studentId}', this.value)" />
                     </td>
                     <td>
-                        <select class="form-control assessment-venue-select" 
-                                data-student-id="${studentId}"
-                                onchange="updateAssessmentVenue('${studentId}', this.value)">
-                            ${venueOptionsHTML}
-                        </select>
+                        <div style="position: relative;">
+                            <select class="form-control assessment-venue-select" 
+                                    id="venue-select-${studentId}"
+                                    data-student-id="${studentId}"
+                                    onchange="handleVenueSelect('${studentId}', this.value)">
+                                ${venueOptionsHTML}
+                            </select>
+                            <input type="text" 
+                                   class="form-control assessment-venue-custom" 
+                                   id="venue-custom-${studentId}"
+                                   data-student-id="${studentId}"
+                                   placeholder="Enter custom venue..."
+                                   style="display: none; margin-top: 5px;"
+                                   onblur="handleCustomVenueInput('${studentId}')"
+                                   onkeypress="if(event.key === 'Enter') handleCustomVenueInput('${studentId}')" />
+                        </div>
                     </td>
                 `;
                 tbody.appendChild(row);
@@ -2785,6 +2834,67 @@ $assessmentDataJson = json_encode($assessmentData);
             }
         }
 
+        // Handle venue select dropdown
+        function handleVenueSelect(studentId, value) {
+            if (value === '__CUSTOM__') {
+                // Show custom input field
+                const customInput = document.getElementById(`venue-custom-${studentId}`);
+                const select = document.getElementById(`venue-select-${studentId}`);
+                if (customInput && select) {
+                    customInput.style.display = 'block';
+                    customInput.focus();
+                    select.value = ''; // Reset select
+                }
+            } else {
+                // Hide custom input and update venue
+                const customInput = document.getElementById(`venue-custom-${studentId}`);
+                if (customInput) {
+                    customInput.style.display = 'none';
+                    customInput.value = '';
+                }
+                updateAssessmentVenue(studentId, value);
+            }
+        }
+        
+        // Handle custom venue input
+        function handleCustomVenueInput(studentId) {
+            const customInput = document.getElementById(`venue-custom-${studentId}`);
+            const select = document.getElementById(`venue-select-${studentId}`);
+            
+            if (!customInput || !select) return;
+            
+            const customVenue = customInput.value.trim();
+            if (customVenue) {
+                // Add to localStorage
+                addCustomVenue(customVenue);
+                
+                // Update student venue
+                updateAssessmentVenue(studentId, customVenue);
+                
+                // Update select dropdown to include new venue
+                const venueOptions = getAllVenueOptions();
+                let optionsHTML = '<option value="">Select Venue</option>';
+                venueOptions.forEach(venue => {
+                    const selected = customVenue === venue ? 'selected' : '';
+                    optionsHTML += `<option value="${venue}" ${selected}>${venue}</option>`;
+                });
+                optionsHTML += '<option value="__CUSTOM__">+ Add Custom Venue</option>';
+                select.innerHTML = optionsHTML;
+                select.value = customVenue;
+                
+                // Hide custom input
+                customInput.style.display = 'none';
+                customInput.value = '';
+                
+                // Re-render the entire table to update all venue dropdowns with the new venue
+                renderAssessmentTable();
+            } else {
+                // If empty, hide input and reset select
+                customInput.style.display = 'none';
+                select.value = '';
+            }
+        }
+        
         // Update assessment venue
         function updateAssessmentVenue(studentId, venue) {
             const student = assessmentSessionData.find(s => String(s.id) === String(studentId));
@@ -2840,8 +2950,8 @@ $assessmentDataJson = json_encode($assessmentData);
 
         // Populate date sort dropdown with unique dates from assessment session data
         function populateDateSortDropdown() {
-            const sortDropdown = document.getElementById('assessmentSortBy');
-            if (!sortDropdown) return;
+            const dateFilterMenu = document.getElementById('assessmentDateFilterMenu');
+            if (!dateFilterMenu) return;
             
             // Get all unique dates from assessment session data
             const uniqueDates = [...new Set(assessmentSessionData
@@ -2849,12 +2959,15 @@ $assessmentDataJson = json_encode($assessmentData);
                 .filter(d => d))].sort();
             
             // Clear existing options except "All Dates"
-            sortDropdown.innerHTML = '<option value="">All Dates</option>';
+            dateFilterMenu.innerHTML = '<a href="javascript:void(0)" class="download-option" data-date-value=""><span>All Dates</span></a>';
             
             // Add date options
             uniqueDates.forEach(date => {
-                const option = document.createElement('option');
-                option.value = date;
+                const option = document.createElement('a');
+                option.href = 'javascript:void(0)';
+                option.className = 'download-option';
+                option.setAttribute('data-date-value', date);
+                
                 // Format date for display (e.g., "2024-01-15" -> "Jan 15, 2024")
                 const dateObj = new Date(date);
                 const formattedDate = dateObj.toLocaleDateString('en-US', { 
@@ -2862,24 +2975,71 @@ $assessmentDataJson = json_encode($assessmentData);
                     month: 'short', 
                     day: 'numeric' 
                 });
-                option.textContent = formattedDate;
-                sortDropdown.appendChild(option);
+                
+                const span = document.createElement('span');
+                span.textContent = formattedDate;
+                option.appendChild(span);
+                dateFilterMenu.appendChild(option);
             });
+            
+            // Attach click handlers to date options
+            dateFilterMenu.querySelectorAll('.download-option').forEach(option => {
+                option.addEventListener('click', function(e) {
+                    const dateValue = this.getAttribute('data-date-value') || '';
+                    const labelText = this.querySelector('span')?.textContent || 'All Dates';
+                    currentAssessmentDateFilter = dateValue;
+                    document.getElementById('assessmentDateFilterLabel').textContent = labelText;
+                    applyAssessmentFilters();
+                    closeAssessmentDateFilterDropdown();
+                });
+            });
+        }
+        
+        // Toggle assessment date filter dropdown
+        function toggleAssessmentDateFilterDropdown() {
+            const dropdown = document.getElementById('assessmentDateFilterMenu');
+            const button = document.querySelector('.sort-section .course-filter-dropdown .btn-download');
+
+            // Close other download dropdowns
+            document.querySelectorAll('.download-dropdown-menu.show').forEach(menu => {
+                if (menu !== dropdown) {
+                    menu.classList.remove('show');
+                }
+            });
+
+            document.querySelectorAll('.btn-download.active').forEach(btn => {
+                if (btn !== button) {
+                    btn.classList.remove('active');
+                }
+            });
+
+            if (dropdown) {
+                dropdown.classList.toggle('show');
+            }
+            if (button) {
+                button.classList.toggle('active');
+            }
+        }
+
+        function closeAssessmentDateFilterDropdown() {
+            const dropdown = document.getElementById('assessmentDateFilterMenu');
+            const button = document.querySelector('.sort-section .course-filter-dropdown .btn-download');
+            if (dropdown) {
+                dropdown.classList.remove('show');
+            }
+            if (button) {
+                button.classList.remove('active');
+            }
         }
 
         // Sort assessment table
         let assessmentSortOrder = 'asc'; // 'asc' or 'desc'
         function sortAssessmentTable() {
-            const selectedDate = document.getElementById('assessmentSortBy')?.value || '';
-            
-            // Filter by selected date if a date is selected
-            let studentsToSort = [...filteredAssessmentStudents];
-            if (selectedDate) {
-                studentsToSort = studentsToSort.filter(s => s.date === selectedDate);
-            }
+            // Note: Date filtering is now done in applyAssessmentFilters()
+            // This function only handles sorting
             
             // Sort by date (from start to end), then by time, then by name
-            studentsToSort.sort((a, b) => {
+            filteredAssessmentStudents.sort((a, b) => {
                 let comparison = 0;
                 
                 // Sort by date first
@@ -2909,15 +3069,6 @@ $assessmentDataJson = json_encode($assessmentData);
                 
                 return assessmentSortOrder === 'asc' ? comparison : -comparison;
             });
-            
-            // Update filteredAssessmentStudents with sorted and filtered results
-            if (selectedDate) {
-                // If a date is selected, show only that date's students
-                filteredAssessmentStudents = studentsToSort;
-            } else {
-                // If "All Dates" is selected, show all students sorted by date
-                filteredAssessmentStudents = studentsToSort;
-            }
             
             renderAssessmentTable();
         }
@@ -2952,9 +3103,32 @@ $assessmentDataJson = json_encode($assessmentData);
                 return;
             }
 
-            // Show modal with date range inputs
+            // Get all venue options for selection
+            const allVenueOptions = getAllVenueOptions();
+            
+            // Build venue selection checkboxes
+            let venueCheckboxesHTML = `
+                <div style="margin-bottom: 10px;">
+                    <label style="display: flex; align-items: center; cursor: pointer; padding: 5px 0;">
+                        <input type="checkbox" id="selectAllVenues" checked style="margin-right: 8px; cursor: pointer;" />
+                        <strong>Select All</strong>
+                    </label>
+                </div>
+            `;
+            allVenueOptions.forEach((venue, index) => {
+                venueCheckboxesHTML += `
+                    <div style="margin-bottom: 8px;">
+                        <label style="display: flex; align-items: center; cursor: pointer; padding: 5px 0;">
+                            <input type="checkbox" class="venue-checkbox" value="${venue}" checked style="margin-right: 8px; cursor: pointer;" />
+                            <span>${venue}</span>
+                        </label>
+                    </div>
+                `;
+            });
+            
+            // Show modal with date range inputs and venue selection
             assignAssessmentModal.innerHTML = `
-                <div class="modal-dialog" style="max-width: 500px;">
+                <div class="modal-dialog" style="max-width: 550px;">
                     <div class="modal-content-custom">
                         <span class="close-btn" id="closeAssignAssessmentModal">&times;</span>
                         <div class="modal-title-custom">Assign Assessment Sessions Automatically</div>
@@ -2965,9 +3139,15 @@ $assessmentDataJson = json_encode($assessmentData);
                             <label for="startDate" style="display: block; margin-bottom: 5px; font-weight: 600; color: #333;">Start Date:</label>
                             <input type="date" id="startDate" class="form-control" style="width: 100%; padding: 8px; border: 2px solid #ddd; border-radius: 8px; font-size: 14px;" required />
                         </div>
-                        <div style="margin-bottom: 20px;">
+                        <div style="margin-bottom: 15px;">
                             <label for="endDate" style="display: block; margin-bottom: 5px; font-weight: 600; color: #333;">End Date:</label>
                             <input type="date" id="endDate" class="form-control" style="width: 100%; padding: 8px; border: 2px solid #ddd; border-radius: 8px; font-size: 14px;" required />
+                        </div>
+                        <div style="margin-bottom: 20px;">
+                            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">Select Venues:</label>
+                            <div style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; border-radius: 8px; padding: 10px; background: #f9f9f9;">
+                                ${venueCheckboxesHTML}
+                            </div>
                         </div>
                         <div style="margin-top:15px; display:flex; gap:10px; justify-content:flex-end;">
                             <button id="cancelAssignAssessment" class="btn btn-light border" type="button">Cancel</button>
@@ -2975,6 +3155,26 @@ $assessmentDataJson = json_encode($assessmentData);
                         </div>
                     </div>
                 </div>`;
+
+            // Handle "Select All" checkbox
+            const selectAllCheckbox = assignAssessmentModal.querySelector('#selectAllVenues');
+            const venueCheckboxes = assignAssessmentModal.querySelectorAll('.venue-checkbox');
+            
+            if (selectAllCheckbox) {
+                selectAllCheckbox.addEventListener('change', function() {
+                    venueCheckboxes.forEach(cb => {
+                        cb.checked = selectAllCheckbox.checked;
+                    });
+                });
+            }
+            
+            // Handle individual checkbox changes
+            venueCheckboxes.forEach(cb => {
+                cb.addEventListener('change', function() {
+                    const allChecked = Array.from(venueCheckboxes).every(c => c.checked);
+                    selectAllCheckbox.checked = allChecked;
+                });
+            });
 
             assignAssessmentModal.querySelector('#closeAssignAssessmentModal').onclick = closeAssignAssessmentModal;
             assignAssessmentModal.querySelector('#cancelAssignAssessment').onclick = closeAssignAssessmentModal;
@@ -2992,7 +3192,17 @@ $assessmentDataJson = json_encode($assessmentData);
                     return;
                 }
                 
-                performAssignAssessmentSessions(startDate, endDate);
+                // Get selected venues
+                const selectedVenues = Array.from(venueCheckboxes)
+                    .filter(cb => cb.checked)
+                    .map(cb => cb.value);
+                
+                if (selectedVenues.length === 0) {
+                    alert('Please select at least one venue.');
+                    return;
+                }
+                
+                performAssignAssessmentSessions(startDate, endDate, selectedVenues);
             };
             openModal(assignAssessmentModal);
         }
@@ -3016,7 +3226,7 @@ $assessmentDataJson = json_encode($assessmentData);
         }
 
         // Perform automatic assignment of assessment sessions following student distribution 3-group logic
-        function performAssignAssessmentSessions(startDate, endDate) {
+        function performAssignAssessmentSessions(startDate, endDate, selectedVenues = null) {
             // IMPORTANT: Sync assessmentSessionData with current students data
             // This ensures we use the latest supervisor and assessor assignments from student distribution
             syncAssessmentSessionData();
@@ -3124,22 +3334,10 @@ $assessmentDataJson = json_encode($assessmentData);
                 }
             });
 
-            // Venue options
-            const venueOptions = [
-                'Lab 1',
-                'Lab 2',
-                'Lab 3',
-                'Lecture Hall A',
-                'Lecture Hall B',
-                'Lecture Hall C',
-                'Seminar Room 1',
-                'Seminar Room 2',
-                'Seminar Room 3',
-                'Conference Room 1',
-                'Conference Room 2',
-                'Online',
-                'Other'
-            ];
+            // Venue options - use selected venues if provided, otherwise use all available venues
+            const venueOptions = selectedVenues && selectedVenues.length > 0 
+                ? selectedVenues 
+                : getAllVenueOptions();
 
             // Helper function to get time slots based on day of week
             // Each presentation is 20 minutes, back-to-back (no gap)
@@ -3305,17 +3503,50 @@ $assessmentDataJson = json_encode($assessmentData);
             // All students in the same distribution group (3 supervisors) present on the same day
             // All students with the same supervisor present together (same day, same venue, one after another)
             
-            // Fairly distribute groups across days using round-robin
+            // Calculate total students needing assignment for fair distribution
+            const totalStudentsNeedingAssignment = assessmentGroups.reduce((sum, group) => sum + group.students.length, 0);
+            const studentsPerDay = Math.ceil(totalStudentsNeedingAssignment / daysDiff);
+            
+            // Track how many students have been assigned to each day for fair distribution
+            const studentsPerDayCount = new Array(daysDiff).fill(0);
+            
+            // Track which dates have been assigned at least one student
+            const datesWithStudents = new Set();
+            
+            // Fairly distribute groups across days, ensuring even distribution AND every date gets at least one student
             assessmentGroups.forEach((assessmentGroup, groupIndex) => {
                 if (assessmentGroup.students.length === 0) return;
                 
                 const { students, studentsBySupervisor, supervisors } = assessmentGroup;
                 
-                // Fairly distribute groups across days (round-robin)
-                const dayIndex = groupIndex % daysDiff;
+                // Find the day with the least students assigned so far
+                // Prioritize dates that have zero students to ensure every date gets at least one
+                let minDayIndex = 0;
+                let minCount = studentsPerDayCount[0];
+                let hasZeroStudents = studentsPerDayCount[0] === 0;
+                
+                for (let d = 0; d < daysDiff; d++) {
+                    // If this date has zero students, prioritize it
+                    if (studentsPerDayCount[d] === 0 && !hasZeroStudents) {
+                        minDayIndex = d;
+                        minCount = 0;
+                        hasZeroStudents = true;
+                    } else if (!hasZeroStudents && studentsPerDayCount[d] < minCount) {
+                        minCount = studentsPerDayCount[d];
+                        minDayIndex = d;
+                    }
+                }
+                
+                // Use the day with least students (prioritizing dates with zero students)
+                // This ensures every date gets at least one student
+                const dayIndex = minDayIndex;
                 const currentDate = new Date(start);
                 currentDate.setDate(start.getDate() + dayIndex);
                 const targetDate = currentDate.toISOString().split('T')[0];
+                
+                // Update count for this day
+                studentsPerDayCount[dayIndex] += students.length;
+                datesWithStudents.add(targetDate);
                 
                 // Try to find a slot for this entire group on the target date
                 let groupSlot = null;
@@ -3556,6 +3787,58 @@ $assessmentDataJson = json_encode($assessmentData);
                     });
                 }
             });
+
+            // Final check: Ensure every date in the range has at least one student assigned
+            // If any date has zero students, assign at least one student to it
+            for (let d = 0; d < daysDiff; d++) {
+                const currentDate = new Date(start);
+                currentDate.setDate(start.getDate() + d);
+                const dateStr = currentDate.toISOString().split('T')[0];
+                
+                // Check if this date has any students assigned
+                const studentsOnThisDate = assessmentSessionData.filter(s => s.date === dateStr && s.time && s.venue);
+                
+                if (studentsOnThisDate.length === 0) {
+                    // This date has no students - find an unassigned student and assign them to this date
+                    const unassignedStudent = assessmentSessionData.find(s => !s.date || !s.time || !s.venue);
+                    
+                    if (unassignedStudent) {
+                        const timeSlotsForDate = getTimeSlotsForDate(dateStr);
+                        const assessor1 = unassignedStudent.assessor1;
+                        const assessor2 = unassignedStudent.assessor2;
+                        
+                        // Try to find a slot for this student on this date
+                        let assigned = false;
+                        for (let t = 0; t < timeSlotsForDate.length && !assigned; t++) {
+                            const time = timeSlotsForDate[t];
+                            
+                            for (let v = 0; v < venueOptions.length && !assigned; v++) {
+                                const venue = venueOptions[v];
+                                
+                                if (!hasConflict(dateStr, time, assessor1, assessor2, venue)) {
+                                    unassignedStudent.date = dateStr;
+                                    unassignedStudent.time = time;
+                                    unassignedStudent.venue = venue;
+                                    
+                                    // Reserve the slot
+                                    reserveSlot(dateStr, time, assessor1, assessor2, venue);
+                                    assigned = true;
+                                }
+                            }
+                        }
+                        
+                        // If still not assigned, assign to first available slot (force assignment)
+                        if (!assigned && timeSlotsForDate.length > 0) {
+                            unassignedStudent.date = dateStr;
+                            unassignedStudent.time = timeSlotsForDate[0];
+                            unassignedStudent.venue = venueOptions[0];
+                            
+                            // Reserve the slot
+                            reserveSlot(dateStr, unassignedStudent.time, assessor1, assessor2, venueOptions[0]);
+                        }
+                    }
+                }
+            }
 
             // Repopulate date dropdown after assignment
             populateDateSortDropdown();

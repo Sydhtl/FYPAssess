@@ -221,13 +221,18 @@
 
 .task-input,
 .datetime-input,
-.role-select {
+.role-select,
+.task-select,
+.date-input,
+.time-input {
   width: 100%;
   padding: 8px 10px;
   border-radius: 6px;
   border: 1px solid #ccc;
   background-color: #fff;
   font-size: 14px;
+  font-family: 'Montserrat', Arial, sans-serif;
+  box-sizing: border-box;
 }
 
 .btn-delete-allocation {

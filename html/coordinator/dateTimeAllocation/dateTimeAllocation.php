@@ -1,4 +1,79 @@
-<?php include '../../../php/coordinator_bootstrap.php'; ?>
+<?php 
+include '../../../php/coordinator_bootstrap.php';
+
+// Get coordinator's department ID
+$departmentId = null;
+if ($stmt = $conn->prepare("SELECT Department_ID FROM lecturer WHERE Lecturer_ID = ? LIMIT 1")) {
+    $stmt->bind_param("s", $userId);
+    if ($stmt->execute()) {
+        $res = $stmt->get_result();
+        if ($row = $res->fetch_assoc()) {
+            $departmentId = $row['Department_ID'];
+        }
+    }
+    $stmt->close();
+}
+
+// Fetch courses for this department
+$courses = [];
+if ($departmentId) {
+    $coursesQuery = "SELECT Course_ID, Course_Code FROM course WHERE Department_ID = ? ORDER BY Course_Code";
+    if ($stmt = $conn->prepare($coursesQuery)) {
+        $stmt->bind_param("i", $departmentId);
+        if ($stmt->execute()) {
+            $result = $stmt->get_result();
+            while ($row = $result->fetch_assoc()) {
+                $courses[] = $row;
+            }
+        }
+        $stmt->close();
+    }
+}
+
+// Get course codes for sections (first two courses)
+$courseCodeA = !empty($courses[0]) ? $courses[0]['Course_Code'] : 'SWE4949-A';
+$courseCodeB = !empty($courses[1]) ? $courses[1]['Course_Code'] : 'SWE4949-B';
+$courseIdA = !empty($courses[0]) ? $courses[0]['Course_ID'] : null;
+$courseIdB = !empty($courses[1]) ? $courses[1]['Course_ID'] : null;
+
+// Fetch assessments for each course
+$assessmentsA = [];
+$assessmentsB = [];
+
+if ($courseIdA) {
+    $assessmentsQuery = "SELECT Assessment_ID, Assessment_Name FROM assessment WHERE Course_ID = ? ORDER BY Assessment_Name";
+    if ($stmt = $conn->prepare($assessmentsQuery)) {
+        $stmt->bind_param("i", $courseIdA);
+        if ($stmt->execute()) {
+            $result = $stmt->get_result();
+            while ($row = $result->fetch_assoc()) {
+                $assessmentsA[] = $row;
+            }
+        }
+        $stmt->close();
+    }
+}
+
+if ($courseIdB) {
+    $assessmentsQuery = "SELECT Assessment_ID, Assessment_Name FROM assessment WHERE Course_ID = ? ORDER BY Assessment_Name";
+    if ($stmt = $conn->prepare($assessmentsQuery)) {
+        $stmt->bind_param("i", $courseIdB);
+        if ($stmt->execute()) {
+            $result = $stmt->get_result();
+            while ($row = $result->fetch_assoc()) {
+                $assessmentsB[] = $row;
+            }
+        }
+        $stmt->close();
+    }
+}
+
+// Encode assessments as JSON for JavaScript
+$assessmentsAJson = json_encode($assessmentsA);
+$assessmentsBJson = json_encode($assessmentsB);
+$courseIdAJson = json_encode($courseIdA);
+$courseIdBJson = json_encode($courseIdB);
+?>
 <!DOCTYPE html>
 <html>
 <head>
@@ -120,9 +195,8 @@
         <div class="allocation-container">
            
 
-            <div class="tab-buttons">
-                <button class="task-tab active-tab" data-tab="swe4949a">SWE4949-A</button>
-                <button class="task-tab" data-tab="swe4949b">SWE4949-B</button>
+            <div class="tab-buttons" id="tabButtons">
+                <!-- Tabs will be dynamically generated -->
             </div>
 
             <div class="allocation-top-actions">
@@ -132,33 +206,8 @@
                 </button>
             </div>
 
-            <div class="table-scroll-container">
-                <table class="allocation-table" id="allocationTable-swe4949a">
-                    <thead>
-                        <tr>
-                            <th>No.</th>
-                            <th>Task</th>
-                            <th>Start Date &amp; Time</th>
-                            <th>End Date &amp; Time</th>
-                            <th>Role</th>
-                            <th>Delete</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
-                <table class="allocation-table" id="allocationTable-swe4949b" style="display:none;">
-                    <thead>
-                        <tr>
-                            <th>No.</th>
-                            <th>Task</th>
-                            <th>Start Date &amp; Time</th>
-                            <th>End Date &amp; Time</th>
-                            <th>Role</th>
-                            <th>Delete</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
+            <div class="table-scroll-container" id="tableContainer">
+                <!-- Tables will be dynamically generated -->
             </div>
 
             <div class="allocation-footer">
@@ -176,76 +225,228 @@
     <script>
         // --- FILTER RELOAD FUNCTION ---
         function reloadPageWithFilters() {
-            const yearFilter = document.getElementById('yearFilter').value;
-            const semesterFilter = document.getElementById('semesterFilter').value;
+            // Clear existing allocations
+            Object.keys(dateTimeAllocations).forEach(key => {
+                dateTimeAllocations[key] = [];
+            });
             
-            // Build URL with query parameters
-            const params = new URLSearchParams();
-            if (yearFilter) params.append('year', yearFilter);
-            if (semesterFilter) params.append('semester', semesterFilter);
-            
-            // Reload page with new parameters
-            window.location.href = 'dateTimeAllocation.php?' + params.toString();
+            // Reload due dates with new filters
+            loadDueDates();
         }
 
         const collapsedWidth = "60px";
         const expandedWidth = "220px";
 
-        const dateTimeAllocations = {
-            swe4949a: [
-                {
-                    id: 1,
-                    task: 'Proposal Submission',
-                    allocations: [
-                        {
-                            start: '2025-08-09T09:00',
-                            end: '2025-08-09T10:00',
-                            role: 'Coordinator'
-                        },
-                        {
-                            start: '2025-08-09T13:00',
-                            end: '2025-08-09T14:00',
-                            role: 'Assessor'
-                        }
-                    ]
-                },
-                {
-                    id: 2,
-                    task: 'Progress Presentation',
-                    allocations: [
-                        {
-                            start: '2025-08-15T10:00',
-                            end: '2025-08-15T12:00',
-                            role: 'Assessor'
-                        }
-                    ]
-                }
-            ],
-            swe4949b: [
-                {
-                    id: 3,
-                    task: 'Proposal Submission',
-                    allocations: [
-                        {
-                            start: '2025-08-10T09:00',
-                            end: '2025-08-10T10:30',
-                            role: 'Coordinator'
-                        }
-                    ]
-                }
-            ]
-        };
-
-        let activeTab = 'swe4949a';
+        const dateTimeAllocations = {}; // Will be populated from database
+        const courses = []; // Will be loaded from database
+        const assessmentsByCourse = {}; // Cache assessments by course_id
+        const courseIdMap = {}; // Maps course code to course_id
+        let activeTab = null;
         let pendingResetTab = null;
-        let nextTaskId = 4;
+        let nextTaskId = 1;
+
+        // Load courses and initialize the page
+        async function loadCoursesAndInitialize() {
+            try {
+                const response = await fetch('../../../php/phpCoordinator/fetch_courses.php');
+                const data = await response.json();
+                
+                if (data.success && data.courses) {
+                    courses.length = 0;
+                    courses.push(...data.courses);
+                    
+                    // Create course ID map
+                    courses.forEach(course => {
+                        const tabKey = course.course_code.toLowerCase().replace(/[^a-z0-9]/g, '');
+                        courseIdMap[tabKey] = course.course_id;
+                        dateTimeAllocations[tabKey] = [];
+                    });
+                    
+                    createTabs();
+                    loadDueDates();
+                } else {
+                    console.error('Failed to load courses:', data.error);
+                }
+            } catch (error) {
+                console.error('Error loading courses:', error);
+            }
+        }
+
+        // Create tabs dynamically based on courses
+        function createTabs() {
+            const tabButtons = document.getElementById('tabButtons');
+            const tableContainer = document.getElementById('tableContainer');
+            
+            tabButtons.innerHTML = '';
+            tableContainer.innerHTML = '';
+            
+            courses.forEach((course, index) => {
+                const tabKey = course.course_code.toLowerCase().replace(/[^a-z0-9]/g, '');
+                
+                // Create tab button
+                const tabButton = document.createElement('button');
+                tabButton.className = 'task-tab' + (index === 0 ? ' active-tab' : '');
+                tabButton.setAttribute('data-tab', tabKey);
+                tabButton.textContent = course.course_code;
+                tabButton.addEventListener('click', () => setActiveTab(tabKey));
+                tabButtons.appendChild(tabButton);
+                
+                // Create table
+                const table = document.createElement('table');
+                table.className = 'allocation-table';
+                table.id = `allocationTable-${tabKey}`;
+                table.style.display = index === 0 ? 'table' : 'none';
+                
+                table.innerHTML = `
+                    <thead>
+                        <tr>
+                            <th>No.</th>
+                            <th>Task</th>
+                            <th>Start Date</th>
+                            <th>Start Time</th>
+                            <th>End Date</th>
+                            <th>End Time</th>
+                            <th>Role</th>
+                            <th>Delete</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                `;
+                tableContainer.appendChild(table);
+            });
+            
+            if (courses.length > 0) {
+                const firstTabKey = courses[0].course_code.toLowerCase().replace(/[^a-z0-9]/g, '');
+                activeTab = firstTabKey;
+                setActiveTab(firstTabKey);
+            }
+        }
+
+        // Load assessments for a course
+        async function loadAssessmentsForCourse(courseId) {
+            if (assessmentsByCourse[courseId]) {
+                return assessmentsByCourse[courseId];
+            }
+            
+            try {
+                const response = await fetch(`../../../php/phpCoordinator/fetch_assessments.php?course_id=${courseId}`);
+                const data = await response.json();
+                
+                if (data.success && data.assessments) {
+                    assessmentsByCourse[courseId] = data.assessments;
+                    return data.assessments;
+                }
+            } catch (error) {
+                console.error('Error loading assessments:', error);
+            }
+            
+            return [];
+        }
+
+        // Get FYP_Session_ID from year and semester
+        async function getFypSessionId(year, semester) {
+            if (!year || !semester) {
+                return null;
+            }
+            
+            try {
+                // Get FYP_Session_IDs for the selected year and semester
+                // We'll use the first matching FYP_Session_ID for the coordinator's courses
+                const response = await fetch(`../../../php/phpCoordinator/fetch_due_dates.php?year=${encodeURIComponent(year)}&semester=${encodeURIComponent(semester)}`);
+                const data = await response.json();
+                
+                if (data.success && data.fyp_session_ids && data.fyp_session_ids.length > 0) {
+                    // Use the first FYP_Session_ID that matches the selected year and semester
+                    // Since all should be for the same year/semester, any one will work
+                    return data.fyp_session_ids[0];
+                }
+            } catch (error) {
+                console.error('Error getting FYP_Session_ID:', error);
+            }
+            return null;
+        }
+
+        // Load existing due dates from database
+        async function loadDueDates() {
+            try {
+                // Clear existing allocations
+                Object.keys(dateTimeAllocations).forEach(key => {
+                    dateTimeAllocations[key] = [];
+                });
+                
+                const year = document.getElementById('yearFilter')?.value || '';
+                const semester = document.getElementById('semesterFilter')?.value || '';
+                
+                if (!year || !semester) {
+                    // If no filters, show empty tables
+                    courses.forEach(course => {
+                        const tabKey = course.course_code.toLowerCase().replace(/[^a-z0-9]/g, '');
+                        renderAllocationTable(tabKey);
+                    });
+                    return;
+                }
+                
+                const response = await fetch(`../../../php/phpCoordinator/fetch_due_dates.php?year=${encodeURIComponent(year)}&semester=${encodeURIComponent(semester)}`);
+                const data = await response.json();
+                
+                if (data.success && data.allocations) {
+                    // Only show tasks that have due dates assigned
+                    data.allocations.forEach(allocation => {
+                        // Only process if there are due dates
+                        if (!allocation.due_dates || allocation.due_dates.length === 0) {
+                            return; // Skip assessments without due dates
+                        }
+                        
+                        const tabKey = allocation.course_code.toLowerCase().replace(/[^a-z0-9]/g, '');
+                        
+                        if (!dateTimeAllocations[tabKey]) {
+                            dateTimeAllocations[tabKey] = [];
+                        }
+                        
+                        // Create task entry with due dates
+                        const task = {
+                            id: nextTaskId++,
+                            assessment_id: allocation.assessment_id,
+                            assessment_name: allocation.assessment_name,
+                            course_id: allocation.course_id,
+                            allocations: []
+                        };
+                        
+                        // Add due dates
+                        allocation.due_dates.forEach(dueDate => {
+                            task.allocations.push({
+                                due_id: dueDate.due_id || 0,
+                                start_date: dueDate.start_date || '',
+                                start_time: dueDate.start_time || '',
+                                end_date: dueDate.end_date || '',
+                                end_time: dueDate.end_time || '',
+                                role: dueDate.role || ''
+                            });
+                        });
+                        
+                        dateTimeAllocations[tabKey].push(task);
+                    });
+                }
+                
+                // Render all tables (will show empty state if no data)
+                courses.forEach(course => {
+                    const tabKey = course.course_code.toLowerCase().replace(/[^a-z0-9]/g, '');
+                    renderAllocationTable(tabKey);
+                });
+            } catch (error) {
+                console.error('Error loading due dates:', error);
+                // On error, show empty tables
+                courses.forEach(course => {
+                    const tabKey = course.course_code.toLowerCase().replace(/[^a-z0-9]/g, '');
+                    renderAllocationTable(tabKey);
+                });
+            }
+        }
 
         document.addEventListener('DOMContentLoaded', function () {
             initializeRoleToggle();
             closeNav();
-            initializeTabs();
-            renderAllocationTable('swe4949a');
-            renderAllocationTable('swe4949b');
+            loadCoursesAndInitialize();
 
             // Add event listeners for modals
             const successModal = document.getElementById('successModal');
@@ -274,15 +475,6 @@
             });
         });
 
-        function initializeTabs() {
-            const tabButtons = document.querySelectorAll('.task-tab');
-            tabButtons.forEach(button => {
-                button.addEventListener('click', function () {
-                    const tabName = this.getAttribute('data-tab');
-                    setActiveTab(tabName);
-                });
-            });
-        }
 
         function setActiveTab(tabName) {
             activeTab = tabName;
@@ -290,22 +482,46 @@
                 button.classList.toggle('active-tab', button.getAttribute('data-tab') === tabName);
             });
 
-            document.getElementById('allocationTable-swe4949a').style.display = tabName === 'swe4949a' ? 'table' : 'none';
-            document.getElementById('allocationTable-swe4949b').style.display = tabName === 'swe4949b' ? 'table' : 'none';
+            document.querySelectorAll('.allocation-table').forEach(table => {
+                table.style.display = table.id === `allocationTable-${tabName}` ? 'table' : 'none';
+            });
         }
 
-        function addNewTask(tabName) {
+        async function addNewTask(tabName) {
+            if (!tabName || !courseIdMap[tabName]) {
+                alert('Please select a course tab first');
+                return;
+            }
+            
+            const courseId = courseIdMap[tabName];
+            const assessments = await loadAssessmentsForCourse(courseId);
+            
+            if (assessments.length === 0) {
+                alert('No assessments available for this course');
+                return;
+            }
+            
             const newTask = {
                 id: nextTaskId++,
-                task: '',
+                assessment_id: assessments[0].assessment_id,
+                assessment_name: assessments[0].assessment_name,
+                course_id: courseId,
                 allocations: [
                     {
-                        start: '',
-                        end: '',
+                        due_id: 0,
+                        start_date: '',
+                        start_time: '',
+                        end_date: '',
+                        end_time: '',
                         role: ''
                     }
                 ]
             };
+            
+            if (!dateTimeAllocations[tabName]) {
+                dateTimeAllocations[tabName] = [];
+            }
+            
             dateTimeAllocations[tabName].push(newTask);
             renderAllocationTable(tabName);
         }
@@ -313,7 +529,14 @@
         function addAllocation(taskId, tabName) {
             const task = dateTimeAllocations[tabName].find(item => item.id === taskId);
             if (task) {
-                task.allocations.push({ start: '', end: '', role: '' });
+                task.allocations.push({
+                    due_id: 0,
+                    start_date: '',
+                    start_time: '',
+                    end_date: '',
+                    end_time: '',
+                    role: ''
+                });
                 renderAllocationTable(tabName);
             }
         }
@@ -324,7 +547,14 @@
                 if (task.allocations.length > 1) {
                     task.allocations.splice(allocationIndex, 1);
                 } else {
-                    task.allocations[0] = { start: '', end: '', role: '' };
+                    task.allocations[0] = {
+                        due_id: 0,
+                        start_date: '',
+                        start_time: '',
+                        end_date: '',
+                        end_time: '',
+                        role: ''
+                    };
                 }
                 renderAllocationTable(tabName);
             }
@@ -339,10 +569,18 @@
             }
         }
 
-        function updateTaskName(taskId, tabName, value) {
+        async function updateTaskName(taskId, tabName, value) {
             const task = dateTimeAllocations[tabName].find(item => item.id === taskId);
-            if (task) {
-                task.task = value;
+            if (task && value) {
+                const assessmentId = parseInt(value);
+                const courseId = courseIdMap[tabName];
+                const assessments = await loadAssessmentsForCourse(courseId);
+                const selectedAssessment = assessments.find(a => a.assessment_id === assessmentId);
+                
+                if (selectedAssessment) {
+                    task.assessment_id = selectedAssessment.assessment_id;
+                    task.assessment_name = selectedAssessment.assessment_name;
+                }
             }
         }
 
@@ -353,45 +591,75 @@
             }
         }
 
-        function renderAllocationTable(tabName) {
+        async function renderAllocationTable(tabName) {
             const tableBody = document.querySelector(`#allocationTable-${tabName} tbody`);
             if (!tableBody) return;
             tableBody.innerHTML = '';
 
-            const tasks = dateTimeAllocations[tabName];
+            const tasks = dateTimeAllocations[tabName] || [];
 
             if (tasks.length === 0) {
                 const emptyRow = document.createElement('tr');
-                emptyRow.innerHTML = `<td colspan="6" class="empty-state">No tasks added yet. Click "Add New Task" to begin.</td>`;
+                const year = document.getElementById('yearFilter')?.value || '';
+                const semester = document.getElementById('semesterFilter')?.value || '';
+                
+                if (year && semester) {
+                    emptyRow.innerHTML = `<td colspan="8" class="empty-state">No due dates assigned for the selected year and semester. Click "Add New Task" to begin.</td>`;
+                } else {
+                    emptyRow.innerHTML = `<td colspan="8" class="empty-state">Please select Year and Semester to view due dates.</td>`;
+                }
                 tableBody.appendChild(emptyRow);
                 return;
             }
 
-            tasks.forEach((task, index) => {
+            const courseId = courseIdMap[tabName];
+            const assessments = await loadAssessmentsForCourse(courseId);
+
+            for (let index = 0; index < tasks.length; index++) {
+                const task = tasks[index];
                 const rowspan = Math.max(task.allocations.length, 1);
-                task.allocations.forEach((allocation, allocationIndex) => {
+                
+                for (let allocationIndex = 0; allocationIndex < task.allocations.length; allocationIndex++) {
+                    const allocation = task.allocations[allocationIndex];
                     const row = document.createElement('tr');
 
                     if (allocationIndex === 0) {
+                        // Build assessment dropdown options
+                        let assessmentOptions = '<option value="">Select assessment...</option>';
+                        assessments.forEach(assessment => {
+                            const selected = task.assessment_id === assessment.assessment_id ? 'selected' : '';
+                            assessmentOptions += `<option value="${assessment.assessment_id}" ${selected}>${(assessment.assessment_name || '').replace(/"/g, '&quot;')}</option>`;
+                        });
+                        
                         row.innerHTML += `
                             <td rowspan="${rowspan}">${index + 1}.</td>
                             <td rowspan="${rowspan}">
-                                <input type="text" class="task-input" value="${(task.task || '').replace(/"/g, '&quot;')}" placeholder="Enter task name..." onchange="updateTaskName(${task.id}, '${tabName}', this.value)">
+                                <select class="task-select" onchange="updateTaskName(${task.id}, '${tabName}', this.value)">
+                                    ${assessmentOptions}
+                                </select>
                             </td>
                         `;
                     }
 
                     row.innerHTML += `
                         <td>
-                            <input type="datetime-local" class="datetime-input" value="${allocation.start || ''}" onchange="updateAllocationField(${task.id}, ${allocationIndex}, 'start', this.value, '${tabName}')">
+                            <input type="date" class="date-input" value="${allocation.start_date || ''}" onchange="updateAllocationField(${task.id}, ${allocationIndex}, 'start_date', this.value, '${tabName}')">
                         </td>
                         <td>
-                            <input type="datetime-local" class="datetime-input" value="${allocation.end || ''}" onchange="updateAllocationField(${task.id}, ${allocationIndex}, 'end', this.value, '${tabName}')">
+                            <input type="time" class="time-input" value="${allocation.start_time || ''}" onchange="updateAllocationField(${task.id}, ${allocationIndex}, 'start_time', this.value, '${tabName}')">
+                        </td>
+                        <td>
+                            <input type="date" class="date-input" value="${allocation.end_date || ''}" onchange="updateAllocationField(${task.id}, ${allocationIndex}, 'end_date', this.value, '${tabName}')">
+                        </td>
+                        <td>
+                            <input type="time" class="time-input" value="${allocation.end_time || ''}" onchange="updateAllocationField(${task.id}, ${allocationIndex}, 'end_time', this.value, '${tabName}')">
                         </td>
                         <td>
                             <select class="role-select" onchange="updateAllocationField(${task.id}, ${allocationIndex}, 'role', this.value, '${tabName}')">
                                 <option value="" ${allocation.role === '' ? 'selected' : ''}>Select role...</option>
                                 <option value="Coordinator" ${allocation.role === 'Coordinator' ? 'selected' : ''}>Coordinator</option>
+                                <option value="Supervisor" ${allocation.role === 'Supervisor' ? 'selected' : ''}>Supervisor</option>
+                                <option value="Student" ${allocation.role === 'Student' ? 'selected' : ''}>Student</option>
                                 <option value="Assessor" ${allocation.role === 'Assessor' ? 'selected' : ''}>Assessor</option>
                             </select>
                         </td>
@@ -403,12 +671,12 @@
                     `;
 
                     tableBody.appendChild(row);
-                });
+                }
 
                 const addRow = document.createElement('tr');
                 addRow.classList.add('add-allocation-row');
                 addRow.innerHTML = `
-                    <td colspan="6">
+                    <td colspan="8">
                         <div class="allocation-row-actions">
                             <button class="btn-add-allocation" onclick="addAllocation(${task.id}, '${tabName}')">
                                 <i class="bi bi-plus-circle"></i>
@@ -422,7 +690,7 @@
                     </td>
                 `;
                 tableBody.appendChild(addRow);
-            });
+            }
         }
 
         function resetAllocations(tabName) {
@@ -466,26 +734,94 @@
             closeResetModal();
         }
 
-        function saveAllocations(tabName) {
-            console.log('Saving allocations for', tabName, JSON.parse(JSON.stringify(dateTimeAllocations[tabName])));
+        async function saveAllocations(tabName) {
+            if (!tabName || !dateTimeAllocations[tabName]) {
+                alert('No data to save');
+                return;
+            }
             
-            // Show success modal
-            const successModal = document.getElementById('successModal');
-            if (!successModal) return;
+            const year = document.getElementById('yearFilter')?.value || '';
+            const semester = document.getElementById('semesterFilter')?.value || '';
             
-            successModal.innerHTML = `
-                <div class="modal-dialog">
-                    <div class="modal-content-custom">
-                        <span class="close-btn" onclick="closeSuccessModal()">&times;</span>
-                        <div class="modal-icon"><i class="bi bi-check-circle-fill"></i></div>
-                        <div class="modal-title-custom">Saved Successfully!</div>
-                        <div class="modal-message">Task allocations have been saved successfully.</div>
-                        <div style="display:flex; justify-content:center;">
-                            <button class="btn btn-success" onclick="closeSuccessModal()">OK</button>
-                        </div>
-                    </div>
-                </div>`;
-            successModal.style.display = 'flex';
+            if (!year || !semester) {
+                alert('Please select both Year and Semester before saving.');
+                return;
+            }
+            
+            // Get FYP_Session_ID
+            const fypSessionId = await getFypSessionId(year, semester);
+            if (!fypSessionId) {
+                alert('Unable to determine FYP Session. Please check your year and semester selection.');
+                return;
+            }
+            
+            const tasks = dateTimeAllocations[tabName];
+            const allocationsToSave = [];
+            
+            tasks.forEach(task => {
+                if (task.assessment_id && task.allocations && task.allocations.length > 0) {
+                    const validDueDates = task.allocations.filter(allocation => 
+                        allocation.start_date && allocation.start_time && 
+                        allocation.end_date && allocation.end_time && 
+                        allocation.role
+                    );
+                    
+                    if (validDueDates.length > 0) {
+                        allocationsToSave.push({
+                            assessment_id: task.assessment_id,
+                            due_dates: validDueDates
+                        });
+                    }
+                }
+            });
+            
+            if (allocationsToSave.length === 0) {
+                alert('Please fill in all required fields (dates, times, and roles) before saving.');
+                return;
+            }
+            
+            try {
+                const response = await fetch('../../../php/phpCoordinator/save_due_dates.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        fyp_session_id: fypSessionId,
+                        allocations: allocationsToSave
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Show success modal
+                    const successModal = document.getElementById('successModal');
+                    if (successModal) {
+                        successModal.innerHTML = `
+                            <div class="modal-dialog">
+                                <div class="modal-content-custom">
+                                    <span class="close-btn" onclick="closeSuccessModal()">&times;</span>
+                                    <div class="modal-icon"><i class="bi bi-check-circle-fill"></i></div>
+                                    <div class="modal-title-custom">Saved Successfully!</div>
+                                    <div class="modal-message">Task allocations have been saved successfully.</div>
+                                    <div style="display:flex; justify-content:center;">
+                                        <button class="btn btn-success" onclick="closeSuccessModal()">OK</button>
+                                    </div>
+                                </div>
+                            </div>`;
+                        successModal.style.display = 'flex';
+                    }
+                    
+                    // Reload data from database to get updated due_ids
+                    await loadDueDates();
+                } else {
+                    alert('Error saving: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error saving allocations:', error);
+                alert('Error saving allocations: ' + error.message);
+            }
         }
 
         function closeSuccessModal() {

@@ -1,4 +1,161 @@
-<?php include '../../../php/coordinator_bootstrap.php'; ?>
+<?php 
+include '../../../php/coordinator_bootstrap.php';
+
+// Fetch coordinator's department
+$coordinatorDepartmentId = null;
+$deptQuery = "SELECT Department_ID FROM lecturer WHERE Lecturer_ID = ? LIMIT 1";
+if ($stmt = $conn->prepare($deptQuery)) {
+    $stmt->bind_param("s", $userId);
+    if ($stmt->execute()) {
+        $result = $stmt->get_result();
+        if ($row = $result->fetch_assoc()) {
+            $coordinatorDepartmentId = $row['Department_ID'];
+        }
+    }
+    $stmt->close();
+}
+
+// Fetch courses with department information
+$courseData = [];
+if ($coordinatorDepartmentId) {
+    $courseQuery = "SELECT c.Course_ID, c.Course_Code, d.Department_Name, d.Programme_Name 
+                    FROM course c
+                    INNER JOIN department d ON c.Department_ID = d.Department_ID
+                    WHERE c.Department_ID = ?
+                    ORDER BY c.Course_Code";
+    if ($stmt = $conn->prepare($courseQuery)) {
+        $stmt->bind_param("i", $coordinatorDepartmentId);
+        if ($stmt->execute()) {
+            $result = $stmt->get_result();
+            while ($row = $result->fetch_assoc()) {
+                $courseData[$row['Course_ID']] = $row;
+            }
+        }
+        $stmt->close();
+    }
+}
+
+// Fetch learning objective allocation data with all related information
+$learningObjectiveData = [];
+if ($coordinatorDepartmentId) {
+    $loQuery = "SELECT 
+                    loa.LO_Allocation_ID,
+                    loa.Course_ID,
+                    loa.Assessment_ID,
+                    loa.Criteria_ID,
+                    loa.LearningObjective_Code,
+                    loa.Percentage,
+                    a.Assessment_Name,
+                    a.Total_Percentage,
+                    lo.LearningObjective_Name,
+                    ac.Criteria_Name
+                FROM learning_objective_allocation loa
+                INNER JOIN fyp_session fs ON loa.FYP_Session_ID = fs.FYP_Session_ID
+                INNER JOIN assessment a ON loa.Assessment_ID = a.Assessment_ID
+                INNER JOIN learning_objective lo ON loa.LearningObjective_Code = lo.LearningObjective_Code
+                LEFT JOIN assessment_criteria ac ON loa.Criteria_ID = ac.Criteria_ID
+                INNER JOIN course c ON loa.Course_ID = c.Course_ID
+                WHERE c.Department_ID = ?
+                  AND fs.FYP_Session = ?
+                  AND fs.Semester = ?
+                ORDER BY loa.Course_ID, a.Assessment_ID, loa.LearningObjective_Code";
+    if ($stmt = $conn->prepare($loQuery)) {
+        $stmt->bind_param("isi", $coordinatorDepartmentId, $selectedYear, $selectedSemester);
+        if ($stmt->execute()) {
+            $result = $stmt->get_result();
+            while ($row = $result->fetch_assoc()) {
+                if (!isset($learningObjectiveData[$row['Course_ID']])) {
+                    $learningObjectiveData[$row['Course_ID']] = [];
+                }
+                if (!isset($learningObjectiveData[$row['Course_ID']][$row['Assessment_ID']])) {
+                    $learningObjectiveData[$row['Course_ID']][$row['Assessment_ID']] = [
+                        'assessment_name' => $row['Assessment_Name'],
+                        'total_percentage' => $row['Total_Percentage'],
+                        'learning_objectives' => []
+                    ];
+                }
+                $learningObjectiveData[$row['Course_ID']][$row['Assessment_ID']]['learning_objectives'][] = [
+                    'code' => $row['LearningObjective_Code'],
+                    'name' => $row['LearningObjective_Name'],
+                    'percentage' => $row['Percentage'],
+                        'criteria_id' => $row['Criteria_ID'],
+                        'criteria_name' => $row['Criteria_Name'],
+                        'lo_allocation_id' => $row['LO_Allocation_ID']
+                ];
+            }
+        }
+        $stmt->close();
+    }
+}
+
+// Fetch all available learning objectives for dropdown
+$allLearningObjectives = [];
+$loListQuery = "SELECT LearningObjective_Code, LearningObjective_Name FROM learning_objective ORDER BY LearningObjective_Code";
+if ($result = $conn->query($loListQuery)) {
+    while ($row = $result->fetch_assoc()) {
+        $allLearningObjectives[] = [
+            'code' => $row['LearningObjective_Code'],
+            'name' => $row['LearningObjective_Name'],
+            'display' => $row['LearningObjective_Code'] . ' - ' . $row['LearningObjective_Name']
+        ];
+    }
+    $result->free();
+}
+
+// Fetch all assessments for each course
+$courseAssessments = [];
+if ($coordinatorDepartmentId) {
+    $assessmentQuery = "SELECT a.Assessment_ID, a.Course_ID, a.Assessment_Name, a.Total_Percentage
+                        FROM assessment a
+                        INNER JOIN course c ON a.Course_ID = c.Course_ID
+                        WHERE c.Department_ID = ?
+                        ORDER BY a.Course_ID, a.Assessment_Name";
+    if ($stmt = $conn->prepare($assessmentQuery)) {
+        $stmt->bind_param("i", $coordinatorDepartmentId);
+        if ($stmt->execute()) {
+            $result = $stmt->get_result();
+            while ($row = $result->fetch_assoc()) {
+                if (!isset($courseAssessments[$row['Course_ID']])) {
+                    $courseAssessments[$row['Course_ID']] = [];
+                }
+                $courseAssessments[$row['Course_ID']][] = [
+                    'assessment_id' => $row['Assessment_ID'],
+                    'assessment_name' => $row['Assessment_Name'],
+                    'total_percentage' => $row['Total_Percentage']
+                ];
+            }
+        }
+        $stmt->close();
+    }
+}
+
+// Fetch assessment criteria for each assessment
+$assessmentCriteria = [];
+if ($coordinatorDepartmentId) {
+    $criteriaQuery = "SELECT ac.Criteria_ID, ac.Assessment_ID, ac.Criteria_Name
+                      FROM assessment_criteria ac
+                      INNER JOIN assessment a ON ac.Assessment_ID = a.Assessment_ID
+                      INNER JOIN course c ON a.Course_ID = c.Course_ID
+                      WHERE c.Department_ID = ?
+                      ORDER BY ac.Assessment_ID, ac.Criteria_Name";
+    if ($stmt = $conn->prepare($criteriaQuery)) {
+        $stmt->bind_param("i", $coordinatorDepartmentId);
+        if ($stmt->execute()) {
+            $result = $stmt->get_result();
+            while ($row = $result->fetch_assoc()) {
+                if (!isset($assessmentCriteria[$row['Assessment_ID']])) {
+                    $assessmentCriteria[$row['Assessment_ID']] = [];
+                }
+                $assessmentCriteria[$row['Assessment_ID']][] = [
+                    'criteria_id' => $row['Criteria_ID'],
+                    'criteria_name' => $row['Criteria_Name']
+                ];
+            }
+        }
+        $stmt->close();
+    }
+}
+?>
 <!DOCTYPE html>
 <html>
 <head>
@@ -125,35 +282,49 @@
         <!-- Tabs -->
         <div class="evaluation-task-card">
             <div class="tab-buttons">
-                <button class="task-tab active-tab" data-tab="swe4949a">SWE4949-A</button>
-                <button class="task-tab" data-tab="swe4949b">SWE4949-B</button>
+                <?php 
+                $isFirst = true;
+                foreach ($courseData as $courseId => $course): 
+                ?>
+                    <button class="task-tab <?php echo $isFirst ? 'active-tab' : ''; ?>" 
+                            data-tab="course-<?php echo htmlspecialchars($courseId); ?>"
+                            data-course-id="<?php echo htmlspecialchars($courseId); ?>">
+                        <?php echo htmlspecialchars($course['Course_Code']); ?>
+                    </button>
+                <?php 
+                    $isFirst = false;
+                endforeach; 
+                ?>
             </div>
 
             <div class="task-list-area">
-                <!-- SWE4949-A Tab -->
-               
-                <div class="task-group active" data-group="swe4949a">
+                <?php 
+                $isFirstCourse = true;
+                foreach ($courseData as $courseId => $course): 
+                ?>
+                <div class="task-group <?php echo $isFirstCourse ? 'active' : ''; ?>" 
+                     data-group="course-<?php echo htmlspecialchars($courseId); ?>">
                     <div class="learning-objective-container">
                         <!-- Top Action Bar -->
                         <div class="top-action-bar">
                             <!-- Right Actions: Buttons -->
                             <div class="right-actions">
-                                <button class="btn-add-row" onclick="addNewRow('swe4949a')">
+                                <button class="btn-add-row" onclick="addNewRow('course-<?php echo htmlspecialchars($courseId); ?>')">
                                     <i class="bi bi-plus-circle"></i>
                                     <span>Add new row</span>
                                 </button>
                                 <div class="download-dropdown">
-                                    <button class="btn-download" onclick="toggleDownloadDropdown()">
+                                    <button class="btn-download" onclick="toggleDownloadDropdown(event, 'course-<?php echo htmlspecialchars($courseId); ?>')">
                                         <i class="bi bi-download"></i>
                                         <span>Download as...</span>
                                         <i class="bi bi-chevron-down dropdown-arrow"></i>
                                     </button>
-                                    <div class="download-dropdown-menu" id="downloadDropdown">
-                                        <a href="javascript:void(0)" onclick="downloadAsPDF('swe4949a'); closeDownloadDropdown();" class="download-option">
+                                    <div class="download-dropdown-menu" id="downloadDropdown-course-<?php echo htmlspecialchars($courseId); ?>">
+                                        <a href="javascript:void(0)" onclick="downloadAsPDF('course-<?php echo htmlspecialchars($courseId); ?>'); closeDownloadDropdown(event);" class="download-option">
                                             <i class="bi bi-file-earmark-pdf"></i>
                                             <span>Download as PDF</span>
                                         </a>
-                                        <a href="javascript:void(0)" onclick="downloadAsExcel('swe4949a'); closeDownloadDropdown();" class="download-option">
+                                        <a href="javascript:void(0)" onclick="downloadAsExcel('course-<?php echo htmlspecialchars($courseId); ?>'); closeDownloadDropdown(event);" class="download-option">
                                             <i class="bi bi-file-earmark-excel"></i>
                                             <span>Download as Excel</span>
                                         </a>
@@ -168,13 +339,14 @@
                                 <thead>
                                     <tr>
                                         <th>No.</th>
-                                        <th>Task</th>
+                                        <th>Assessment</th>
                                         <th>Learning Objective</th>
-                                        <th>Marks</th>
+                                        <th>Criteria</th>
+                                        <th>Percentage</th>
                                         <th>Delete</th>
                                     </tr>
                                 </thead>
-                                <tbody id="swe4949aTableBody">
+                                <tbody id="course-<?php echo htmlspecialchars($courseId); ?>TableBody">
                                     <!-- Table rows will be populated by JavaScript -->
                                 </tbody>
                             </table>
@@ -183,72 +355,16 @@
                         <!-- Sticky Footer -->
                         <div class="table-footer">
                             <div class="actions">
-                                <button class="btn btn-light border" onclick="resetLearningObjectives('swe4949a')">Cancel</button>
-                                <button class="btn btn-success" onclick="saveLearningObjectives('swe4949a')">Save</button>
+                                <button class="btn btn-light border" onclick="resetLearningObjectives('course-<?php echo htmlspecialchars($courseId); ?>')">Cancel</button>
+                                <button class="btn btn-success" onclick="saveLearningObjectives('course-<?php echo htmlspecialchars($courseId); ?>')">Save</button>
                             </div>
                         </div>
                     </div>
                 </div>
-
-                <!-- SWE4949-B Tab -->
-                <div class="task-group" data-group="swe4949b">
-                    <div class="learning-objective-container">
-                       
-                        <!-- Top Action Bar -->
-                        <div class="top-action-bar">
-                            <!-- Right Actions: Buttons -->
-                            <div class="right-actions">
-                                <button class="btn-add-row" onclick="addNewRow('swe4949b')">
-                                    <i class="bi bi-plus-circle"></i>
-                                    <span>Add new row</span>
-                                </button>
-                                <div class="download-dropdown">
-                                    <button class="btn-download" onclick="toggleDownloadDropdownB()">
-                                        <i class="bi bi-download"></i>
-                                        <span>Download as...</span>
-                                        <i class="bi bi-chevron-down dropdown-arrow"></i>
-                                    </button>
-                                    <div class="download-dropdown-menu" id="downloadDropdownB">
-                                        <a href="javascript:void(0)" onclick="downloadAsPDF('swe4949b'); closeDownloadDropdownB();" class="download-option">
-                                            <i class="bi bi-file-earmark-pdf"></i>
-                                            <span>Download as PDF</span>
-                                        </a>
-                                        <a href="javascript:void(0)" onclick="downloadAsExcel('swe4949b'); closeDownloadDropdownB();" class="download-option">
-                                            <i class="bi bi-file-earmark-excel"></i>
-                                            <span>Download as Excel</span>
-                                        </a>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Scrollable Table Container -->
-                        <div class="table-scroll-container">
-                            <table class="learning-objective-table">
-                                <thead>
-                                    <tr>
-                                        <th>No.</th>
-                                        <th>Task</th>
-                                        <th>Learning Objective</th>
-                                        <th>Marks</th>
-                                        <th>Delete</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="swe4949bTableBody">
-                                    <!-- Table rows will be populated by JavaScript -->
-                                </tbody>
-                            </table>
-                        </div>
-
-                        <!-- Sticky Footer -->
-                        <div class="table-footer">
-                            <div class="actions">
-                                <button class="btn btn-light border" onclick="resetLearningObjectives('swe4949b')">Cancel</button>
-                                <button class="btn btn-success" onclick="saveLearningObjectives('swe4949b')">Save</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <?php 
+                    $isFirstCourse = false;
+                endforeach; 
+                ?>
             </div>
         </div>
     </div>
@@ -273,30 +389,57 @@
             window.location.href = 'learningObjective.php?' + params.toString();
         }
 
-        // Sample learning objective data - each task can have multiple learning objectives
-        const learningObjectives = {
-            swe4949a: [
-                { id: 1, task: "Proposal Report", learningObjectives: [{ objective: "CPS 7(LL)", marks: "" }] },
-                { id: 2, task: "Proposal Seminar Presentation", learningObjectives: [{ objective: "CPS 1(C)", marks: "" }] },
-                { id: 3, task: "Borang Kemajuan Pelajar", learningObjectives: [] }
-            ],
-            swe4949b: [
-                { id: 1, task: "Final Report", learningObjectives: [] },
-                { id: 2, task: "Final Presentation", learningObjectives: [] }
-            ]
-        };
+        // Learning objective data from database
+        const learningObjectives = <?php 
+            $jsData = [];
+            foreach ($courseData as $courseId => $course) {
+                $jsData['course-' . $courseId] = [];
+                if (isset($learningObjectiveData[$courseId])) {
+                    $rowNum = 1;
+                    foreach ($learningObjectiveData[$courseId] as $assessmentId => $assessment) {
+                        $jsData['course-' . $courseId][] = [
+                            'id' => $rowNum++,
+                            'assessment_id' => $assessmentId,
+                            'task' => $assessment['assessment_name'],
+                            'learningObjectives' => array_map(function($lo) {
+                                return [
+                                    'objective' => $lo['code'],
+                                    'marks' => $lo['percentage'],
+                                    'criteria_id' => $lo['criteria_id'],
+                                    'criteria_name' => $lo['criteria_name'],
+                                    'lo_allocation_id' => $lo['lo_allocation_id']
+                                ];
+                            }, $assessment['learning_objectives'])
+                        ];
+                    }
+                }
+            }
+            echo json_encode($jsData);
+        ?>;
 
-        // Learning objective options (sample data)
-        const learningObjectiveOptions = [
-            "CPS 1(C)", "CPS 2(CT)", "CPS 3(PS)", "CPS 4(TS)", "CPS 5(EM)",
-            "CPS 6(LL)", "CPS 7(LL)", "CPS 8(ES)", "CPS 9(LS)", "CPS 10(CS)"
-        ];
+        // Learning objective options from database
+        const learningObjectiveOptions = <?php echo json_encode(array_map(function($lo) {
+            return $lo['display'];
+        }, $allLearningObjectives)); ?>;
+
+        // Assessment options for each course from database
+        const courseAssessments = <?php echo json_encode($courseAssessments); ?>;
+
+        // Criteria options for each assessment from database
+        const assessmentCriteria = <?php echo json_encode($assessmentCriteria); ?>;
+
+        // Course metadata for headers
+        const courseMeta = <?php echo json_encode(array_map(function($c){
+            return ['code' => $c['Course_Code']];
+        }, $courseData)); ?>;
 
         // Initialize page
         document.addEventListener('DOMContentLoaded', function() {
             initializeTabs();
-            renderTable('swe4949a');
-            renderTable('swe4949b');
+            // Render all course tables
+            <?php foreach ($courseData as $courseId => $course): ?>
+            renderTable('course-<?php echo $courseId; ?>');
+            <?php endforeach; ?>
             initializeRoleToggle();
         });
 
@@ -333,9 +476,13 @@
             const data = learningObjectives[tabName] || [];
             tbody.innerHTML = '';
 
+            // Get course ID from tabName
+            const courseId = tabName.replace('course-', '');
+            const assessments = courseAssessments[courseId] || [];
+
             data.forEach((item, index) => {
                 if (!item.learningObjectives || item.learningObjectives.length === 0) {
-                    item.learningObjectives = [{ objective: '', marks: '' }];
+                    item.learningObjectives = [{ objective: '', marks: '', criteria_id: null }];
                 }
                 const learningObjectivesList = item.learningObjectives;
                 const maxRows = learningObjectivesList.length;
@@ -350,13 +497,13 @@
                         row.innerHTML += `
                             <td rowspan="${rowspan}">${index + 1}.</td>
                             <td rowspan="${rowspan}">
-                                <input type="text" 
-                                       class="task-input" 
-                                       value="${(item.task || '').replace(/"/g, '&quot;')}" 
-                                       placeholder="Enter task name..."
-                                       data-id="${item.id}"
-                                       data-tab="${tabName}"
-                                       onchange="updateTask(${item.id}, '${tabName}', this.value)" />
+                                <select class="assessment-select" 
+                                        data-id="${item.id}"
+                                        data-tab="${tabName}"
+                                        onchange="updateAssessment(${item.id}, '${tabName}', this.value, this.options[this.selectedIndex].text)">
+                                    <option value="">Select Assessment...</option>
+                                    ${generateAssessmentOptions(assessments, item.assessment_id)}
+                                </select>
                             </td>
                         `;
                     }
@@ -366,7 +513,7 @@
                             <div class="learning-objective-input-wrapper">
                                 <input type="text" 
                                        class="learning-objective-input" 
-                                       value="${obj.objective}" 
+                                       value="${obj.objective || ''}" 
                                        placeholder="Select learning objective..."
                                        data-id="${item.id}"
                                        data-obj-index="${i}"
@@ -384,6 +531,17 @@
                                 </div>
                                 <i class="bi bi-chevron-down dropdown-arrow-icon"></i>
                             </div>
+                        </td>
+                        <td>
+                            <select class="criteria-select"
+                                    data-id="${item.id}"
+                                    data-obj-index="${i}"
+                                    data-tab="${tabName}"
+                                    ${item.assessment_id ? '' : 'disabled'}
+                                    onchange="updateCriteria(${item.id}, ${i}, '${tabName}', this.value)">
+                                <option value="">Select Criteria...</option>
+                                ${generateCriteriaOptions(assessmentCriteria[item.assessment_id] || [], obj.criteria_id)}
+                            </select>
                         </td>
                         <td>
                             <input type="number" 
@@ -425,6 +583,26 @@
                 `;
                 tbody.appendChild(addRow);
             });
+        }
+
+        // Generate assessment options for dropdown
+        function generateAssessmentOptions(assessments, selectedId) {
+            let options = '';
+            assessments.forEach(assessment => {
+                const isSelected = assessment.assessment_id == selectedId;
+                options += `<option value="${assessment.assessment_id}" ${isSelected ? 'selected' : ''}>${assessment.assessment_name}</option>`;
+            });
+            return options;
+        }
+
+        // Generate criteria options for dropdown
+        function generateCriteriaOptions(criteriaList, selectedId) {
+            let options = '';
+            criteriaList.forEach(criteria => {
+                const isSelected = criteria.criteria_id == selectedId;
+                options += `<option value="${criteria.criteria_id}" ${isSelected ? 'selected' : ''}>${criteria.criteria_name}</option>`;
+            });
+            return options;
         }
 
         // Generate learning objective options
@@ -523,7 +701,7 @@
                 if (item.learningObjectives.length > 1) {
                     item.learningObjectives.splice(objIndex, 1);
                 } else {
-                    item.learningObjectives[0] = { objective: '', marks: '' };
+                    item.learningObjectives[0] = { objective: '', marks: '', criteria_id: null, criteria_name: '' };
                 }
                 renderTable(tabName);
             }
@@ -536,16 +714,37 @@
                 if (!item.learningObjectives) {
                     item.learningObjectives = [];
                 }
-                item.learningObjectives.push({ objective: '', marks: '' });
+                item.learningObjectives.push({ objective: '', marks: '', criteria_id: null, criteria_name: '' });
                 renderTable(tabName);
             }
         }
         
-        // Update task name
-        function updateTask(itemId, tabName, value) {
+        // Update assessment selection
+        function updateAssessment(itemId, tabName, assessmentId, assessmentName) {
             const item = learningObjectives[tabName].find(i => i.id === itemId);
             if (item) {
-                item.task = value;
+                item.assessment_id = parseInt(assessmentId);
+                item.task = assessmentName;
+                // Reset criteria selections when assessment changes
+                if (item.learningObjectives) {
+                    item.learningObjectives = item.learningObjectives.map(lo => ({
+                        ...lo,
+                        criteria_id: null,
+                        criteria_name: ''
+                    }));
+                }
+                renderTable(tabName);
+            }
+        }
+
+        // Update criteria selection
+        function updateCriteria(itemId, objIndex, tabName, criteriaId) {
+            const item = learningObjectives[tabName].find(i => i.id === itemId);
+            if (item && item.learningObjectives && item.learningObjectives[objIndex]) {
+                item.learningObjectives[objIndex].criteria_id = criteriaId ? parseInt(criteriaId) : null;
+                const critList = assessmentCriteria[item.assessment_id] || [];
+                const found = critList.find(c => c.criteria_id == criteriaId);
+                item.learningObjectives[objIndex].criteria_name = found ? found.criteria_name : '';
             }
         }
 
@@ -564,6 +763,7 @@
             data.push({
                 id: newId,
                 task: '',
+                assessment_id: null,
                 learningObjectives: []
             });
             renderTable(tabName);
@@ -582,23 +782,109 @@
         // Save learning objectives
         function saveLearningObjectives(tabName) {
             const data = learningObjectives[tabName];
-            console.log('Saving learning objectives:', data);
             
-            // Show success modal
-            const saveModal = document.getElementById('saveModal');
-            saveModal.innerHTML = `
-                <div class="modal-dialog">
-                    <div class="modal-content-custom">
-                        <span class="close-btn" onclick="closeModal(saveModal)">&times;</span>
-                        <div class="modal-icon"><i class="bi bi-check-circle-fill"></i></div>
-                        <div class="modal-title-custom">Saved Successfully</div>
-                        <div class="modal-message">Learning objectives have been saved successfully!</div>
-                        <div style="display:flex; justify-content:center;">
-                            <button class="btn btn-success" onclick="closeModal(saveModal)">OK</button>
+            // Extract course ID from tabName (format: "course-123")
+            const courseId = tabName.replace('course-', '');
+            const year = document.getElementById('yearFilter').value;
+            const semester = document.getElementById('semesterFilter').value;
+            
+            // Validate data before sending
+            if (!data || data.length === 0) {
+                alert('No data to save. Please add at least one assessment with learning objectives.');
+                return;
+            }
+            
+            // Filter out empty assessments (no assessment_id means it's a new row that hasn't been linked to an assessment)
+            const validData = data.filter(item => {
+                return item.assessment_id && item.learningObjectives && item.learningObjectives.length > 0;
+            });
+            
+            if (validData.length === 0) {
+                alert('Please ensure all assessments have learning objectives assigned.');
+                return;
+            }
+            
+            // Prepare data for backend - ensure we're sending ALL learning objectives
+            const saveData = {
+                courseId: courseId,
+                year: year,
+                semester: semester,
+                learningObjectives: validData.map(item => ({
+                    assessment_id: item.assessment_id,
+                    task: item.task,
+                    learningObjectives: item.learningObjectives
+                        .filter(lo => lo.objective && lo.objective.trim() !== '' && lo.criteria_id)
+                        .map(lo => ({
+                            objective: lo.objective,
+                            marks: lo.marks,
+                            criteria_id: lo.criteria_id || null
+                        }))
+                }))
+            };
+            
+            console.log('Saving ALL learning objectives for course:', saveData);
+            console.log('Total assessments:', saveData.learningObjectives.length);
+            console.log('Total LOs:', saveData.learningObjectives.reduce((sum, item) => sum + item.learningObjectives.length, 0));
+            
+            // Send data to backend
+            fetch('../../../php/phpCoordinator/save_learning_objectives.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(saveData)
+            })
+            .then(response => response.json())
+            .then(result => {
+                const saveModal = document.getElementById('saveModal');
+                if (result.success) {
+                    // Show success modal
+                    saveModal.innerHTML = `
+                        <div class="modal-dialog">
+                            <div class="modal-content-custom">
+                                <span class="close-btn" onclick="closeModal(saveModal)">&times;</span>
+                                <div class="modal-icon"><i class="bi bi-check-circle-fill"></i></div>
+                                <div class="modal-title-custom">Saved Successfully</div>
+                                <div class="modal-message">${result.message || 'Learning objectives have been saved successfully!'}</div>
+                                <div style="display:flex; justify-content:center;">
+                                    <button class="btn btn-success" onclick="closeModal(saveModal); location.reload();">OK</button>
+                                </div>
+                            </div>
+                        </div>`;
+                } else {
+                    // Show error modal
+                    saveModal.innerHTML = `
+                        <div class="modal-dialog">
+                            <div class="modal-content-custom">
+                                <span class="close-btn" onclick="closeModal(saveModal)">&times;</span>
+                                <div class="modal-icon" style="color: #dc3545;"><i class="bi bi-exclamation-triangle-fill"></i></div>
+                                <div class="modal-title-custom">Save Failed</div>
+                                <div class="modal-message">${result.message || 'An error occurred while saving. Please try again.'}</div>
+                                <div style="display:flex; justify-content:center;">
+                                    <button class="btn btn-success" onclick="closeModal(saveModal)">OK</button>
+                                </div>
+                            </div>
+                        </div>`;
+                }
+                saveModal.style.display = 'flex';
+            })
+            .catch(error => {
+                console.error('Error saving learning objectives:', error);
+                const saveModal = document.getElementById('saveModal');
+                saveModal.innerHTML = `
+                    <div class="modal-dialog">
+                        <div class="modal-content-custom">
+                            <span class="close-btn" onclick="closeModal(saveModal)">&times;</span>
+                            <div class="modal-icon" style="color: #dc3545;"><i class="bi bi-exclamation-triangle-fill"></i></div>
+                            <div class="modal-title-custom">Save Failed</div>
+                            <div class="modal-message">An error occurred while saving. Please try again.</div>
+                            <div style="display:flex; justify-content:center;">
+                                <button class="btn btn-success" onclick="closeModal(saveModal)">OK</button>
+                            </div>
                         </div>
-                    </div>
-                </div>`;
-            saveModal.style.display = 'flex';
+                    </div>`;
+                saveModal.style.display = 'flex';
+            });
         }
 
         // Reset learning objectives
@@ -631,6 +917,8 @@
                 const doc = new jsPDF();
                 
                 const data = learningObjectives[tabName] || [];
+                const courseId = tabName.replace('course-', '');
+                const courseCode = (courseMeta[courseId] && courseMeta[courseId].code) ? courseMeta[courseId].code : tabName.toUpperCase();
                 const year = document.getElementById('yearFilter').value;
                 const semester = document.getElementById('semesterFilter').value;
 
@@ -642,7 +930,7 @@
                 // Course and session info
                 doc.setFontSize(11);
                 doc.setTextColor(0, 0, 0);
-                doc.text(`Course: ${tabName.toUpperCase()}`, 14, 30);
+                doc.text(`Course: ${courseCode}`, 14, 30);
                 doc.text(`Year: ${year}`, 14, 35);
                 doc.text(`Semester: ${semester}`, 14, 40);
 
@@ -655,6 +943,7 @@
                                 objIndex === 0 ? (index + 1) : '',
                                 objIndex === 0 ? (item.task || '-') : '',
                                 obj.objective || '-',
+                                obj.criteria_name || '-',
                                 obj.marks || '-'
                             ]);
                         });
@@ -662,6 +951,7 @@
                         tableData.push([
                             index + 1,
                             item.task || '-',
+                            '-',
                             '-',
                             '-'
                         ]);
@@ -671,7 +961,7 @@
                 // Add table
                 doc.autoTable({
                     startY: 45,
-                    head: [['No.', 'Task', 'Learning Objective', 'Marks']],
+                    head: [['No.', 'Task', 'Learning Objective', 'Criteria', 'Marks']],
                     body: tableData,
                     headStyles: {
                         fillColor: [120, 0, 0],
@@ -778,62 +1068,29 @@
         }
 
         // Download dropdown functions
-        function toggleDownloadDropdown() {
-            const dropdown = document.getElementById('downloadDropdown');
-            const button = document.querySelector('.download-dropdown .btn-download');
+        function toggleDownloadDropdown(event, courseId) {
+            event.stopPropagation();
+            const dropdownId = 'downloadDropdown-' + courseId;
+            const dropdown = document.getElementById(dropdownId);
             
+            // Close all other dropdowns
             document.querySelectorAll('.download-dropdown-menu.show').forEach(menu => {
-                if (menu !== dropdown) {
+                if (menu.id !== dropdownId) {
                     menu.classList.remove('show');
                 }
             });
             
+            // Toggle current dropdown
             if (dropdown) {
                 dropdown.classList.toggle('show');
             }
-            if (button) {
-                button.classList.toggle('active');
-            }
         }
 
-        function closeDownloadDropdown() {
-            const dropdown = document.getElementById('downloadDropdown');
-            const button = document.querySelector('.download-dropdown .btn-download');
-            if (dropdown) {
-                dropdown.classList.remove('show');
-            }
-            if (button) {
-                button.classList.remove('active');
-            }
-        }
-
-        function toggleDownloadDropdownB() {
-            const dropdown = document.getElementById('downloadDropdownB');
-            const button = document.querySelectorAll('.download-dropdown .btn-download')[1];
-            
+        function closeDownloadDropdown(event) {
+            event.stopPropagation();
             document.querySelectorAll('.download-dropdown-menu.show').forEach(menu => {
-                if (menu !== dropdown) {
-                    menu.classList.remove('show');
-                }
+                menu.classList.remove('show');
             });
-            
-            if (dropdown) {
-                dropdown.classList.toggle('show');
-            }
-            if (button) {
-                button.classList.toggle('active');
-            }
-        }
-
-        function closeDownloadDropdownB() {
-            const dropdown = document.getElementById('downloadDropdownB');
-            const button = document.querySelectorAll('.download-dropdown .btn-download')[1];
-            if (dropdown) {
-                dropdown.classList.remove('show');
-            }
-            if (button) {
-                button.classList.remove('active');
-            }
         }
 
         // Close dropdown when clicking outside
