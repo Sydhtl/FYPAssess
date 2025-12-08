@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 <body class="mark-submission-page">
 
@@ -1193,6 +1194,12 @@
         }
 
         function downloadAsPDF(tabName, type) {
+            // Special handling for FYP Title Submission - download all individual student PDFs
+            if (tabName === 'fyp-title-submission' && type === 'submissions') {
+                downloadAllFYPSubmissionsPDF();
+                return;
+            }
+            
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF('l', 'pt', 'a4');
             const viewType = currentView[tabName];
@@ -1938,22 +1945,129 @@
             }
         }
 
+        // Helper function to generate PDF as blob (for ZIP creation)
+        function generatePDFBlob(student) {
+            return new Promise((resolve, reject) => {
+                if (!student || !student.submission) {
+                    reject(new Error('Student or submission data not found.'));
+                    return;
+                }
+                
+                generateFYPSubmissionPDFContent(student, function(doc, error) {
+                    if (error) {
+                        reject(new Error(error));
+                        return;
+                    }
+                    
+                    if (!doc) {
+                        reject(new Error('Failed to generate PDF.'));
+                        return;
+                    }
+                    
+                    try {
+                        // Get PDF as array buffer
+                        const pdfBlob = doc.output('arraybuffer');
+                        const safeName = (student.name || 'Unknown').replace(/[^a-zA-Z0-9_]/g, '_');
+                        const safeMatric = (student.matricNo || 'Unknown').replace(/[^a-zA-Z0-9_]/g, '_');
+                        const filename = `FYP_Registration_${safeMatric}_${safeName}.pdf`;
+                        
+                        resolve({ blob: pdfBlob, filename: filename });
+                    } catch (err) {
+                        reject(err);
+                    }
+                });
+            });
+        }
+
         function downloadAllFYPSubmissionsPDF() {
-            const studentsWithSubmissions = fypTitleSubmissionData.filter(item => item.submission);
+            // Use filtered data if available (respects current search/filter settings), otherwise use all data
+            const dataToUse = filteredFYPData && filteredFYPData.length > 0 ? filteredFYPData : fypTitleSubmissionData;
+            const studentsWithSubmissions = dataToUse.filter(item => item && item.submission && item.submission !== null && item.id);
             
             if (studentsWithSubmissions.length === 0) {
                 openModal('Download Failed', 'No submissions available to download.');
                 return;
             }
 
-            // Download each student's PDF
-            studentsWithSubmissions.forEach((student, index) => {
-                setTimeout(() => {
-                    downloadFYPFormPDF(student.id);
-                }, index * 500); // Stagger downloads by 500ms to avoid browser blocking
+            // Show initial modal with progress
+            const modal = document.getElementById('notifyModal');
+            if (modal) {
+                modal.innerHTML = `
+                    <div class="modal-dialog">
+                        <div class="modal-content-custom">
+                            <span class="close-btn" onclick="closeModal()">&times;</span>
+                            <div class="modal-icon"><i class="bi bi-download"></i></div>
+                            <div class="modal-title-custom">Generating ZIP File</div>
+                            <div class="modal-message">Generating ${studentsWithSubmissions.length} PDF file(s) and creating ZIP archive. Please wait...</div>
+                            <div style="display:flex; justify-content:center;">
+                                <button class="btn btn-success" onclick="closeModal()" style="display:none;" id="closeModalBtn">OK</button>
+                            </div>
+                        </div>
+                    </div>`;
+                modal.style.display = 'flex';
+            }
+
+            // Generate all PDFs and create ZIP file
+            const pdfPromises = studentsWithSubmissions.map(student => {
+                // Ensure student can be found in the full data
+                const studentToDownload = fypTitleSubmissionData.find(item => String(item.id) === String(student.id)) || student;
+                return generatePDFBlob(studentToDownload).catch(error => {
+                    console.error(`Error generating PDF for student ${student.id}:`, error);
+                    return null; // Return null for failed PDFs
+                });
             });
 
-            openModal('Download Started', `Downloading ${studentsWithSubmissions.length} PDF file(s). Please check your downloads folder.`);
+            // Wait for all PDFs to be generated
+            Promise.all(pdfPromises).then(results => {
+                try {
+                    // Filter out failed PDFs (null values)
+                    const successfulPDFs = results.filter(result => result !== null);
+                    
+                    if (successfulPDFs.length === 0) {
+                        closeModal();
+                        openModal('Download Failed', 'No PDFs could be generated. Please check the console for errors.');
+                        return;
+                    }
+
+                    // Create ZIP file
+                    const zip = new JSZip();
+                    
+                    successfulPDFs.forEach(({ blob, filename }) => {
+                        zip.file(filename, blob);
+                    });
+
+                    // Generate ZIP file and download
+                    zip.generateAsync({ type: 'blob' }).then(function(content) {
+                        // Create download link
+                        const url = window.URL.createObjectURL(content);
+                        const link = document.createElement('a');
+                        link.href = url;
+                        link.download = `FYP_Submissions_${new Date().toISOString().split('T')[0]}.zip`;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        window.URL.revokeObjectURL(url);
+
+                        // Close modal and show success
+                        closeModal();
+                        const errorCount = studentsWithSubmissions.length - successfulPDFs.length;
+                        openModal('Download Complete', 
+                            `Successfully downloaded ZIP file containing ${successfulPDFs.length} PDF file(s).${errorCount > 0 ? ` ${errorCount} file(s) could not be included.` : ''}`);
+                    }).catch(function(error) {
+                        console.error('Error creating ZIP file:', error);
+                        closeModal();
+                        openModal('Download Failed', 'An error occurred while creating the ZIP file. Please try again.');
+                    });
+                } catch (error) {
+                    console.error('Error processing PDFs:', error);
+                    closeModal();
+                    openModal('Download Failed', 'An error occurred while processing PDFs. Please try again.');
+                }
+            }).catch(error => {
+                console.error('Error generating PDFs:', error);
+                closeModal();
+                openModal('Download Failed', 'An error occurred while generating PDFs. Please try again.');
+            });
         }
 
         function createFYPFormPDFDoc(student) {
