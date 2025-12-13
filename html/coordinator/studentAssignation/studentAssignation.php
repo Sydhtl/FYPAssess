@@ -234,7 +234,7 @@ $assessmentDataJson = json_encode($assessmentData);
 <!DOCTYPE html>
 <html>
 <head>
-    <title>FYPAssess - Student Assignation</title>
+    <title>FYPAssess - Student Assignment</title>
     <link rel="stylesheet" href="../../../css/background.css">
     <link rel="stylesheet" href="../../../css/coordinator/dashboard.css">
     <link rel="stylesheet" href="../../../css/coordinator/studentAssignation.css">
@@ -294,7 +294,7 @@ $assessmentDataJson = json_encode($assessmentData);
 
             <div id="coordinatorMenu" class="menu-items expanded">
                 <a href="../dashboard/dashboardCoordinator.php" id="coordinatorDashboard"><i class="bi bi-house-fill icon-padding"></i> Dashboard</a>
-                <a href="studentAssignation.php" id="studentAssignation" class="active-menu-item"><i class="bi bi-people-fill icon-padding"></i> Student Assignation</a>
+                <a href="studentAssignation.php" id="studentAssignation" class="active-menu-item"><i class="bi bi-people-fill icon-padding"></i> Student Assignment</a>
                 <a href="../learningObjective/learningObjective.php" id="learningObjective"><i class="bi bi-book-fill icon-padding"></i> Learning Objective</a>
                 <a href="../markSubmission/markSubmission.php" id="markSubmission"><i class="bi bi-clipboard-check-fill icon-padding"></i> Progress Submission</a>
                 <a href="../notification/notification.php" id="coordinatorNotification"><i class="bi bi-bell-fill icon-padding"></i> Notification</a>
@@ -326,7 +326,7 @@ $assessmentDataJson = json_encode($assessmentData);
     </div>
 
     <div id="main" class="main-grid student-assignation-main">
-        <h1 class="page-title">Student Assignation Page</h1>
+        <h1 class="page-title">Student Assignment Page</h1>
 
         <!-- Filters -->
         <div class="filters-section">
