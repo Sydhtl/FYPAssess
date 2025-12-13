@@ -1488,7 +1488,7 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
                 initializeTooltips(table);
             }
         }
-        
+
         // Tooltip management functions
         let tooltipElement = null;
         

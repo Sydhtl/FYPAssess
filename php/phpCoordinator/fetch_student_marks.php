@@ -124,13 +124,35 @@ try {
             }
             $loStmt->close();
 
-            // Fetch evaluations for all students
+            // Get assessment classifications to identify assessor tasks
+            $assessmentClassifications = [];
+            $classQuery = "SELECT Assessment_ID, Role_Name 
+                          FROM assessment_classification 
+                          WHERE Assessment_ID IN (
+                              SELECT DISTINCT Assessment_ID 
+                              FROM learning_objective_allocation 
+                              WHERE Course_ID = ? AND FYP_Session_ID = ?
+                          )";
+            $classStmt = $conn->prepare($classQuery);
+            if ($classStmt) {
+                $classStmt->bind_param('ii', $courseId, $fypSessionId);
+                $classStmt->execute();
+                $classResult = $classStmt->get_result();
+                while ($classRow = $classResult->fetch_assoc()) {
+                    $assessmentClassifications[$classRow['Assessment_ID']] = $classRow['Role_Name'];
+                }
+                $classStmt->close();
+            }
+
+            // Fetch evaluations for all students, including Assessor_ID to filter assessor evaluations
             $placeholders = implode(',', array_fill(0, count($studentIds), '?'));
             $evaluationsQuery = "SELECT 
                                     e.Student_ID,
                                     e.Assessment_ID,
                                     e.Criteria_ID,
-                                    e.Evaluation_Percentage
+                                    e.Evaluation_Percentage,
+                                    e.Assessor_ID,
+                                    e.Supervisor_ID
                                  FROM evaluation e
                                  WHERE e.Student_ID IN ($placeholders)";
             
@@ -142,24 +164,54 @@ try {
                 $evalResult = $evalStmt->get_result();
                 
                 // Build evaluation map: (Student_ID, Assessment_ID, Criteria_ID) -> Evaluation_Percentage
-                // Take the first evaluation found for each combination (don't average)
+                // For assessor tasks: collect all percentages and average them
+                // For supervisor tasks: take the first evaluation found (current behavior)
                 $evalMap = [];
+                $assessorEvalMap = []; // Temporary storage for assessor evaluations to average
+                
                 while ($evalRow = $evalResult->fetch_assoc()) {
                     $studentId = $evalRow['Student_ID'];
                     $assessmentId = $evalRow['Assessment_ID'];
                     $criteriaId = $evalRow['Criteria_ID'] ?? null;
                     $evalPercentage = $evalRow['Evaluation_Percentage'];
+                    $assessorId = $evalRow['Assessor_ID'];
+                    $supervisorId = $evalRow['Supervisor_ID'];
                     
                     // Handle NULL Criteria_ID
                     $criteriaKey = $criteriaId ?? 'NULL';
                     $evalKey = $studentId . '_' . $assessmentId . '_' . $criteriaKey;
                     
-                    // Store only the first evaluation found for this combination
-                    // Each column gets its own evaluation_percentage based on its criteria_id
-                    if (!isset($evalMap[$evalKey])) {
-                        $evalMap[$evalKey] = $evalPercentage;
+                    // Check if this assessment is an assessor task
+                    // If assessment is not in classification table, default to supervisor task
+                    $isAssessorTask = isset($assessmentClassifications[$assessmentId]) && 
+                                     strtolower($assessmentClassifications[$assessmentId]) === 'assessor';
+                    
+                    if ($isAssessorTask && $assessorId) {
+                        // For assessor tasks: collect all assessor evaluations to average later
+                        // Multiple assessors can evaluate the same student for the same criteria
+                        if (!isset($assessorEvalMap[$evalKey])) {
+                            $assessorEvalMap[$evalKey] = [];
+                        }
+                        $assessorEvalMap[$evalKey][] = floatval($evalPercentage);
+                    } else if (!$isAssessorTask && $supervisorId) {
+                        // For supervisor tasks: take the first evaluation found (current behavior)
+                        // Only one supervisor evaluates each student per criteria
+                        if (!isset($evalMap[$evalKey])) {
+                            $evalMap[$evalKey] = floatval($evalPercentage);
+                        }
+                    }
+                    // Note: Evaluations that don't match the assessment classification are skipped
+                    // (e.g., assessor task with Supervisor_ID only, or supervisor task with Assessor_ID only)
+                }
+                
+                // Calculate averages for assessor tasks
+                foreach ($assessorEvalMap as $evalKey => $percentages) {
+                    if (!empty($percentages)) {
+                        $average = array_sum($percentages) / count($percentages);
+                        $evalMap[$evalKey] = $average;
                     }
                 }
+                
                 $evalStmt->close();
 
                 // Attach evaluations to students by matching with LO allocations
