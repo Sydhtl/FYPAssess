@@ -48,13 +48,40 @@ try {
         }
     }
     
+    // Get all student IDs from input to handle deletions
+    $allStudentIds = array_map(function($session) {
+        return $session['student_id'];
+    }, $sessions);
+    
+    // Delete all existing student_session records for these students first
+    // This ensures we handle updates properly (remove old, add new)
+    if (!empty($allStudentIds)) {
+        $placeholders = implode(',', array_fill(0, count($allStudentIds), '?'));
+        $deleteStudentSessionsQuery = "DELETE FROM student_session WHERE Student_ID IN ($placeholders)";
+        $deleteStmt = $conn->prepare($deleteStudentSessionsQuery);
+        if ($deleteStmt) {
+            $types = str_repeat('s', count($allStudentIds));
+            $deleteStmt->bind_param($types, ...$allStudentIds);
+            $deleteStmt->execute();
+            $deleteStmt->close();
+        }
+    }
+    
     // Filter sessions to only include those with date, time, and venue
+    // Sessions without date/time/venue are treated as deletions (already handled above)
     $validSessions = array_filter($sessions, function($session) {
         return !empty($session['date']) && !empty($session['time']) && !empty($session['venue']);
     });
     
+    // If no valid sessions, just commit the deletions
     if (empty($validSessions)) {
-        throw new Exception('No valid assessment sessions to save (all must have date, time, and venue)');
+        $conn->commit();
+        echo json_encode([
+            'success' => true,
+            'message' => "Assessment sessions saved successfully. Removed all student session assignments."
+        ]);
+        $conn->close();
+        exit();
     }
     
     // Group sessions by date, time, venue, and course_id to create assessment_session records
@@ -144,38 +171,24 @@ try {
         }
         
         // Process each student in this session
+        // Since we already deleted all existing student_session records for these students,
+        // we can now safely insert new ones
         foreach ($studentIds as $studentId) {
-            // Check if student_session already exists
-            $checkStudentQuery = "SELECT Session_ID FROM student_session 
-                                 WHERE Session_ID = ? AND Student_ID = ? 
-                                 LIMIT 1";
-            $checkStudentStmt = $conn->prepare($checkStudentQuery);
-            if (!$checkStudentStmt) {
-                throw new Exception('Prepare failed (checkStudent): ' . $conn->error);
+            // Insert new student_session record
+            $insertStudentQuery = "INSERT INTO student_session (Session_ID, Student_ID) 
+                                  VALUES (?, ?)";
+            $insertStudentStmt = $conn->prepare($insertStudentQuery);
+            if (!$insertStudentStmt) {
+                throw new Exception('Prepare failed (insertStudent): ' . $conn->error);
             }
             
-            $checkStudentStmt->bind_param("is", $sessionId, $studentId);
-            $checkStudentStmt->execute();
-            $studentResult = $checkStudentStmt->get_result();
-            $checkStudentStmt->close();
-            
-            // Insert student_session if it doesn't exist
-            if ($studentResult->num_rows == 0) {
-                $insertStudentQuery = "INSERT INTO student_session (Session_ID, Student_ID) 
-                                      VALUES (?, ?)";
-                $insertStudentStmt = $conn->prepare($insertStudentQuery);
-                if (!$insertStudentStmt) {
-                    throw new Exception('Prepare failed (insertStudent): ' . $conn->error);
-                }
-                
-                $insertStudentStmt->bind_param("is", $sessionId, $studentId);
-                if (!$insertStudentStmt->execute()) {
-                    throw new Exception('Execute failed (insertStudent): ' . $insertStudentStmt->error);
-                }
-                
-                $insertStudentStmt->close();
-                $processedStudents++;
+            $insertStudentStmt->bind_param("is", $sessionId, $studentId);
+            if (!$insertStudentStmt->execute()) {
+                throw new Exception('Execute failed (insertStudent): ' . $insertStudentStmt->error);
             }
+            
+            $insertStudentStmt->close();
+            $processedStudents++;
             
             // Get Assessor_ID_1 and Assessor_ID_2 from student_enrollment
             // We need to find the FYP_Session_ID for this student first

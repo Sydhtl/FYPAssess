@@ -1,6 +1,8 @@
 <?php
 // submit_title_change.php
 include '../../../php/mysqlConnect.php';
+require_once __DIR__ . '/../../../php/sendEmail.php';
+require_once __DIR__ . '/../../../php/emailConfig.php';
 session_start();
 
 header('Content-Type: application/json');
@@ -25,8 +27,11 @@ if (!isset($conn) || $conn->connect_error) {
     exit();
 }
 
-// 1. Get Supervisor Info
-$supQuery = "SELECT l.Lecturer_ID, l.Lecturer_Name 
+// Load email configuration
+$emailConfig = require __DIR__ . '/../../../php/emailConfig.php';
+
+// 1. Get Supervisor Info and Student Name
+$supQuery = "SELECT l.Lecturer_ID, l.Lecturer_Name, s.Student_Name
              FROM student s 
              JOIN supervisor sup ON s.Supervisor_ID = sup.Supervisor_ID 
              JOIN lecturer l ON sup.Lecturer_ID = l.Lecturer_ID 
@@ -47,7 +52,12 @@ if ($supResult->num_rows === 0) {
     exit();
 }
 
-$supervisor = $supResult->fetch_assoc();
+$supervisorData = $supResult->fetch_assoc();
+$supervisor = [
+    'Lecturer_ID' => $supervisorData['Lecturer_ID'],
+    'Lecturer_Name' => $supervisorData['Lecturer_Name']
+];
+$studentName = $supervisorData['Student_Name'] ?? $studentId;
 $stmt->close();
 
 // 2. Check if fyp_project record exists
@@ -75,28 +85,65 @@ if ($checkResult->num_rows === 0) {
 }
 
 if ($success) {
-    // 3. Prepare email details
-    $testUpmId = "214673"; 
-    $lecturerEmail = $testUpmId . "@student.upm.edu.my";
+    // 3. Send email to supervisor
+    // Construct supervisor email address (UPM format: Lecturer_ID@upm.edu.my)
+    $originalEmail = $supervisor['Lecturer_ID'] . '@upm.edu.my';
     
-    $subject = "FYP Title Change Request: " . $studentId;
-    $message = "Dear " . $supervisor['Lecturer_Name'] . ",\n\n";
-    $message .= "Student " . $studentId . " has requested to change their FYP title.\n\n";
-    $message .= "Proposed Title:\n" . $newTitle . "\n\n";
-    $message .= "Please log in to the system to Approve or Reject this request.\n";
-    $headers = "From: no-reply@fypassess.upm.edu.my";
-
-    // For localhost testing - just save the request successfully without sending email
-    // In production with a proper mail server, uncomment the mail() function below
-    // mail($lecturerEmail, $subject, $message, $headers);
+    // Use test email if configured, otherwise use actual supervisor email
+    if (!empty($emailConfig['test_email_recipient'])) {
+        $lecturerEmail = $emailConfig['test_email_recipient'];
+    } else {
+        $lecturerEmail = $originalEmail;
+    }
     
-    echo json_encode([
-        'success' => true, 
-        'message' => 'Title change request submitted successfully',
-        'email_to' => $lecturerEmail,
-        'email_subject' => $subject,
-        'note' => 'Email would be sent in production environment'
-    ]);
+    // Create email subject and message
+    $subject = "Permohonan Pertukaran Tajuk FYP -  (" . $studentId . ")";
+    
+    // HTML email message template
+    $message = "<b>Assalamualaikum Warahmatullahi Wabarakatuh dan Salam Sejahtera,</b><br><br>" .
+               "<b>YBhg. Dato'/Datin/Prof./Dr./Tuan/Puan " . htmlspecialchars($supervisor['Lecturer_Name']) . ",</b><br><br>" .
+               "<b>PERMOHONAN PERTUKARAN TAJUK FYP</b><br><br>" .
+               "Sukacita dimaklumkan bahawa pelajar di bawah seliaan YBhg. Dato'/Datin/Prof./Dr./Tuan/Puan telah membuat permohonan untuk menukar tajuk FYP mereka.<br><br>" .
+               "<b>Maklumat Pelajar:</b><br>" .
+               "Nama: " . htmlspecialchars($studentName) . "<br>" .
+               "No. Matrik: " . htmlspecialchars($studentId) . "<br><br>" .
+               "<b>Tajuk yang Dicadangkan:</b><br>" .
+               "<div style='background-color: #f8f9fa; padding: 10px; border-left: 4px solid #007bff; margin: 10px 0;'>" .
+               htmlspecialchars($newTitle) . "</div><br>" .
+               "Sila log masuk ke sistem FYPAssess untuk meluluskan atau menolak permohonan ini.<br><br>" .
+               "Untuk sebarang pertanyaan, sila hubungi pihak pentadbir sistem.<br><br>" .
+               "Sekian, terima kasih.<br><br>" .
+               "<b>\"MALAYSIA MADANI\"</b><br>" .
+               "<b>\"BERILMU BERBAKTI\"</b><br><br>" .
+               "Saya yang menjalankan amanah,<br><br>" .
+               "<b>Nurul Saidahtul Fatiha binti Shaharudin</b><br>" .
+              "<b>Pembangun Sistem FYPAssess</b><br>" .
+              "<b>PutraAssess System</b><br>" .
+              "Universiti Putra Malaysia";
+    
+    // Send email using sendEmail function
+    $emailResult = sendEmail(
+        $lecturerEmail,
+        $subject,
+        $message,
+        'html' // Use HTML format for the email
+    );
+    
+    if ($emailResult['success']) {
+        echo json_encode([
+            'success' => true, 
+            'message' => 'Title change request submitted successfully. Email notification has been sent to your supervisor.',
+            'email_sent' => true
+        ]);
+    } else {
+        // Still return success for database update, but note email issue
+        echo json_encode([
+            'success' => true, 
+            'message' => 'Title change request submitted successfully. However, email notification could not be sent: ' . $emailResult['message'],
+            'email_sent' => false,
+            'email_error' => $emailResult['message']
+        ]);
+    }
 } else {
     echo json_encode(['success' => false, 'message' => 'Failed to update database']);
 }

@@ -322,27 +322,10 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
                                         </a>
                                     </div>
                                 </div>
-                                <div class="download-dropdown">
-                                    <button id="downloadButtonNotifyA" class="btn-download btn-notify-group" onclick="toggleDownloadDropdown('notify', 'a', this)">
-                                        <i class="bi bi-bell"></i>
-                                        <span>Notify</span>
-                                        <i class="bi bi-chevron-down dropdown-arrow"></i>
-                                    </button>
-                                    <div class="download-dropdown-menu" id="downloadDropdownNotifyA">
-                                        <a href="javascript:void(0)" onclick="notifyGroup('swe4949a', 'assessors'); closeDownloadDropdown('notify', 'a');" class="download-option notify-option">
-                                            <i class="bi bi-bell"></i>
-                                            <span>Notify all assessors</span>
-                                        </a>
-                                        <a href="javascript:void(0)" onclick="notifyGroup('swe4949a', 'supervisors'); closeDownloadDropdown('notify', 'a');" class="download-option notify-option">
-                                            <i class="bi bi-bell"></i>
-                                            <span>Notify all supervisors</span>
-                                        </a>
-                                        <a href="javascript:void(0)" onclick="notifyGroup('swe4949a', 'both'); closeDownloadDropdown('notify', 'a');" class="download-option notify-option">
-                                            <i class="bi bi-bell"></i>
-                                            <span>Notify all roles</span>
-                                        </a>
-                                    </div>
-                                </div>
+                                <button id="downloadButtonNotifyA" class="btn-download btn-notify-group" onclick="notifyAllIncomplete('swe4949a')">
+                                    <i class="bi bi-bell"></i>
+                                    <span>Notify All</span>
+                                </button>
                             </div>
                         </div>
 
@@ -417,27 +400,10 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
                                         </a>
                                     </div>
                                 </div>
-                                <div class="download-dropdown">
-                                    <button id="downloadButtonNotifyB" class="btn-download btn-notify-group" onclick="toggleDownloadDropdown('notify', 'b', this)">
-                                        <i class="bi bi-bell"></i>
-                                        <span>Notify</span>
-                                        <i class="bi bi-chevron-down dropdown-arrow"></i>
-                                    </button>
-                                    <div class="download-dropdown-menu" id="downloadDropdownNotifyB">
-                                        <a href="javascript:void(0)" onclick="notifyGroup('swe4949b', 'assessors'); closeDownloadDropdown('notify', 'b');" class="download-option notify-option">
-                                            <i class="bi bi-bell"></i>
-                                            <span>Notify all assessors</span>
-                                        </a>
-                                        <a href="javascript:void(0)" onclick="notifyGroup('swe4949b', 'supervisors'); closeDownloadDropdown('notify', 'b');" class="download-option notify-option">
-                                            <i class="bi bi-bell"></i>
-                                            <span>Notify all supervisors</span>
-                                        </a>
-                                        <a href="javascript:void(0)" onclick="notifyGroup('swe4949b', 'both'); closeDownloadDropdown('notify', 'b');" class="download-option notify-option">
-                                            <i class="bi bi-bell"></i>
-                                            <span>Notify all roles</span>
-                                        </a>
-                                    </div>
-                                </div>
+                                <button id="downloadButtonNotifyB" class="btn-download btn-notify-group" onclick="notifyAllIncomplete('swe4949b')">
+                                    <i class="bi bi-bell"></i>
+                                    <span>Notify All</span>
+                                </button>
                             </div>
                         </div>
 
@@ -1028,9 +994,8 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
             // Hide notify buttons initially (student-overview is default)
             ['A', 'B'].forEach(suffix => {
                 const notifyButton = document.getElementById(`downloadButtonNotify${suffix}`);
-                const notifyContainer = notifyButton ? notifyButton.closest('.download-dropdown') : null;
-                if (notifyContainer) {
-                    notifyContainer.style.display = 'none';
+                if (notifyButton) {
+                    notifyButton.style.display = 'none';
                 }
             });
 
@@ -1219,18 +1184,16 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
             // Show/hide notify button based on view
             const tabSuffix = tabName.charAt(tabName.length - 1).toUpperCase();
             const notifyButton = document.getElementById(`downloadButtonNotify${tabSuffix}`);
-            const notifyDropdown = document.getElementById(`downloadDropdownNotify${tabSuffix}`);
-            const notifyContainer = notifyButton ? notifyButton.closest('.download-dropdown') : null;
             
             if (viewType === 'student-overview') {
                 // Hide notify button in student marks overview
-                if (notifyContainer) {
-                    notifyContainer.style.display = 'none';
+                if (notifyButton) {
+                    notifyButton.style.display = 'none';
                 }
             } else {
                 // Show notify button in lecturer progress view
-                if (notifyContainer) {
-                    notifyContainer.style.display = 'block';
+                if (notifyButton) {
+                    notifyButton.style.display = 'flex';
                 }
             }
         }
@@ -1706,27 +1669,117 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
 
         function notifyLecturer(tabName, lecturerName) {
             closeAllDropdowns();
-            openModal('Notification Sent', `Notification has been sent to ${lecturerName} for ${tabName.toUpperCase()}.`);
+            
+            // Show loading state
+            openModal('Sending...', `Sending notification to ${lecturerName}...`);
+            
+            // Call email API
+            fetch('../../../php/phpCoordinator/send_notification.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    lecturer_name: lecturerName,
+                    course_code: tabName.toUpperCase(),
+                    year: selectedYear,
+                    semester: selectedSemester,
+                    page: 'mark_submission'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    openModal('Notification Sent', `Notification has been sent to ${lecturerName} for ${tabName.toUpperCase()}. ${data.message || ''}`);
+                } else {
+                    openModal('Error', `Failed to send notification: ${data.message || 'Unknown error'}`);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                openModal('Error', 'An error occurred while sending the notification. Please try again.');
+            });
         }
 
-        function notifyGroup(tabName, role) {
-            let roleLabel = '';
-            let message = '';
-            switch (role) {
-                case 'assessors':
-                    roleLabel = 'all assessors';
-                    message = `Notifications have been sent to all assessors for ${tabName.toUpperCase()}.`;
-                    break;
-                case 'supervisors':
-                    roleLabel = 'all supervisors';
-                    message = `Notifications have been sent to all supervisors for ${tabName.toUpperCase()}.`;
-                    break;
-                default:
-                    roleLabel = 'all assessors and supervisors';
-                    message = `Notifications have been sent to all assessors and supervisors for ${tabName.toUpperCase()}.`;
-            }
+        async function notifyAllIncomplete(tabName) {
             closeAllDropdowns();
-            openModal('Notification Sent', message);
+            
+            // Show loading state
+            openModal('Sending...', `Preparing to send notifications to lecturers with incomplete tasks...`);
+            
+            try {
+                // Fetch lecturer progress data to get lecturer names and status
+                const progressData = await fetchLecturerProgress(tabName);
+                const lecturers = progressData.lecturers || [];
+                const supAssess = progressData.assessments?.Supervisor || [];
+                const assAssess = progressData.assessments?.Assessor || [];
+                
+                if (lecturers.length === 0) {
+                    openModal('Error', 'No lecturers found for this course.');
+                    return;
+                }
+                
+                // Filter lecturers who have incomplete tasks
+                const lecturersToNotify = lecturers.filter(lec => {
+                    // Check if lecturer has any incomplete assessments
+                    let hasIncomplete = false;
+                    
+                    // Check supervisor assessments
+                    supAssess.forEach(a => {
+                        const status = lec.status?.Supervisor?.[a.assessment_id];
+                        if (status && status.toLowerCase() === 'incomplete') {
+                            hasIncomplete = true;
+                        }
+                    });
+                    
+                    // Check assessor assessments
+                    assAssess.forEach(a => {
+                        const status = lec.status?.Assessor?.[a.assessment_id];
+                        if (status && status.toLowerCase() === 'incomplete') {
+                            hasIncomplete = true;
+                        }
+                    });
+                    
+                    return hasIncomplete;
+                });
+                
+                if (lecturersToNotify.length === 0) {
+                    openModal('Info', 'All lecturers have completed their tasks. No notifications to send.');
+                    return;
+                }
+                
+                // Send emails to all lecturers with incomplete tasks
+                const emailPromises = lecturersToNotify.map(lec => {
+                    return fetch('../../../php/phpCoordinator/send_notification.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            lecturer_name: lec.name,
+                            course_code: tabName.toUpperCase(),
+                            year: selectedYear,
+                            semester: selectedSemester,
+                            page: 'mark_submission'
+                        })
+                    }).then(response => response.json());
+                });
+                
+                // Wait for all emails to be sent
+                const results = await Promise.all(emailPromises);
+                const successful = results.filter(r => r.success).length;
+                const failed = results.filter(r => !r.success).length;
+                
+                if (failed === 0) {
+                    openModal('Notification Sent', `Successfully sent notifications to ${successful} lecturer(s) with incomplete tasks for ${tabName.toUpperCase()}.`);
+                } else {
+                    openModal('Partial Success', `Sent to ${successful} lecturer(s), ${failed} failed. Check console for details.`);
+                    console.error('Failed notifications:', results.filter(r => !r.success));
+                }
+            } catch (error) {
+                console.error('Error sending notifications:', error);
+                openModal('Error', 'An error occurred while sending notifications. Please try again.');
+            }
         }
 
         function closeAllDropdowns() {

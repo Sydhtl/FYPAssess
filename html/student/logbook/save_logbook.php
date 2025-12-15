@@ -1,5 +1,7 @@
 <?php
 include '../../../php/mysqlConnect.php';
+require_once __DIR__ . '/../../../php/sendEmail.php';
+require_once __DIR__ . '/../../../php/emailConfig.php';
 session_start();
 
 header('Content-Type: application/json');
@@ -41,6 +43,33 @@ if ($validAgendaCount === 0) {
     exit();
 }
 
+// Load email configuration
+$emailConfig = require __DIR__ . '/../../../php/emailConfig.php';
+
+// Get Supervisor Info, Student Name, and Course Code for email notification
+$supQuery = "SELECT l.Lecturer_ID, l.Lecturer_Name, s.Student_Name, c.Course_Code
+             FROM student s 
+             JOIN supervisor sup ON s.Supervisor_ID = sup.Supervisor_ID 
+             JOIN lecturer l ON sup.Lecturer_ID = l.Lecturer_ID
+             JOIN course c ON c.Course_ID = ?
+             WHERE s.Student_ID = ?";
+$stmtSup = $conn->prepare($supQuery);
+$supervisorData = null;
+$studentName = null;
+$courseCode = null;
+
+if ($stmtSup) {
+    $stmtSup->bind_param("is", $courseId, $studentId);
+    $stmtSup->execute();
+    $supResult = $stmtSup->get_result();
+    if ($supResult->num_rows > 0) {
+        $supervisorData = $supResult->fetch_assoc();
+        $studentName = $supervisorData['Student_Name'] ?? $studentId;
+        $courseCode = $supervisorData['Course_Code'] ?? 'N/A';
+    }
+    $stmtSup->close();
+}
+
 $conn->begin_transaction();
 try {
     $stmt = $conn->prepare("INSERT INTO logbook (Student_ID, course_id, Logbook_Name, Logbook_Date, Logbook_Status) VALUES (?, ?, ?, ?, 'Waiting for approval')");
@@ -61,6 +90,83 @@ try {
     }
     $stmtAgenda->close();
     $conn->commit();
+    
+    // Send email notification to supervisor after successful save
+    if ($supervisorData) {
+        // Construct supervisor email address (UPM format: Lecturer_ID@upm.edu.my)
+        $originalEmail = $supervisorData['Lecturer_ID'] . '@upm.edu.my';
+        
+        // Use test email if configured, otherwise use actual supervisor email
+        if (!empty($emailConfig['test_email_recipient'])) {
+            $lecturerEmail = $emailConfig['test_email_recipient'];
+        } else {
+            $lecturerEmail = $originalEmail;
+        }
+        
+        // Create email subject and message
+        $subject = "Notis Penghantaran Logbook - " . htmlspecialchars($studentName) . " (" . htmlspecialchars($studentId) . ")";
+        
+        // Build agenda list for email
+        $agendaListHtml = '';
+        if (!empty($agendas) && is_array($agendas)) {
+            $validAgendas = array_filter($agendas, function($a) {
+                return !empty(trim($a['name'] ?? '')) && !empty(trim($a['explanation'] ?? ''));
+            });
+            if (!empty($validAgendas)) {
+                $agendaListHtml = '<ul style="margin: 10px 0; padding-left: 20px;">';
+                foreach ($validAgendas as $index => $agenda) {
+                    $agendaListHtml .= '<li style="margin-bottom: 10px;">' .
+                                       '<strong>' . htmlspecialchars($agenda['name']) . ':</strong><br>' .
+                                       '<span style="color: #666;">' . htmlspecialchars($agenda['explanation']) . '</span>' .
+                                       '</li>';
+                }
+                $agendaListHtml .= '</ul>';
+            }
+        }
+        
+        if (empty($agendaListHtml)) {
+            $agendaListHtml = '<p style="color: #999; font-style: italic;">Tiada agenda ditambah.</p>';
+        }
+        
+        // HTML email message template
+        $message = "<b>Assalamualaikum Warahmatullahi Wabarakatuh dan Salam Sejahtera,</b><br><br>" .
+                   "<b>YBhg. Dato'/Datin/Prof./Dr./Tuan/Puan " . htmlspecialchars($supervisorData['Lecturer_Name']) . ",</b><br><br>" .
+                   "<b>NOTIS PENGHANTARAN LOGBOOK</b><br><br>" .
+                   "Sukacita dimaklumkan bahawa pelajar di bawah seliaan YBhg. Dato'/Datin/Prof./Dr./Tuan/Puan telah menghantar logbook baharu melalui sistem FYPAssess.<br><br>" .
+                   "<b>Maklumat Pelajar:</b><br>" .
+                   "Nama: " . htmlspecialchars($studentName) . "<br>" .
+                   "No. Matrik: " . htmlspecialchars($studentId) . "<br>" .
+                   "Kod Kursus: " . htmlspecialchars($courseCode) . "<br><br>" .
+                   "<b>Maklumat Logbook:</b><br>" .
+                   "Tajuk Logbook: <strong>" . htmlspecialchars($logbookTitle) . "</strong><br>" .
+                   "Tarikh: " . htmlspecialchars($logbookDate) . "<br><br>" .
+                   "<b>Agenda Logbook:</b><br>" .
+                   $agendaListHtml .
+                   "<br>Sila log masuk ke sistem FYPAssess untuk menyemak dan meluluskan logbook ini.<br><br>" .
+                   "Untuk sebarang pertanyaan, sila hubungi pihak pentadbir sistem.<br><br>" .
+                   "Sekian, terima kasih.<br><br>" .
+                   "<b>\"MALAYSIA MADANI\"</b><br>" .
+                   "<b>\"BERILMU BERBAKTI\"</b><br><br>" .
+                   "Saya yang menjalankan amanah,<br><br>" .
+                   "<b>Nurul Saidahtul Fatiha binti Shaharudin</b><br>" .
+                   "<b>Pembangun Sistem FYPAssess</b><br>" .
+                   "<b>PutraAssess System</b><br>" .
+                   "Universiti Putra Malaysia";
+        
+        // Send email using sendEmail function
+        $emailResult = sendEmail(
+            $lecturerEmail,
+            $subject,
+            $message,
+            'html' // Use HTML format for the email
+        );
+        
+        // Log email result but don't fail the save if email fails
+        if (!$emailResult['success']) {
+            error_log("Failed to send logbook notification email: " . $emailResult['message']);
+        }
+    }
+    
     echo json_encode(['success' => true, 'logbook_id' => $logbookId]);
 } catch (Exception $e) {
     $conn->rollback();
