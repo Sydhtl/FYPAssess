@@ -37,23 +37,39 @@
     border-radius: 8px;
     padding: 15px 20px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    min-height: fit-content;
 }
 
 .notif-details p {
-    /* Critical: Use CSS Grid for two-column layout */
-    display: grid;
-    /* Define columns: The first column (label) should be max-content, 
-       but we set a min size to ensure consistency */
-    grid-template-columns: minmax(150px, max-content) 1fr;
-    gap: 10px;
+    /* Use flexbox for single-line layout */
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: flex-start;
+    gap: 0;
     margin-bottom: 5px;
     word-wrap: break-word;
     overflow-wrap: break-word;
 }
 
+.notif-details p strong {
+    white-space: nowrap;
+    margin-right: 5px;
+}
+
+.notif-details p span {
+    flex: 1;
+    min-width: 0;
+}
+
 /* Ensure long text like titles wrap properly */
 .notif-details p strong {
-    word-break: keep-all;
+    white-space: nowrap;
+    margin-right: 5px;
+}
+
+.notif-details p span {
+    flex: 1;
+    min-width: 0;
 }
 
 .notif-action {
@@ -105,13 +121,19 @@
     .notif-card {
         flex-direction: column;
         align-items: stretch;
+        min-height: fit-content;
+    }
+    
+    .notif-details {
+        flex: 1;
     }
     
     .notif-action {
-        margin-top: 15px;
+        margin-top: auto;
         margin-left: 0;
         justify-content: flex-end;
         flex-wrap: wrap;
+        padding-top: 15px;
     }
     
     .action-btn {

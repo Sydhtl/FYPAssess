@@ -171,9 +171,14 @@ if ($tableExists && $tableExists->num_rows > 0) {
                 <h4 class="section-title" id="sectionTitleA">Logbook Submission <?php echo htmlspecialchars($course1['Course_Code']); ?></h4>
                 
                 <div class="name-section">
-                    <div class="name-field-wrapper">
-                        <label class="form-label">Name</label>
-                        <input type="text" class="form-control readonly-field" value="<?php echo htmlspecialchars($studentName); ?>" readonly>
+                    <div class="filter-inline-group">
+                        <span class="filter-inline-label">Filter by status:</span>
+                        <select id="statusFilterA" class="status-filter-dropdown" onchange="filterLogbookTable('A')">
+                            <option value="all">All</option>
+                            <option value="approved">Approved</option>
+                            <option value="rejected">Rejected</option>
+                            <option value="pending">Pending</option>
+                        </select>
                     </div>
                     <?php if ($isRegisteredCourse1): ?>
                     <a href="add_logbook.php?section=A&course_id=<?php echo $course1['Course_ID']; ?>" class="btn btn-outline-dark add-row-btn" style="background-color: white; color: black;">
@@ -211,9 +216,14 @@ if ($tableExists && $tableExists->num_rows > 0) {
                 <h4 class="section-title" id="sectionTitleB">Logbook Submission <?php echo htmlspecialchars($course2['Course_Code']); ?></h4>
                 
                 <div class="name-section">
-                    <div class="name-field-wrapper">
-                        <label class="form-label">Name</label>
-                        <input type="text" class="form-control readonly-field" value="<?php echo htmlspecialchars($studentName); ?>" readonly>
+                    <div class="filter-inline-group">
+                        <span class="filter-inline-label">Filter by status:</span>
+                        <select id="statusFilterB" class="status-filter-dropdown" onchange="filterLogbookTable('B')">
+                            <option value="all">All</option>
+                            <option value="approved">Approved</option>
+                            <option value="rejected">Rejected</option>
+                            <option value="pending">Pending</option>
+                        </select>
                     </div>
                     <?php if ($isRegisteredCourse2): ?>
                     <a href="add_logbook.php?section=B&course_id=<?php echo $course2['Course_ID']; ?>" class="btn btn-outline-dark add-row-btn" style="background-color: white; color: black;">
@@ -343,18 +353,37 @@ if ($tableExists && $tableExists->num_rows > 0) {
         countElement.textContent = remaining;
     }
 
+    function filterLogbookTable(section) {
+        var filterElement = section === 'A' ? document.getElementById('statusFilterA') : document.getElementById('statusFilterB');
+        var selectedStatus = filterElement.value;
+        renderTable(section, selectedStatus);
+    }
+
     function getStatusClass(status) {
         if (status === 'Approved') return 'status-approved';
         if (status === 'Rejected') return 'status-rejected';
         return 'status-waiting';
     }
 
-    function renderTable(section) {
+    function renderTable(section, statusFilter) {
         var logbookData = section === 'A' ? logbookDataA : logbookDataB;
         var tbodyId = section === 'A' ? 'logbookTableBodyA' : 'logbookTableBodyB';
         var tbody = document.getElementById(tbodyId);
         tbody.innerHTML = '';
-        logbookData.forEach(function(item) {
+        
+        // Filter data based on status
+        var filteredData = logbookData;
+        if (statusFilter && statusFilter !== 'all') {
+            filteredData = logbookData.filter(function(item) {
+                var itemStatus = item.status.toLowerCase();
+                if (statusFilter === 'pending') {
+                    return itemStatus === 'waiting for approval' || itemStatus === 'pending';
+                }
+                return itemStatus === statusFilter;
+            });
+        }
+        
+        filteredData.forEach(function(item) {
             var row = document.createElement('tr');
             row.innerHTML = 
                 '<td>' + item.id + '</td>' +
@@ -684,8 +713,8 @@ if ($tableExists && $tableExists->num_rows > 0) {
         document.getElementById("nameSide").style.display = "none";
         closeNav();
         loadExtraEntries();
-        renderTable('A');
-        renderTable('B');
+        renderTable('A', 'all');
+        renderTable('B', 'all');
     };
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
