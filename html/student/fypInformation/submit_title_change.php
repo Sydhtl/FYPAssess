@@ -101,7 +101,8 @@ if ($success) {
     
     // HTML email message template
     $message = "<b>Assalamualaikum Warahmatullahi Wabarakatuh dan Salam Sejahtera,</b><br><br>" .
-               "<b>YBhg. Dato'/Datin/Prof./Dr./Tuan/Puan " . htmlspecialchars($supervisor['Lecturer_Name']) . ",</b><br><br>" .
+               "<b>YBhg. Dato'/Datin/Prof./Dr./Tuan/Puan " .
+               "<br><br>" . htmlspecialchars($supervisor['Lecturer_Name']) . ",</b><br><br>" .
                "<b>PERMOHONAN PERTUKARAN TAJUK FYP</b><br><br>" .
                "Sukacita dimaklumkan bahawa pelajar di bawah seliaan YBhg. Dato'/Datin/Prof./Dr./Tuan/Puan telah membuat permohonan untuk menukar tajuk FYP mereka.<br><br>" .
                "<b>Maklumat Pelajar:</b><br>" .

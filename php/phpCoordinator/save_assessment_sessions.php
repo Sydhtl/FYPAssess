@@ -1,5 +1,7 @@
 <?php
 include '../mysqlConnect.php';
+require_once __DIR__ . '/../sendEmail.php';
+require_once __DIR__ . '/../emailConfig.php';
 session_start();
 
 // Ensure only Coordinators can save assessment sessions
@@ -28,6 +30,73 @@ if (empty($sessions)) {
     exit();
 }
 
+// Before transaction: Capture OLD state for comparison
+// This will be used to detect changes and determine if emails should be sent
+$oldAssessorAssignments = [];
+
+// Get all student IDs from input to check old state
+$allStudentIds = array_map(function($session) {
+    return $session['student_id'];
+}, $sessions);
+
+// Get OLD assessment session assignments before saving
+if (!empty($allStudentIds)) {
+    $placeholders = implode(',', array_fill(0, count($allStudentIds), '?'));
+    $oldSessionQuery = "
+        SELECT ss.Student_ID, ass.Date, ass.Time, ass.Venue,
+               se.Assessor_ID_1, se.Assessor_ID_2,
+               l1.Lecturer_ID as Assessor1_Lecturer_ID,
+               l1.Lecturer_Name as Assessor1_Name,
+               l2.Lecturer_ID as Assessor2_Lecturer_ID,
+               l2.Lecturer_Name as Assessor2_Name
+        FROM student_session ss
+        INNER JOIN assessment_session ass ON ss.Session_ID = ass.Session_ID
+        INNER JOIN student s ON ss.Student_ID = s.Student_ID
+        LEFT JOIN student_enrollment se ON ss.Student_ID = se.Student_ID AND se.Fyp_Session_ID = s.FYP_Session_ID
+        LEFT JOIN assessor a1 ON se.Assessor_ID_1 = a1.Assessor_ID
+        LEFT JOIN lecturer l1 ON a1.Lecturer_ID = l1.Lecturer_ID
+        LEFT JOIN assessor a2 ON se.Assessor_ID_2 = a2.Assessor_ID
+        LEFT JOIN lecturer l2 ON a2.Lecturer_ID = l2.Lecturer_ID
+        WHERE ss.Student_ID IN ($placeholders)
+    ";
+    $stmtOldSession = $conn->prepare($oldSessionQuery);
+    if ($stmtOldSession) {
+        $types = str_repeat('s', count($allStudentIds));
+        $stmtOldSession->bind_param($types, ...$allStudentIds);
+        $stmtOldSession->execute();
+        $oldSessionResult = $stmtOldSession->get_result();
+        
+        while ($oldRow = $oldSessionResult->fetch_assoc()) {
+            // Build old assignments structure
+            if (!empty($oldRow['Assessor1_Lecturer_ID'])) {
+                $lecId = $oldRow['Assessor1_Lecturer_ID'];
+                if (!isset($oldAssessorAssignments[$lecId])) {
+                    $oldAssessorAssignments[$lecId] = [];
+                }
+                $oldAssessorAssignments[$lecId][] = [
+                    'student_id' => $oldRow['Student_ID'],
+                    'date' => $oldRow['Date'],
+                    'time' => $oldRow['Time'],
+                    'venue' => $oldRow['Venue']
+                ];
+            }
+            if (!empty($oldRow['Assessor2_Lecturer_ID'])) {
+                $lecId = $oldRow['Assessor2_Lecturer_ID'];
+                if (!isset($oldAssessorAssignments[$lecId])) {
+                    $oldAssessorAssignments[$lecId] = [];
+                }
+                $oldAssessorAssignments[$lecId][] = [
+                    'student_id' => $oldRow['Student_ID'],
+                    'date' => $oldRow['Date'],
+                    'time' => $oldRow['Time'],
+                    'venue' => $oldRow['Venue']
+                ];
+            }
+        }
+        $stmtOldSession->close();
+    }
+}
+
 // Start transaction
 $conn->begin_transaction();
 
@@ -47,11 +116,6 @@ try {
             $fypStmt->close();
         }
     }
-    
-    // Get all student IDs from input to handle deletions
-    $allStudentIds = array_map(function($session) {
-        return $session['student_id'];
-    }, $sessions);
     
     // Delete all existing student_session records for these students first
     // This ensures we handle updates properly (remove old, add new)
@@ -206,6 +270,19 @@ try {
                     }
                     $studentStmt->close();
                 }
+            } else {
+                // If $fypSessionIds is empty, still try to get FYP_Session_ID directly
+                $studentQuery = "SELECT FYP_Session_ID FROM student WHERE Student_ID = ? LIMIT 1";
+                $studentStmt = $conn->prepare($studentQuery);
+                if ($studentStmt) {
+                    $studentStmt->bind_param("s", $studentId);
+                    $studentStmt->execute();
+                    $studentFypResult = $studentStmt->get_result();
+                    if ($studentFypRow = $studentFypResult->fetch_assoc()) {
+                        $studentFypSessionId = $studentFypRow['FYP_Session_ID'];
+                    }
+                    $studentStmt->close();
+                }
             }
             
             if ($studentFypSessionId) {
@@ -285,6 +362,279 @@ try {
     
     // Commit transaction
     $conn->commit();
+    
+    // After successful save, send email notifications to assessors
+    try {
+        // Load email config
+        $emailConfig = require __DIR__ . '/../emailConfig.php';
+        
+        // Collect assessor assignments: map assessor_id -> list of students with session details
+        $assessorAssignments = [];
+        
+        // Get all valid sessions with assessor information
+        foreach ($validSessions as $session) {
+            $studentId = $session['student_id'];
+            $studentName = $session['student_name'] ?? '';
+            $date = $session['date'];
+            $time = $session['time'];
+            $venue = $session['venue'];
+            $courseId = $session['course_id'] ?? null;
+            
+            // Get FYP_Session_ID for this student directly from student table
+            // Don't rely on $fypSessionIds array - query directly
+            $studentFypSessionId = null;
+            $studentQuery = "SELECT FYP_Session_ID FROM student WHERE Student_ID = ? LIMIT 1";
+            $studentStmt = $conn->prepare($studentQuery);
+            if ($studentStmt) {
+                $studentStmt->bind_param("s", $studentId);
+                $studentStmt->execute();
+                $studentFypResult = $studentStmt->get_result();
+                if ($studentFypRow = $studentFypResult->fetch_assoc()) {
+                    $studentFypSessionId = $studentFypRow['FYP_Session_ID'];
+                }
+                $studentStmt->close();
+            }
+            
+            if ($studentFypSessionId) {
+                // Get assessor IDs and lecturer information from student_enrollment
+                $enrollmentQuery = "
+                    SELECT se.Assessor_ID_1, se.Assessor_ID_2,
+                           l1.Lecturer_ID as Assessor1_Lecturer_ID,
+                           l1.Lecturer_Name as Assessor1_Name,
+                           l2.Lecturer_ID as Assessor2_Lecturer_ID,
+                           l2.Lecturer_Name as Assessor2_Name
+                    FROM student_enrollment se
+                    LEFT JOIN assessor a1 ON se.Assessor_ID_1 = a1.Assessor_ID
+                    LEFT JOIN lecturer l1 ON a1.Lecturer_ID = l1.Lecturer_ID
+                    LEFT JOIN assessor a2 ON se.Assessor_ID_2 = a2.Assessor_ID
+                    LEFT JOIN lecturer l2 ON a2.Lecturer_ID = l2.Lecturer_ID
+                    WHERE se.Student_ID = ? AND se.Fyp_Session_ID = ?
+                    LIMIT 1
+                ";
+                $enrollmentStmt = $conn->prepare($enrollmentQuery);
+                if ($enrollmentStmt) {
+                    $enrollmentStmt->bind_param("si", $studentId, $studentFypSessionId);
+                    $enrollmentStmt->execute();
+                    $enrollmentResult = $enrollmentStmt->get_result();
+                    
+                    if ($enrollmentRow = $enrollmentResult->fetch_assoc()) {
+                        // Process Assessor 1
+                        if (!empty($enrollmentRow['Assessor1_Lecturer_ID'])) {
+                            $lecId = $enrollmentRow['Assessor1_Lecturer_ID'];
+                            $lecName = $enrollmentRow['Assessor1_Name'];
+                            
+                            if (!isset($assessorAssignments[$lecId])) {
+                                $assessorAssignments[$lecId] = [
+                                    'lecturer_id' => $lecId,
+                                    'lecturer_name' => $lecName,
+                                    'students' => []
+                                ];
+                            }
+                            
+                            $assessorAssignments[$lecId]['students'][] = [
+                                'student_id' => $studentId,
+                                'student_name' => $studentName,
+                                'date' => $date,
+                                'time' => $time,
+                                'venue' => $venue
+                            ];
+                        }
+                        
+                        // Process Assessor 2
+                        if (!empty($enrollmentRow['Assessor2_Lecturer_ID'])) {
+                            $lecId = $enrollmentRow['Assessor2_Lecturer_ID'];
+                            $lecName = $enrollmentRow['Assessor2_Name'];
+                            
+                            if (!isset($assessorAssignments[$lecId])) {
+                                $assessorAssignments[$lecId] = [
+                                    'lecturer_id' => $lecId,
+                                    'lecturer_name' => $lecName,
+                                    'students' => []
+                                ];
+                            }
+                            
+                            $assessorAssignments[$lecId]['students'][] = [
+                                'student_id' => $studentId,
+                                'student_name' => $studentName,
+                                'date' => $date,
+                                'time' => $time,
+                                'venue' => $venue
+                            ];
+                        }
+                    } else {
+                        error_log("Assessment session emails: No enrollment found for student {$studentId} with FYP_Session_ID {$studentFypSessionId}");
+                    }
+                    $enrollmentStmt->close();
+                } else {
+                    error_log("Assessment session emails: Failed to prepare enrollment query for student {$studentId}");
+                }
+            } else {
+                error_log("Assessment session emails: No FYP_Session_ID found for student {$studentId}");
+            }
+        }
+        
+        // Determine if this is first distribution
+        // First distribution: no assessors had student assessment sessions before (oldAssessorAssignments is empty)
+        $isFirstDistribution = empty($oldAssessorAssignments);
+        
+        // Find assessors with changes (students added/removed OR date/time/venue changed)
+        $assessorsWithChanges = [];
+        foreach ($assessorAssignments as $lecId => $lecData) {
+            if (empty($lecData['lecturer_name']) || empty($lecData['students'])) {
+                continue;
+            }
+            
+            $hasChanges = false;
+            
+            // Get old assignments for this lecturer
+            $oldStudents = isset($oldAssessorAssignments[$lecId]) ? $oldAssessorAssignments[$lecId] : [];
+            
+            // Build normalized comparison structures
+            // Old: student_id -> {date, time, venue}
+            $oldStudentMap = [];
+            foreach ($oldStudents as $oldStudent) {
+                $oldStudentMap[$oldStudent['student_id']] = [
+                    'date' => $oldStudent['date'] ?? '',
+                    'time' => $oldStudent['time'] ?? '',
+                    'venue' => $oldStudent['venue'] ?? ''
+                ];
+            }
+            
+            // New: student_id -> {date, time, venue}
+            $newStudentMap = [];
+            foreach ($lecData['students'] as $newStudent) {
+                $newStudentMap[$newStudent['student_id']] = [
+                    'date' => $newStudent['date'] ?? '',
+                    'time' => $newStudent['time'] ?? '',
+                    'venue' => $newStudent['venue'] ?? ''
+                ];
+            }
+            
+            // Check if any students were added or removed
+            $oldStudentIds = array_keys($oldStudentMap);
+            $newStudentIds = array_keys($newStudentMap);
+            sort($oldStudentIds);
+            sort($newStudentIds);
+            if ($oldStudentIds != $newStudentIds) {
+                $hasChanges = true;
+            }
+            
+            // Check if any session details changed for existing students
+            foreach ($newStudentMap as $studentId => $newDetails) {
+                if (isset($oldStudentMap[$studentId])) {
+                    $oldDetails = $oldStudentMap[$studentId];
+                    if ($oldDetails['date'] != $newDetails['date'] ||
+                        $oldDetails['time'] != $newDetails['time'] ||
+                        $oldDetails['venue'] != $newDetails['venue']) {
+                        $hasChanges = true;
+                        break;
+                    }
+                }
+            }
+            
+            // For first distribution, include all assessors with assignments
+            if ($isFirstDistribution && !empty($lecData['students'])) {
+                $hasChanges = true;
+            }
+            
+            if ($hasChanges) {
+                $assessorsWithChanges[$lecId] = $lecData;
+            }
+        }
+        
+        // Debug: Log how many assessors we found
+        error_log("Assessment session emails: Found " . count($assessorAssignments) . " assessors with assignments");
+        error_log("Assessment session emails: " . ($isFirstDistribution ? "First distribution" : "Update") . " - " . count($assessorsWithChanges) . " assessors with changes");
+        
+        // Send emails only to assessors with changes (or all if first distribution)
+        $emailResults = [];
+        foreach ($assessorsWithChanges as $lecId => $lecData) {
+            if (empty($lecData['lecturer_name']) || empty($lecData['students'])) {
+                error_log("Assessment session emails: Skipping lecturer {$lecId} - name or students empty");
+                continue; // Skip if no name or no students
+            }
+            
+            error_log("Assessment session emails: Sending to {$lecData['lecturer_name']} ({$lecId}) - " . count($lecData['students']) . " students");
+            
+            // Construct lecturer email address
+            $originalEmail = $lecData['lecturer_id'] . '@upm.edu.my';
+            
+            // Use test email if configured
+            if (!empty($emailConfig['test_email_recipient'])) {
+                $lecturerEmail = $emailConfig['test_email_recipient'];
+            } else {
+                $lecturerEmail = $originalEmail;
+            }
+            
+            // Build student list HTML
+            $studentListHtml = '<ul style="margin: 5px 0; padding-left: 20px;">';
+            foreach ($lecData['students'] as $student) {
+                // Format date for display (e.g., "2024-01-15" -> "15 January 2024")
+                $dateObj = new DateTime($student['date']);
+                $formattedDate = $dateObj->format('d F Y');
+                
+                // Format time for display (e.g., "14:00" -> "2:00 PM")
+                $timeObj = DateTime::createFromFormat('H:i', $student['time']);
+                $formattedTime = $timeObj ? $timeObj->format('g:i A') : $student['time'];
+                
+                $studentListHtml .= '<li style="margin-bottom: 10px;">';
+                $studentListHtml .= '<strong>' . htmlspecialchars($student['student_name']) . '</strong> (' . htmlspecialchars($student['student_id']) . ')<br>';
+                $studentListHtml .= 'Tarikh: <strong>' . htmlspecialchars($formattedDate) . '</strong><br>';
+                $studentListHtml .= 'Masa: <strong>' . htmlspecialchars($formattedTime) . '</strong><br>';
+                $studentListHtml .= 'Tempat: <strong>' . htmlspecialchars($student['venue']) . '</strong>';
+                $studentListHtml .= '</li>';
+            }
+            $studentListHtml .= '</ul>';
+            
+            // Create email subject and message
+            $subject = "Maklumat Sesi Penilaian - " . htmlspecialchars($year) . " / Semester " . htmlspecialchars($semester);
+            
+            // HTML email message
+            $message = "<b>Assalamualaikum Warahmatullahi Wabarakatuh dan Salam Sejahtera,</b><br><br>" .
+                       "<b>YBhg. Dato'/Datin/Prof./Dr./Tuan/Puan " . htmlspecialchars($lecData['lecturer_name']) . ",</b><br><br>" .
+                       "<b>MAKLUMAT SESI PENILAIAN</b><br><br>" .
+                       "Sukacita dimaklumkan bahawa sesi penilaian untuk pelajar-pelajar yang akan dinilai oleh YBhg. Dato'/Datin/Prof./Dr./Tuan/Puan telah ditetapkan dalam sistem FYPAssess.<br><br>" .
+                       "<b>Senarai Pelajar yang Akan Dinilai:</b><br>" .
+                       $studentListHtml . "<br>" .
+                       "Sila log masuk ke sistem FYPAssess untuk melihat maklumat lanjut mengenai sesi penilaian.<br><br>" .
+                       "Untuk sebarang pertanyaan, sila hubungi pihak pentadbir sistem.<br><br>" .
+                       "Sekian, terima kasih.<br><br>" .
+                       "<b>\"MALAYSIA MADANI\"</b><br>" .
+                       "<b>\"BERILMU BERBAKTI\"</b><br><br>" .
+                       "Saya yang menjalankan amanah,<br><br>" .
+                       "<b>Nurul Saidahtul Fatiha binti Shaharudin</b><br>" .
+                       "<b>Pembangun Sistem FYPAssess</b><br>" .
+                       "<b>PutraAssess System</b><br>" .
+                       "Universiti Putra Malaysia";
+            
+            // Send email
+            $emailResult = sendEmail(
+                $lecturerEmail,
+                $subject,
+                $message,
+                'html'
+            );
+            
+            $emailResults[] = [
+                'lecturer' => $lecData['lecturer_name'],
+                'success' => $emailResult['success'],
+                'message' => $emailResult['message'] ?? ''
+            ];
+            
+            // Log failures but don't stop the process
+            if (!$emailResult['success']) {
+                error_log("Failed to send assessment session notification to {$lecData['lecturer_name']}: " . ($emailResult['message'] ?? 'Unknown error'));
+            } else {
+                error_log("Successfully sent assessment session notification to {$lecData['lecturer_name']}");
+            }
+        }
+        
+        error_log("Assessment session emails: Processed " . count($emailResults) . " email(s) total");
+    } catch (Exception $emailEx) {
+        // Log email errors but don't fail the save operation
+        error_log("Error sending assessment session notification emails: " . $emailEx->getMessage());
+        error_log("Error stack trace: " . $emailEx->getTraceAsString());
+    }
     
     echo json_encode([
         'success' => true,
