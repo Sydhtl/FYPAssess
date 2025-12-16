@@ -455,6 +455,9 @@ if ($commentStmt) {
                 var formData = new FormData();
                 formData.append('title', newTitleVal);
 
+                // Show loading modal
+                showLoadingModal('Submitting title change and sending notification to supervisor. Please wait...');
+                
                 fetch('submit_title_change.php', {
                     method: 'POST',
                     body: formData
@@ -486,6 +489,8 @@ if ($commentStmt) {
                             // Reload the page to show updated data
                             window.location.reload();
                         };
+                    } else {
+                        hideLoadingModal();
                         editModal.querySelector('#closeEditModalAfter').onclick = function(){
                             closeModal(editModal);
                             // Reload the page to show updated data
@@ -791,6 +796,52 @@ if ($commentStmt) {
 
                 renderPdf(doc);
             });
+        }
+        
+        // Loading modal functions
+        function showLoadingModal(message) {
+            let loadingModal = document.getElementById('loadingModal');
+            if (!loadingModal) {
+                loadingModal = document.createElement('div');
+                loadingModal.id = 'loadingModal';
+                loadingModal.className = 'custom-modal';
+                loadingModal.style.display = 'none';
+                loadingModal.innerHTML = `
+                    <div class="modal-dialog">
+                        <div class="modal-content-custom">
+                            <div class="modal-icon" style="color: #007bff;"><i class="bi bi-hourglass-split" style="animation: spin 1s linear infinite; font-size: 48px;"></i></div>
+                            <div class="modal-title-custom">Processing...</div>
+                            <div class="modal-message" id="loadingModalMessage">${message || 'Saving data and sending emails. Please wait.'}</div>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(loadingModal);
+            }
+            const messageEl = document.getElementById('loadingModalMessage');
+            if (messageEl && message) {
+                messageEl.textContent = message;
+            }
+            loadingModal.style.display = 'flex';
+        }
+        
+        function hideLoadingModal() {
+            const loadingModal = document.getElementById('loadingModal');
+            if (loadingModal) {
+                loadingModal.style.display = 'none';
+            }
+        }
+        
+        // Add spinner animation
+        if (!document.getElementById('loadingModalStyles')) {
+            const style = document.createElement('style');
+            style.id = 'loadingModalStyles';
+            style.textContent = `
+                @keyframes spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                }
+            `;
+            document.head.appendChild(style);
         }
     };
     </script>

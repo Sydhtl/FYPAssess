@@ -253,6 +253,9 @@ $courseId = isset($_GET['course_id']) ? (int)$_GET['course_id'] : null;
         formData.append('course_id', '<?php echo $courseId; ?>');
         formData.append('student_id', '<?php echo $studentId; ?>');
         
+        // Show loading modal
+        showLoadingModal('Saving logbook and sending notification to supervisor. Please wait...');
+        
         fetch('save_logbook.php', {
             method: 'POST',
             body: formData
@@ -262,14 +265,62 @@ $courseId = isset($_GET['course_id']) ? (int)$_GET['course_id'] : null;
             if(data.success){
                 window.location.href = 'logbook.php';
             } else {
+                hideLoadingModal();
                 alert('Error: ' + (data.error || 'Failed to save logbook'));
             }
         })
         .catch(error => {
+            hideLoadingModal();
             console.error('Error:', error);
             alert('An error occurred while saving the logbook');
         });
     });
+
+    // Loading modal functions
+    function showLoadingModal(message) {
+        let loadingModal = document.getElementById('loadingModal');
+        if (!loadingModal) {
+            loadingModal = document.createElement('div');
+            loadingModal.id = 'loadingModal';
+            loadingModal.className = 'custom-modal';
+            loadingModal.style.display = 'none';
+            loadingModal.innerHTML = `
+                <div class="modal-dialog">
+                    <div class="modal-content-custom">
+                        <div class="modal-icon" style="color: #007bff;"><i class="bi bi-hourglass-split" style="animation: spin 1s linear infinite; font-size: 48px;"></i></div>
+                        <div class="modal-title-custom">Processing...</div>
+                        <div class="modal-message" id="loadingModalMessage">${message || 'Saving data and sending emails. Please wait.'}</div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(loadingModal);
+        }
+        const messageEl = document.getElementById('loadingModalMessage');
+        if (messageEl && message) {
+            messageEl.textContent = message;
+        }
+        loadingModal.style.display = 'flex';
+    }
+    
+    function hideLoadingModal() {
+        const loadingModal = document.getElementById('loadingModal');
+        if (loadingModal) {
+            loadingModal.style.display = 'none';
+        }
+    }
+    
+    // Add spinner animation
+    if (!document.getElementById('loadingModalStyles')) {
+        const style = document.createElement('style');
+        style.id = 'loadingModalStyles';
+        style.textContent = `
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+        `;
+        document.head.appendChild(style);
+    }
 
     // Initialize sidebar state like other pages
     window.onload = function(){

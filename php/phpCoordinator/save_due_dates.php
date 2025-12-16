@@ -12,6 +12,7 @@ if (!isset($_SESSION['upmId']) || !isset($_SESSION['role']) || $_SESSION['role']
 
 $input = json_decode(file_get_contents('php://input'), true);
 
+// Allow empty allocations array if only deletions are being sent
 if (!isset($input['allocations']) || !is_array($input['allocations'])) {
     echo json_encode(['success' => false, 'error' => 'Invalid data format']);
     exit();
@@ -22,11 +23,39 @@ if (!isset($input['fyp_session_id']) || $input['fyp_session_id'] <= 0) {
     exit();
 }
 
-$fypSessionId = intval($input['fyp_session_id']);
+    $fypSessionId = intval($input['fyp_session_id']);
+    $deletions = isset($input['deletions']) && is_array($input['deletions']) ? $input['deletions'] : [];
 
 try {
     $conn->begin_transaction();
     
+    // First, handle deletions
+    if (!empty($deletions)) {
+        // Validate that all deletion IDs are integers
+        $deletionIds = array_filter(array_map('intval', $deletions), function($id) {
+            return $id > 0;
+        });
+        
+        if (!empty($deletionIds)) {
+            $placeholders = implode(',', array_fill(0, count($deletionIds), '?'));
+            $deleteSql = "DELETE FROM due_date WHERE Due_ID IN ($placeholders)";
+            $deleteStmt = $conn->prepare($deleteSql);
+            if (!$deleteStmt) {
+                throw new Exception('Prepare delete failed: ' . $conn->error);
+            }
+            
+            $types = str_repeat('i', count($deletionIds));
+            $deleteStmt->bind_param($types, ...$deletionIds);
+            
+            if (!$deleteStmt->execute()) {
+                $deleteStmt->close();
+                throw new Exception('Delete failed: ' . $conn->error);
+            }
+            $deleteStmt->close();
+        }
+    }
+    
+    // Then, handle insertions and updates
     foreach ($input['allocations'] as $allocation) {
         if (!isset($allocation['assessment_id'])) {
             continue;
