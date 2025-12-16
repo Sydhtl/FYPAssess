@@ -2535,6 +2535,9 @@ $assessmentDataJson = json_encode($assessmentData);
                 };
             });
 
+            // Show loading modal
+            showLoadingModal('Saving assignments and sending emails. Please wait.');
+            
             // Make AJAX call to save assignments to backend
             fetch('../../../php/phpCoordinator/save_assignments.php', {
                 method: 'POST',
@@ -2575,6 +2578,9 @@ $assessmentDataJson = json_encode($assessmentData);
             .catch(error => {
                 console.error('Error saving assignments:', error);
                 showSaveError('An error occurred while saving assignments. Please try again.');
+            })
+            .finally(() => {
+                hideLoadingModal();
             });
         }
 
@@ -4076,6 +4082,14 @@ $assessmentDataJson = json_encode($assessmentData);
                     showSaveError(data.message || 'Failed to save assessment session data.');
                 }
             })
+            .catch(error => {
+                console.error('Error saving assessment sessions:', error);
+                showSaveError('An error occurred while saving assessment sessions. Please try again.');
+            })
+            .finally(() => {
+                hideLoadingModal();
+            });
+        }
             .catch(error => {
                 console.error('Error saving assessment sessions:', error);
                 showSaveError('An error occurred while saving assessment sessions. Please try again.');

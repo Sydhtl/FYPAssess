@@ -624,8 +624,13 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
         // Store assessment columns for each tab
         const assessmentColumns = {};
         // Fetch lecturer progress data (supervisor/assessor completion)
-        async function fetchLecturerProgress(tabName) {
-            if (lecturerProgressCache[tabName]) return lecturerProgressCache[tabName];
+        async function fetchLecturerProgress(tabName, forceRefresh = false) {
+            // If force refresh, clear cache
+            if (forceRefresh) {
+                delete lecturerProgressCache[tabName];
+            } else if (lecturerProgressCache[tabName]) {
+                return lecturerProgressCache[tabName];
+            }
 
             let courseId = null;
             const tabButton = document.querySelector(`[data-tab="${tabName}"]`);
@@ -655,10 +660,15 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
         }
         
         // Function to fetch assessment columns for a course
-        async function fetchAssessmentColumns(tabName) {
-            // Check if columns are already cached
-            if (assessmentColumns[tabName]) {
+        async function fetchAssessmentColumns(tabName, forceRefresh = false) {
+            // Check if columns are already cached (unless force refresh)
+            if (!forceRefresh && assessmentColumns[tabName]) {
                 return assessmentColumns[tabName];
+            }
+            
+            // If force refresh, clear cache
+            if (forceRefresh) {
+                delete assessmentColumns[tabName];
             }
             
             // Get course ID from button or mapping
@@ -703,7 +713,7 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
         }
         
         // Function to fetch student marks data for a course
-        async function fetchStudentMarks(tabName) {
+        async function fetchStudentMarks(tabName, forceRefresh = false) {
             // Get course ID from button or mapping
             let courseId = null;
             
@@ -722,12 +732,18 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
                 return { students: [], columns: [] };
             }
             
-            // Check if data is already cached
-            if (marksData[tabName] && assessmentColumns[tabName]) {
+            // Check if data is already cached (unless force refresh)
+            if (!forceRefresh && marksData[tabName] && assessmentColumns[tabName]) {
                 return {
                     students: marksData[tabName],
                     columns: assessmentColumns[tabName]
                 };
+            }
+            
+            // If force refresh, clear cache
+            if (forceRefresh) {
+                delete marksData[tabName];
+                delete assessmentColumns[tabName];
             }
             
             try {
@@ -738,7 +754,7 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
                         year: selectedYear,
                         semester: selectedSemester
                     })}`).then(r => r.json()),
-                    fetchAssessmentColumns(tabName)
+                    fetchAssessmentColumns(tabName, forceRefresh)
                 ]);
                 
                 if (studentsResult.success && studentsResult.students) {
@@ -1025,6 +1041,12 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
                 });
             }
             
+            // Start real-time polling for all active tabs
+            startMarkSubmissionPolling();
+            
+            // Start real-time polling for FYP title submissions
+            startFYPTitleSubmissionPolling();
+            
             // Hide tooltip on window scroll or resize
             window.addEventListener('scroll', hideTooltip, true);
             window.addEventListener('resize', hideTooltip);
@@ -1180,6 +1202,19 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
             currentView[tabName] = viewType;
             await renderTable(tabName);
             closeAllDropdowns();
+            
+            // Update hash for the new view type
+            try {
+                if (viewType === 'student-overview') {
+                    const result = await fetchStudentMarks(tabName, false);
+                    dataHashes[tabName] = hashData(result);
+                } else {
+                    const result = await fetchLecturerProgress(tabName, false);
+                    dataHashes[tabName] = hashData(result);
+                }
+            } catch (error) {
+                console.error(`Error updating hash after view change for tab ${tabName}:`, error);
+            }
             
             // Show/hide notify button based on view
             const tabSuffix = tabName.charAt(tabName.length - 1).toUpperCase();
@@ -1452,6 +1487,232 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
             }
         }
 
+        // Real-time polling for marks and progress
+        let pollingInterval = null;
+        let pollingPaused = false;
+        const POLLING_INTERVAL = 5000; // Poll every 5 seconds
+        
+        // Store hash of current data for comparison
+        const dataHashes = {};
+        
+        // Simple hash function for data comparison
+        function hashData(data) {
+            return JSON.stringify(data);
+        }
+        
+        // Check if data has changed and update UI if needed
+        async function checkAndUpdateData(tabName) {
+            try {
+                const viewType = currentView[tabName] || 'student-overview';
+                
+                if (viewType === 'student-overview') {
+                    // Fetch fresh student marks data
+                    const result = await fetchStudentMarks(tabName, true); // Force refresh
+                    const newHash = hashData(result);
+                    
+                    if (dataHashes[tabName] !== newHash) {
+                        dataHashes[tabName] = newHash;
+                        // Data changed, re-render the table
+                        await renderTable(tabName);
+                    }
+                } else if (viewType === 'lecturer-progress') {
+                    // Fetch fresh lecturer progress data
+                    const result = await fetchLecturerProgress(tabName, true); // Force refresh
+                    const newHash = hashData(result);
+                    
+                    if (dataHashes[tabName] !== newHash) {
+                        dataHashes[tabName] = newHash;
+                        // Data changed, re-render the table
+                        await renderTable(tabName);
+                    }
+                }
+            } catch (error) {
+                console.error(`Error checking data for tab ${tabName}:`, error);
+            }
+        }
+        
+        // Start polling for all active course tabs
+        function startMarkSubmissionPolling() {
+            if (pollingInterval) {
+                clearInterval(pollingInterval);
+            }
+            
+            // Initial hash calculation for all tabs
+            const courseTabs = Object.keys(courseMapping);
+            courseTabs.forEach(async (tabName) => {
+                try {
+                    const viewType = currentView[tabName] || 'student-overview';
+                    if (viewType === 'student-overview') {
+                        const result = await fetchStudentMarks(tabName, false);
+                        dataHashes[tabName] = hashData(result);
+                    } else {
+                        const result = await fetchLecturerProgress(tabName, false);
+                        dataHashes[tabName] = hashData(result);
+                    }
+                } catch (error) {
+                    console.error(`Error initializing hash for tab ${tabName}:`, error);
+                }
+            });
+            
+            // Set up polling interval
+            pollingInterval = setInterval(() => {
+                if (!pollingPaused && document.visibilityState === 'visible') {
+                    const courseTabs = Object.keys(courseMapping);
+                    courseTabs.forEach((tabName) => {
+                        // Only poll for the currently active/visible tab, or poll all tabs
+                        checkAndUpdateData(tabName);
+                    });
+                    
+                    // Also poll legacy tabs if they exist
+                    if (courseMapping['swe4949a']) {
+                        checkAndUpdateData('swe4949a');
+                    }
+                    if (courseMapping['swe4949b']) {
+                        checkAndUpdateData('swe4949b');
+                    }
+                }
+            }, POLLING_INTERVAL);
+        }
+        
+        // Pause/resume polling based on page visibility
+        document.addEventListener('visibilitychange', function() {
+            pollingPaused = document.hidden;
+            fypTitlePollingPaused = document.hidden;
+        });
+        
+        // Cleanup polling on page unload
+        window.addEventListener('beforeunload', function() {
+            if (pollingInterval) {
+                clearInterval(pollingInterval);
+            }
+            if (fypTitlePollingInterval) {
+                clearInterval(fypTitlePollingInterval);
+            }
+        });
+        
+        // Real-time polling for FYP Title Submissions
+        let fypTitlePollingInterval = null;
+        let fypTitlePollingPaused = false;
+        const FYPTITLE_POLLING_INTERVAL = 5000; // Poll every 5 seconds
+        let currentFYPTitleHash = '';
+        
+        // Helper function to transform backend data to frontend format
+        function transformFYPTitleData(studentsData) {
+            return studentsData.map((student, index) => {
+                // Determine status based on backend data
+                let status = 'not submitted';
+                let statusDisplay = 'Not Submitted';
+                
+                if (student.status === 'Approved') {
+                    status = 'approved';
+                    statusDisplay = 'Approved';
+                } else if (student.status === 'Rejected') {
+                    status = 'rejected';
+                    statusDisplay = 'Rejected';
+                } else if (student.status === 'Waiting for Approval') {
+                    status = 'waiting';
+                    statusDisplay = 'Waiting for Approval';
+                }
+                
+                const hasSubmission = student.status !== 'Not Submitted';
+                
+                return {
+                    id: student.id,
+                    matricNo: student.id, // Using Student_ID as matricNo
+                    name: student.name,
+                    status: status,
+                    statusDisplay: statusDisplay,
+                    fypSessionId: student.fypSessionId,
+                    // extra raw fields from backend for PDF generation
+                    courseCode: student.courseCode || '',
+                    semester: student.semester || '',
+                    fypSession: student.fypSession || '',
+                    address: student.address || '',
+                    phone: student.phone || '',
+                    programme: student.programme || '',
+                    minor: student.minor || '',
+                    cgpa: student.cgpa !== null && student.cgpa !== undefined ? student.cgpa : null,
+                    submission: hasSubmission ? {
+                        courseTitle: 'Final Year Project',
+                        courseCode: student.courseCode || 'N/A',
+                        creditHour: '4',
+                        semester: student.semester || selectedSemester,
+                        fypSession: student.fypSession || selectedYear,
+                        studentName: student.name,
+                        currentAddress: student.address || '-',
+                        telNo: student.phone || '-',
+                        programme: student.programme || 'N/A',
+                        minor: student.minor || 'N/A',
+                        cgpa: student.cgpa !== null && student.cgpa !== undefined ? String(student.cgpa) : '-',
+                        currentTitle: student.projectTitle || '-',
+                        proposedTitle: student.proposedTitle || '-',
+                        titleStatus: student.titleStatus || '-',
+                        supervisorName: student.supervisorName || '-'
+                    } : null
+                };
+            });
+        }
+        
+        // Hash function for FYP title data
+        function hashFYPTitleData(data) {
+            return JSON.stringify(data.map(item => ({
+                id: item.id,
+                status: item.status,
+                statusDisplay: item.statusDisplay,
+                proposedTitle: item.submission?.proposedTitle || null,
+                projectTitle: item.submission?.currentTitle || null
+            })));
+        }
+        
+        // Fetch FYP title submissions from API
+        async function fetchFYPTitleSubmissions() {
+            try {
+                const params = new URLSearchParams({
+                    year: selectedYear || '',
+                    semester: selectedSemester || ''
+                });
+                
+                const response = await fetch(`../../../php/phpCoordinator/fetch_title_submissions.php?${params}`);
+                const result = await response.json();
+                
+                if (result.success && result.students) {
+                    const transformedData = transformFYPTitleData(result.students);
+                    const newHash = hashFYPTitleData(transformedData);
+                    
+                    // Only update if there are changes
+                    if (newHash !== currentFYPTitleHash) {
+                        currentFYPTitleHash = newHash;
+                        // Update the global data
+                        fypTitleSubmissionData.length = 0;
+                        fypTitleSubmissionData.push(...transformedData);
+                        // Update filtered data and re-render table
+                        filteredFYPData = [...fypTitleSubmissionData];
+                        renderFYPTable();
+                    }
+                }
+            } catch (error) {
+                console.error('Error fetching FYP title submissions:', error);
+            }
+        }
+        
+        // Start polling for FYP title submissions
+        function startFYPTitleSubmissionPolling() {
+            if (fypTitlePollingInterval) {
+                clearInterval(fypTitlePollingInterval);
+            }
+            
+            // Initial hash calculation from existing data
+            currentFYPTitleHash = hashFYPTitleData(fypTitleSubmissionData);
+            
+            // Set up polling interval
+            fypTitlePollingInterval = setInterval(() => {
+                if (!fypTitlePollingPaused && document.visibilityState === 'visible') {
+                    fetchFYPTitleSubmissions();
+                }
+            }, FYPTITLE_POLLING_INTERVAL);
+        }
+        
+        
         // Tooltip management functions
         let tooltipElement = null;
         
@@ -1670,8 +1931,8 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
         function notifyLecturer(tabName, lecturerName) {
             closeAllDropdowns();
             
-            // Show loading state
-            openModal('Sending...', `Sending notification to ${lecturerName}...`);
+            // Show loading modal
+            showLoadingModal(`Sending notification to ${lecturerName}...`);
             
             // Call email API
             fetch('../../../php/phpCoordinator/send_notification.php', {
@@ -1698,14 +1959,17 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
             .catch(error => {
                 console.error('Error:', error);
                 openModal('Error', 'An error occurred while sending the notification. Please try again.');
+            })
+            .finally(() => {
+                hideLoadingModal();
             });
         }
 
         async function notifyAllIncomplete(tabName) {
             closeAllDropdowns();
             
-            // Show loading state
-            openModal('Sending...', `Preparing to send notifications to lecturers with incomplete tasks...`);
+            // Show loading modal
+            showLoadingModal('Preparing to send notifications to lecturers with incomplete tasks...');
             
             try {
                 // Fetch lecturer progress data to get lecturer names and status
@@ -1744,9 +2008,13 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
                 });
                 
                 if (lecturersToNotify.length === 0) {
+                    hideLoadingModal();
                     openModal('Info', 'All lecturers have completed their tasks. No notifications to send.');
                     return;
                 }
+                
+                // Update loading message
+                showLoadingModal(`Sending notifications to ${lecturersToNotify.length} lecturer(s)...`);
                 
                 // Send emails to all lecturers with incomplete tasks
                 const emailPromises = lecturersToNotify.map(lec => {
@@ -1770,6 +2038,7 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
                 const successful = results.filter(r => r.success).length;
                 const failed = results.filter(r => !r.success).length;
                 
+                hideLoadingModal();
                 if (failed === 0) {
                     openModal('Notification Sent', `Successfully sent notifications to ${successful} lecturer(s) with incomplete tasks for ${tabName.toUpperCase()}.`);
                 } else {
@@ -1777,6 +2046,7 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
                     console.error('Failed notifications:', results.filter(r => !r.success));
                 }
             } catch (error) {
+                hideLoadingModal();
                 console.error('Error sending notifications:', error);
                 openModal('Error', 'An error occurred while sending notifications. Please try again.');
             }
@@ -2043,6 +2313,43 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
             closeAllDropdowns();
         }
 
+        // Loading modal functions
+        function showLoadingModal(message) {
+            const modal = document.getElementById('notifyModal');
+            if (modal) {
+                modal.innerHTML = `
+                    <div class="modal-dialog">
+                        <div class="modal-content-custom">
+                            <div class="modal-icon" style="color: #007bff;"><i class="bi bi-hourglass-split" style="animation: spin 1s linear infinite; font-size: 48px;"></i></div>
+                            <div class="modal-title-custom">Processing...</div>
+                            <div class="modal-message">${message || 'Saving data and sending emails. Please wait.'}</div>
+                        </div>
+                    </div>
+                `;
+                modal.style.display = 'flex';
+            }
+        }
+        
+        function hideLoadingModal() {
+            const modal = document.getElementById('notifyModal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+        }
+        
+        // Add spinner animation style
+        if (!document.getElementById('loadingModalStyles')) {
+            const style = document.createElement('style');
+            style.id = 'loadingModalStyles';
+            style.textContent = `
+                @keyframes spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+        
         function openModal(title, message) {
             const modal = document.getElementById('notifyModal');
             if (!modal) return;

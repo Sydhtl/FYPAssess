@@ -221,13 +221,33 @@ $courseIdBJson = json_encode($courseIdB);
 
     <div id="successModal" class="custom-modal"></div>
     <div id="resetModal" class="custom-modal"></div>
+    <div id="loadingModal" class="custom-modal" style="display: none;">
+        <div class="modal-dialog">
+            <div class="modal-content-custom">
+                <div class="modal-icon" style="color: #007bff;"><i class="bi bi-hourglass-split" style="animation: spin 1s linear infinite;"></i></div>
+                <div class="modal-title-custom">Processing...</div>
+                <div class="modal-message">Saving data and sending emails. Please wait.</div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        #loadingModal .modal-icon i {
+            font-size: 48px;
+        }
+    </style>
 
     <script>
         // --- FILTER RELOAD FUNCTION ---
         function reloadPageWithFilters() {
-            // Clear existing allocations
+            // Clear existing allocations and pending deletions
             Object.keys(dateTimeAllocations).forEach(key => {
                 dateTimeAllocations[key] = [];
+                pendingDeletions[key] = [];
             });
             
             // Reload due dates with new filters
@@ -244,6 +264,7 @@ $courseIdBJson = json_encode($courseIdB);
         let activeTab = null;
         let pendingResetTab = null;
         let nextTaskId = 1;
+        const pendingDeletions = {}; // Track due_ids to be deleted per tab: { tabName: [due_id1, due_id2, ...] }
 
         // Load courses and initialize the page
         async function loadCoursesAndInitialize() {
@@ -369,9 +390,10 @@ $courseIdBJson = json_encode($courseIdB);
         // Load existing due dates from database
         async function loadDueDates() {
             try {
-                // Clear existing allocations
+                // Clear existing allocations and pending deletions when loading fresh data
                 Object.keys(dateTimeAllocations).forEach(key => {
                     dateTimeAllocations[key] = [];
+                    pendingDeletions[key] = []; // Clear deletions when loading fresh data
                 });
                 
                 const year = document.getElementById('yearFilter')?.value || '';
@@ -543,10 +565,23 @@ $courseIdBJson = json_encode($courseIdB);
 
         function removeAllocation(taskId, allocationIndex, tabName) {
             const task = dateTimeAllocations[tabName].find(item => item.id === taskId);
-            if (task) {
+            if (task && task.allocations[allocationIndex]) {
+                const allocation = task.allocations[allocationIndex];
+                // If this allocation exists in the database (has due_id), mark it for deletion
+                if (allocation.due_id && allocation.due_id > 0) {
+                    if (!pendingDeletions[tabName]) {
+                        pendingDeletions[tabName] = [];
+                    }
+                    // Only add if not already in the list
+                    if (!pendingDeletions[tabName].includes(allocation.due_id)) {
+                        pendingDeletions[tabName].push(allocation.due_id);
+                    }
+                }
+                
                 if (task.allocations.length > 1) {
                     task.allocations.splice(allocationIndex, 1);
                 } else {
+                    // Reset to empty allocation if it's the last one
                     task.allocations[0] = {
                         due_id: 0,
                         start_date: '',
@@ -564,6 +599,22 @@ $courseIdBJson = json_encode($courseIdB);
             const tabTasks = dateTimeAllocations[tabName];
             const index = tabTasks.findIndex(item => item.id === taskId);
             if (index !== -1) {
+                const task = tabTasks[index];
+                // Collect all due_ids from this task's allocations for deletion
+                if (task.allocations && task.allocations.length > 0) {
+                    if (!pendingDeletions[tabName]) {
+                        pendingDeletions[tabName] = [];
+                    }
+                    task.allocations.forEach(allocation => {
+                        if (allocation.due_id && allocation.due_id > 0) {
+                            // Only add if not already in the list
+                            if (!pendingDeletions[tabName].includes(allocation.due_id)) {
+                                pendingDeletions[tabName].push(allocation.due_id);
+                            }
+                        }
+                    });
+                }
+                // Remove the task from the frontend
                 tabTasks.splice(index, 1);
                 renderAllocationTable(tabName);
             }
@@ -729,6 +780,7 @@ $courseIdBJson = json_encode($courseIdB);
             }
 
             dateTimeAllocations[pendingResetTab] = [];
+            pendingDeletions[pendingResetTab] = []; // Clear pending deletions on reset
             renderAllocationTable(pendingResetTab);
             pendingResetTab = null;
             closeResetModal();
@@ -775,9 +827,20 @@ $courseIdBJson = json_encode($courseIdB);
                 }
             });
             
-            if (allocationsToSave.length === 0) {
-                alert('Please fill in all required fields (dates, times, and roles) before saving.');
+            // Get due_ids to delete for this tab
+            const dueIdsToDelete = pendingDeletions[tabName] || [];
+            
+            // Allow save even if only deletions (no new allocations)
+            // But require at least one action (save or delete)
+            if (allocationsToSave.length === 0 && dueIdsToDelete.length === 0) {
+                alert('No changes to save. Please add allocations or delete existing ones.');
                 return;
+            }
+            
+            // Show loading modal
+            const loadingModal = document.getElementById('loadingModal');
+            if (loadingModal) {
+                loadingModal.style.display = 'flex';
             }
             
             try {
@@ -788,7 +851,8 @@ $courseIdBJson = json_encode($courseIdB);
                     },
                     body: JSON.stringify({
                         fyp_session_id: fypSessionId,
-                        allocations: allocationsToSave
+                        allocations: allocationsToSave,
+                        deletions: dueIdsToDelete // Send deletions to backend
                     })
                 });
                 
@@ -813,6 +877,9 @@ $courseIdBJson = json_encode($courseIdB);
                         successModal.style.display = 'flex';
                     }
                     
+                    // Clear pending deletions after successful save
+                    pendingDeletions[tabName] = [];
+                    
                     // Reload data from database to get updated due_ids
                     await loadDueDates();
                 } else {
@@ -821,6 +888,11 @@ $courseIdBJson = json_encode($courseIdB);
             } catch (error) {
                 console.error('Error saving allocations:', error);
                 alert('Error saving allocations: ' + error.message);
+            } finally {
+                // Hide loading modal
+                if (loadingModal) {
+                    loadingModal.style.display = 'none';
+                }
             }
         }
 
