@@ -41,22 +41,30 @@
 }
 
 /* Read-only fields should look non-editable */
+input.form-control.readonly-field[readonly],
+textarea.form-control.readonly-field[readonly],
 .readonly-field[readonly]{
-	background-color: #E6E6E6;
-	color: #333;
-	cursor: not-allowed;
-    border: 2px solid #ffffff; /* white border */
+	background-color: #E6E6E6 !important;
+	color: #333 !important;
+	cursor: not-allowed !important;
+    border: 2px solid #ffffff !important; /* white border */
+    text-align: left !important; /* Ensure text starts from the left */
+    padding-left: 0.75rem !important; /* Bootstrap default padding */
 }
 
 /* Keep the same grey color when clicked/focused and remove bootstrap glow */
+input.form-control.readonly-field[readonly]:focus,
+input.form-control.readonly-field[readonly]:active,
+textarea.form-control.readonly-field[readonly]:focus,
+textarea.form-control.readonly-field[readonly]:active,
 .readonly-field[readonly]:focus,
-.readonly-field[readonly]:active,
-input.form-control.readonly-field:focus,
-textarea.form-control.readonly-field:focus{
+.readonly-field[readonly]:active{
 	background-color: #E6E6E6 !important;
 	box-shadow: none !important;
 	outline: none !important;
 	border-color: #ffffff !important; /* keep white border on focus */
+	text-align: left !important;
+	padding-left: 0.75rem !important;
 }
 
 /* Editable field for title stands out slightly */
@@ -323,6 +331,32 @@ textarea.form-control.readonly-field:focus{
 
 #changeTitleBtn{
     background-color: white;
+    border: 2px solid black;
     
+}
+#changeTitleBtn:hover{
+    background-color: white;
+    color: black!important;
+
+    
+}
+/* Supervisor button normal hover */
+.supervisor-btn:hover {
+    background-color: #f0f0f0; 
+    /* existing hover color */
+}
+
+/* Disable hover effect when the supervisor section is open */
+.supervisor-content.collapse.show + .supervisor-btn,
+.supervisor-btn[aria-expanded="true"] {
+    background-color: #780000 !important; /* or match default active color */
+    cursor: default;
+    color: white !important;
+}
+
+/* Optional: remove pointer events if needed */
+.supervisor-btn[aria-expanded="true"]:hover {
+    background-color: #780000 !important;
+    color: white !important;
 }
 

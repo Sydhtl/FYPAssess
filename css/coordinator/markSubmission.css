@@ -108,7 +108,74 @@
 }
 
 .view-dropdown-wrapper {
+  flex: 1 1 auto;
+  max-width: 100%;
+}
+
+.search-sort-container {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  flex-wrap: wrap;
+}
+
+.search-wrapper {
+  position: relative;
+  flex: 1 1 300px;
+  min-width: 200px;
+}
+
+.search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #666;
+  font-size: 16px;
+  pointer-events: none;
+}
+
+.search-input {
+  width: 100%;
+  padding: 8px 12px 8px 38px;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: 'Montserrat', Arial, sans-serif;
+  background-color: white;
+  transition: border-color 0.2s;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #780000;
+}
+
+.search-input::placeholder {
+  color: #999;
+}
+
+.sort-wrapper {
+  display: flex;
+  gap: 10px;
   flex: 0 0 auto;
+}
+
+.sort-dropdown {
+  padding: 8px 12px;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: 'Montserrat', Arial, sans-serif;
+  background-color: white;
+  min-width: 150px;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.sort-dropdown:focus {
+  outline: none;
+  border-color: #780000;
 }
 
 .view-dropdown {
@@ -320,12 +387,32 @@
   z-index: 102;
 }
 
+/* Multi-row header styling */
+.mark-submission-table thead tr:first-child th {
+  border-bottom: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+/* Second row (LO codes and percentages) - same styling as first row */
+.mark-submission-table thead tr:last-child th {
+  font-size: 14px;
+  padding: 15px;
+  background-color: #780000;
+  color: white;
+  font-weight: 600;
+}
+
 .mark-submission-table thead tr:first-child th:first-child {
   border-top-left-radius: 7px;
 }
 
 .mark-submission-table thead tr:first-child th:last-child {
   border-top-right-radius: 7px;
+}
+
+/* Ensure rowspan cells maintain styling */
+.mark-submission-table thead th[rowspan] {
+  vertical-align: middle;
+  text-align: center;
 }
 
 .mark-submission-table th {
@@ -398,6 +485,7 @@
   width: 120px;
   min-width: 120px;
   box-shadow: -2px 0 4px rgb(0, 0, 0);
+  font-weight: bold;
 }
 
 .mark-submission-table:not(.lecturer-view) th:nth-child(3),
@@ -408,15 +496,47 @@
   z-index: 100;
   width: 150px;
   min-width: 150px;
-   box-shadow: -2px 0 4px rgb(0, 0, 0)
+   box-shadow: -2px 0 4px rgb(0, 0, 0);
+   font-weight: bold;
 }
 
-.mark-submission-table:not(.lecturer-view) thead tr th:nth-child(1),
-.mark-submission-table:not(.lecturer-view) thead tr th:nth-child(2),
-.mark-submission-table:not(.lecturer-view) thead tr th:nth-child(3) {
+/* Sticky column headers in first row - maintain deep red background */
+.mark-submission-table:not(.lecturer-view) thead tr:first-child th:nth-child(1),
+.mark-submission-table:not(.lecturer-view) thead tr:first-child th:nth-child(2),
+.mark-submission-table:not(.lecturer-view) thead tr:first-child th:nth-child(3),
+.mark-submission-table:not(.lecturer-view) thead tr:first-child th:nth-child(4) {
   background-color: #780000;
   color: #fff;
   z-index: 101;
+}
+
+/* Style for assessment name headers (first row) */
+.mark-submission-table:not(.lecturer-view) thead tr:first-child th[colspan] {
+  text-align: center;
+  font-weight: 600;
+  background-color: #780000; /* Deep red - primary header color */
+  padding: 15px;
+  font-size: 14px;
+}
+
+/* Style for LO code headers (second row) - same as assessment names */
+.mark-submission-table:not(.lecturer-view) thead tr:last-child th {
+  text-align: center;
+  font-weight: 600;
+  font-size: 14px;
+  background-color: #780000;
+  padding: 15px;
+  font-style: normal;
+  vertical-align: middle;
+}
+
+/* Ensure LO code and percentage stack vertically */
+.mark-submission-table:not(.lecturer-view) thead tr:last-child th div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.4;
+  gap: 2px;
 }
 
 .mark-submission-table:not(.lecturer-view) thead tr th:nth-child(2) {
@@ -444,6 +564,7 @@
   width: 200px;
   min-width: 200px;
   box-shadow: -2px 0 4px rgba(0, 0, 0, 0.1);
+  font-weight: bold;
 }
 
 .mark-submission-table.lecturer-view thead tr th {
@@ -463,12 +584,128 @@
   box-shadow: -2px 0 4px rgba(0, 0, 0, 0.1);
 }
 
-/* Notify column for lecturer view - scrolls with table */
-.mark-submission-table.lecturer-view th:last-child,
+/* Notify column for lecturer view - header styling */
+.mark-submission-table.lecturer-view thead th:last-child {
+  background-color: #780000;
+  color: #fff;
+  text-align: center;
+  font-weight: 600;
+  font-size: 14px;
+  padding: 12px 10px;
+}
+
+/* Notify column for lecturer view - body cells */
 .mark-submission-table.lecturer-view td:last-child {
   background-color: #ffffff;
-  width: 100px;
-  min-width: 100px;
+  width: 120px;
+  min-width: 120px;
+}
+
+/* Tooltip Styles */
+.table-cell-tooltip {
+  position: relative;
+  cursor: help;
+}
+
+.table-tooltip {
+  position: fixed;
+  background-color: #333;
+  color: #fff;
+  border-radius: 6px;
+  font-size: 13px;
+  z-index: 10000;
+  min-width: 250px;
+  max-width: 400px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.1s ease-out, visibility 0s linear 0.1s;
+  visibility: hidden;
+}
+
+.table-tooltip-content {
+  padding: 12px 16px;
+  white-space: pre-line;
+  text-align: left;
+  line-height: 1.6;
+  word-wrap: break-word;
+}
+
+.table-tooltip.show {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.15s ease-in, visibility 0s linear 0s;
+}
+
+.table-tooltip-arrow {
+  position: absolute;
+  width: 0;
+  height: 0;
+  border: 6px solid transparent;
+  pointer-events: none;
+}
+
+.table-tooltip.above .table-tooltip-arrow {
+  bottom: -12px;
+  border-top-color: #333;
+  /* Position will be set dynamically via JavaScript */
+}
+
+.table-tooltip.below .table-tooltip-arrow {
+  top: -12px;
+  border-bottom-color: #333;
+  /* Position will be set dynamically via JavaScript */
+}
+
+.table-tooltip.left .table-tooltip-arrow {
+  right: -12px;
+  top: 50%;
+  transform: translateY(-50%);
+  border-left-color: #333;
+}
+
+.table-tooltip.right .table-tooltip-arrow {
+  left: -12px;
+  top: 50%;
+  transform: translateY(-50%);
+  border-right-color: #333;
+}
+
+/* Ensure tooltip content and arrow are properly structured */
+.table-tooltip {
+  display: block;
+}
+
+.table-tooltip .table-tooltip-arrow {
+  position: absolute;
+}
+
+/* Prevent tooltip on sticky columns and empty cells */
+.mark-submission-table td:nth-child(1),
+.mark-submission-table td:nth-child(2),
+.mark-submission-table td:nth-child(3),
+.mark-submission-table td:nth-child(4),
+.mark-submission-table.lecturer-view td:nth-child(1),
+.mark-submission-table.lecturer-view td:nth-child(2) {
+  cursor: default;
+}
+
+.mark-submission-table td[data-tooltip]:not([data-tooltip=""]):hover {
+  background-color: #f0f0f0;
+}
+
+/* Adjust tooltip position on right edge of screen */
+.table-cell-tooltip:hover::after {
+  max-width: calc(100vw - 20px);
+}
+
+@media (max-width: 768px) {
+  .table-cell-tooltip:hover::after {
+    min-width: 200px;
+    max-width: calc(100vw - 40px);
+    font-size: 12px;
+    padding: 10px 12px;
+  }
 }
 
 .mark-submission-table.lecturer-view thead tr th:last-child {
@@ -535,6 +772,30 @@
 .status-not-submitted {
   color: #dc3545;
   font-weight: 600;
+}
+
+.status-approved {
+  color: #28a745;
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.status-rejected {
+  color: #dc3545;
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.status-waiting {
+  color: #d4af37;
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.status-not-submitted {
+  color: #dc3545;
+  font-weight: 700;
+  font-size: 15px;
 }
 
 /* Sticky columns for FYP Title Submission table */
@@ -982,8 +1243,8 @@
 
 /* Notify Button */
 .btn-notify {
-  background-color: #d4af37;
-  color: white;
+  background-color: #ffc107;
+  color: #000000;
   border: none;
   padding: 6px 12px;
   border-radius: 6px;
@@ -997,7 +1258,7 @@
 }
 
 .btn-notify:hover {
-  background-color: #b8941f;
+  background-color: #e0a800;
   transform: translateY(-1px);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
@@ -1016,6 +1277,33 @@
   color: #212529;
   transform: translateY(-1px);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Notify column styling in lecturer progress table */
+.notify-cell {
+  text-align: center;
+  padding: 12px 8px;
+  vertical-align: middle;
+  background-color: #ffffff;
+}
+
+.mark-submission-table.lecturer-view .notify-cell {
+  position: relative;
+  width: 120px;
+  min-width: 120px;
+}
+
+.mark-submission-table.lecturer-view .notify-cell .btn-notify {
+  padding: 6px 12px;
+  font-size: 12px;
+  width: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.mark-submission-table.lecturer-view .notify-cell .btn-notify i {
+  font-size: 14px;
 }
 
 .empty-state {
@@ -1131,6 +1419,24 @@
   }
 
   .view-dropdown-wrapper {
+    width: 100%;
+  }
+
+  .search-sort-container {
+    flex-direction: column;
+  }
+
+  .search-wrapper {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+
+  .sort-wrapper {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .sort-dropdown {
     width: 100%;
   }
 

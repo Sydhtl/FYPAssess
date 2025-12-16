@@ -18,7 +18,7 @@
 <div class="left">
     <div class="container1">
         <img src="../../assets/UPM Logoo.jpg" alt="UPM" width="300px" height="200px"> <br>
-            <b class="title">FYPAsses</b>
+            <b class="title">FYPAssess</b>
             <P class="fulltitle">Final Year Project Assessment System</P>
             <div class="description">Student and Lecturers FYP Portal</div>
            
@@ -32,15 +32,16 @@
         <p id="welcomeBack">Welcome Back </p>
         <p id="desc">Sign in to access your account</p>
 
+        <form action="../../php/login.php" method="post">
      <p id="UsernamePassword"> Staff ID or Student ID </p>
-        <input type="text" placeholder="Enter Staff or Student ID" required >
+        <input type="text" placeholder="Enter Staff or Student ID" name="upmId" required >
         <p id="UsernamePassword"> Password </p>
-        <input type="text" placeholder="Enter Password" required>
+        <input type="password" name="password" placeholder="Enter Password" required>
         <button type ="submit" id="signInButton" class="disabled-link">Sign In To FYPAssess</button><br>
         <p id="noAccount">Don't have an account?</p>
-        <a href="signup.html" id="signUpButton" style="text-decoration: none; display: block;">Sign Up</a>
+        <a href="signup.php" id="signUpButton" style="text-decoration: none; display: block;">Sign Up</a>
     </div>
-
+</form>
    
 </div>
 </div>
@@ -54,7 +55,7 @@
     const signInButton=document.getElementById('signInButton');
 
     function checkForm(){
-        const idFilled=ID && ID.value.trim().length>5;
+        const idFilled=ID && ID.value.trim().length>0;
         const passwordFilled=password && password.value.trim().length>0;
         if(idFilled && passwordFilled){
             signInButton.classList.remove('disabled-link');
@@ -66,12 +67,7 @@
     if(ID) ID.addEventListener('input',checkForm);
     if(password) password.addEventListener('input',checkForm);
 
-    signInButton.addEventListener('click',function(event){
-        event.preventDefault();
-        if(!signInButton.classList.contains('disabled-link')){
-            window.location.href = '../student/dashboard/dashboard.html';
-        }
-    });
+      
     checkForm();
 </script>
 </html>

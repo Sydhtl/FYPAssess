@@ -69,6 +69,7 @@
   align-items: center;
   flex: 0 0 auto;
   min-width: 200px;
+  flex-wrap: wrap;
 }
 
 .right-actions {
@@ -110,6 +111,29 @@
   border-color: #780000;
 }
 
+.course-filter-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.course-filter-section .filter-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #666;
+}
+
+.course-filter-section .course-filter-dropdown .btn-download {
+  background-color: #fff;
+  color: #333;
+  border: 2px solid #ddd;
+}
+
+.course-filter-section .course-filter-dropdown .btn-download:hover {
+  background-color: #f8f9fa;
+}
+
 /* Scrollable Table Container */
 .table-scroll-container {
   width: 100%;
@@ -119,6 +143,20 @@
   background-color: white;
   border: 1px solid #e0e0e0;
   padding: 0;
+  position: relative; /* Establish stacking context */
+}
+
+/* Ensure table cells don't expand when dropdown opens */
+#studentDistributionTable td {
+  overflow: visible; /* Allow dropdowns to extend beyond cell */
+  position: relative;
+  vertical-align: top; /* Align content to top */
+}
+
+/* Ensure table rows don't expand height when dropdown opens */
+#studentDistributionTable tbody tr {
+  height: auto;
+  min-height: auto;
 }
 
 /* Custom scrollbar styling - Grey like logbook */
@@ -439,10 +477,11 @@
 }
 
 .filters-section {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 15px;
   margin-bottom: 20px;
-  align-items: center;
+  align-items: end;
 }
 
 .filter-group {
@@ -457,18 +496,28 @@
   color: #666;
 }
 
-.filter-group select {
+.filter-group select,
+.filter-select {
   padding: 8px 12px;
   border: 2px solid #ddd;
   border-radius: 8px;
   font-size: 14px;
   font-family: 'Montserrat', Arial, sans-serif;
   min-width: 150px;
+  background-color: white;
+  cursor: pointer;
+  transition: border-color 0.2s;
 }
 
-.filter-group select:focus {
+.filter-group select:focus,
+.filter-select:focus {
   outline: none;
   border-color: #780000;
+}
+
+.filter-group select:hover,
+.filter-select:hover {
+  border-color: #999;
 }
 
 /* Distribution Tab Placeholder */
@@ -496,6 +545,10 @@
 
 /* Tablets */
 @media (max-width: 992px) {
+  .filters-section {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
   .top-action-bar {
     flex-direction: row;
     align-items: flex-start;
@@ -505,6 +558,7 @@
   .left-actions {
     flex: 0 1 300px;
     min-width: 250px;
+    flex-wrap: wrap;
   }
 
   .right-actions {
@@ -518,6 +572,24 @@
   .search-section {
     width: 100%;
     max-width: 100%;
+    flex: 1 1 100%;
+  }
+
+  .course-filter-section {
+    width: 100%;
+    justify-content: flex-start;
+    flex: 1 1 100%;
+    margin-top: 10px;
+    order: 2; /* Ensure course filter appears on new row after search */
+  }
+
+  .course-filter-section .download-dropdown {
+    width: 100%;
+  }
+
+  .course-filter-section .btn-download {
+    width: 100%;
+    justify-content: space-between;
   }
 
   .btn-assign,
@@ -557,6 +629,25 @@
 
 /* Small tablets and large phones */
 @media (max-width: 768px) {
+  /* Ensure dropdowns respect container boundaries */
+  .dropdown-menu {
+    max-width: calc(100vw - 20px);
+  }
+  .filters-section {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .filter-group {
+    width: 100%;
+  }
+
+  .filter-group select,
+  .filter-select {
+    width: 100%;
+    min-width: unset;
+  }
+
   .top-action-bar {
     flex-direction: column;
     gap: 12px;
@@ -567,6 +658,18 @@
     width: 100%;
     flex: 1 1 100%;
     min-width: unset;
+    flex-wrap: wrap;
+  }
+
+  .search-section {
+    width: 100%;
+    flex: 1 1 100%;
+  }
+
+  .course-filter-section {
+    margin-top: 10px;
+    width: 100%;
+    flex: 1 1 100%;
   }
 
   .right-actions {
@@ -642,6 +745,23 @@
 
 /* Mobile phones */
 @media (max-width: 576px) {
+  .filters-section {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .filter-group label {
+    font-size: 13px;
+  }
+
+  .filter-group select,
+  .filter-select {
+    width: 100%;
+    min-width: unset;
+    padding: 8px 10px;
+    font-size: 13px;
+  }
+
   .top-action-bar {
     gap: 10px;
   }
@@ -739,6 +859,12 @@
     padding: 6px 4px;
     font-size: 11px;
   }
+  
+  /* Ensure dropdowns don't exceed container width on small screens */
+  .dropdown-menu {
+    max-width: calc(100vw - 20px); /* Account for padding */
+    min-width: 150px; /* Smaller minimum on mobile */
+  }
 }
 
 
@@ -746,6 +872,19 @@
 .custom-dropdown {
   position: relative;
   width: 100%;
+  z-index: 1; /* Ensure wrapper is in stacking context */
+  isolation: isolate; /* Create new stacking context */
+}
+
+/* When dropdown is active, bring entire wrapper to front */
+.custom-dropdown .dropdown-menu.show ~ *,
+.custom-dropdown:has(.dropdown-menu.show) {
+  z-index: 10000; /* Bring to front when dropdown is shown */
+}
+
+.custom-dropdown:has(.dropdown-menu.show) {
+  z-index: 10000;
+  position: relative;
 }
 
 .dropdown-btn {
@@ -762,6 +901,8 @@
   justify-content: space-between;
   align-items: center;
   transition: border-color 0.2s;
+  position: relative;
+  z-index: 1;
 }
 
 .dropdown-btn:hover {
@@ -774,23 +915,29 @@
 }
 
 .dropdown-menu {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
+  position: fixed; /* Use fixed positioning to truly float above table */
   background-color: white;
   border: 2px solid #ddd;
   border-radius: 4px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 10000; /* Very high z-index to appear above all other elements */
   display: none;
   max-height: 300px;
-  overflow-y: auto;
-  margin-top: 4px;
+  overflow: hidden; /* Hide overflow on menu container, let options container handle scrolling */
+  overflow-x: hidden; /* Prevent horizontal overflow */
+  min-width: 200px; /* Minimum width for dropdown */
+  width: auto;
+  box-sizing: border-box; /* Ensure padding/border included in width */
+  flex-direction: column; /* Use flexbox layout */
+  /* Position will be set dynamically via JavaScript */
 }
 
+/* Dropdown positioning handled by JavaScript with fixed positioning */
+/* No need for special last-column rules since we use fixed positioning */
+
 .dropdown-menu.show {
-  display: block;
+  display: flex; /* Use flexbox to properly manage scrolling */
+  flex-direction: column;
 }
 
 .dropdown-search {
@@ -828,6 +975,33 @@
 .dropdown-options {
   max-height: 250px;
   overflow-y: auto;
+  overflow-x: hidden;
+  flex: 1; /* Take remaining space in flex container */
+  min-height: 0; /* Allow shrinking */
+  /* Ensure smooth scrolling and show scrollbar when needed */
+  scrollbar-width: thin;
+  scrollbar-color: #ccc #f5f5f5;
+  /* Ensure last option is fully visible when scrolling - padding matches option padding */
+  padding-bottom: 10px; /* Match option padding to ensure last name is fully visible */
+}
+
+/* Webkit scrollbar styling for better visibility */
+.dropdown-options::-webkit-scrollbar {
+  width: 8px;
+}
+
+.dropdown-options::-webkit-scrollbar-track {
+  background: #f5f5f5;
+  border-radius: 4px;
+}
+
+.dropdown-options::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 4px;
+}
+
+.dropdown-options::-webkit-scrollbar-thumb:hover {
+  background: #999;
 }
 
 .dropdown-option {
@@ -838,6 +1012,14 @@
   color: #333;
   transition: background-color 0.2s;
   border-bottom: 1px solid #f0f0f0;
+  flex-shrink: 0; /* Prevent options from shrinking */
+  white-space: nowrap; /* Prevent text wrapping */
+  overflow: hidden;
+  text-overflow: ellipsis; /* Show ellipsis if text is too long */
+  box-sizing: border-box; /* Include padding and border in height calculation */
+  min-height: 38px; /* Ensure consistent height (10px padding top + 14px font + 10px padding bottom + 4px for line-height) */
+  display: flex;
+  align-items: center; /* Vertically center text */
 }
 
 .dropdown-option:hover {
@@ -861,6 +1043,11 @@
 
 .dropdown-option.disabled:hover {
   background-color: transparent;
+}
+
+/* Ensure last option is fully visible without border-bottom cutting off */
+.dropdown-option:last-child {
+  border-bottom: none; /* Remove border from last item to prevent visual cut-off */
 }
 
 /* Assign Dropdown Styles */

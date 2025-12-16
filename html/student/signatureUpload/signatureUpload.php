@@ -1,3 +1,37 @@
+<?php
+include '../../../php/mysqlConnect.php';
+session_start();
+
+if (!isset($_SESSION['upmId']) || $_SESSION['role'] !== 'Student') {
+    header("Location: ../../login/Login.php");
+    exit();
+}
+
+$studentId = $_SESSION['upmId'];
+
+$query = "SELECT 
+    s.Student_ID,
+    s.Student_Name,
+    s.Semester,
+    fs.FYP_Session,
+    c.Course_Code
+FROM student s
+LEFT JOIN fyp_session fs ON s.FYP_Session_ID = fs.FYP_Session_ID
+LEFT JOIN course c ON fs.Course_ID = c.Course_ID
+WHERE s.Student_ID = ?";
+
+$stmt = $conn->prepare($query);
+$stmt->bind_param("s", $studentId);
+$stmt->execute();
+$result = $stmt->get_result();
+$student = $result->fetch_assoc();
+$stmt->close();
+
+$studentName = $student['Student_Name'] ?? 'N/A';
+$courseCode = $student['Course_Code'] ?? 'N/A';
+$semesterRaw = $student['Semester'] ?? 'N/A';
+$fypSession = $student['FYP_Session'] ?? 'N/A';
+?>
 <!DOCTYPE html>
 <html>
 <head>
@@ -17,14 +51,14 @@
             <a href="javascript:void(0)" class="closebtn" id="close" onclick="closeNav()">
                 Close <span class="x-symbol">x</span>
             </a>
-            <span id="nameSide">HI, NURUL SAIDAHTUL FATIHA BINTI SHAHARUDIN</span>
-            <a href="../dashboard/dashboard.html" id="dashboard"> <i class="bi bi-house-fill" style="padding-right: 10px;"></i>Dashboard</a>
-            <a href="../fypInformation/fypInformation.html" id="fypInformation"><i class="bi bi-file-earmark-text-fill" style="padding-right: 10px;"></i>FYP Information</a>
-            <a href="../logbook/logbook.html" id="logbookSubmission"><i class="bi bi-file-earmark-text-fill" style="padding-right: 10px;"></i>Logbook Submission</a>
-            <a href="../notification/notification.html" id="notification"><i class="bi bi-bell-fill" style="padding-right: 10px;"></i>Notification</a>
-            <a href="./signatureUpload.html" id="signatureSubmission" class="focus"><i class="bi bi-pen-fill" style="padding-right: 10px;"></i>Signature Submission</a>
+            <span id="nameSide">HI, <?php echo htmlspecialchars($studentName); ?></span>
+            <a href="../dashboard/dashboard.php" id="dashboard"> <i class="bi bi-house-fill" style="padding-right: 10px;"></i>Dashboard</a>
+            <a href="../fypInformation/fypInformation.php" id="fypInformation"><i class="bi bi-file-earmark-text-fill" style="padding-right: 10px;"></i>FYP Information</a>
+            <a href="../logbook/logbook.php" id="logbookSubmission"><i class="bi bi-file-earmark-text-fill" style="padding-right: 10px;"></i>Logbook Submission</a>
+            <a href="../notification/notification.php" id="notification"><i class="bi bi-bell-fill" style="padding-right: 10px;"></i>Notification</a>
+            <a href="./signatureUpload.php" id="signatureSubmission" class="focus"><i class="bi bi-pen-fill" style="padding-right: 10px;"></i>Signature Submission</a>
           
-            <a href="../../login/login.html" id="logout">
+            <a href="../../login/login.php" id="logout">
                 <i class="bi bi-box-arrow-left" style="padding-right: 10px;"></i> Logout
             </a>
         </div>
@@ -32,7 +66,7 @@
     
     <div id="containerAtas" class="containerAtas">
         
-        <a href="../dashboard/dashboard.html">
+        <a href="../dashboard/dashboard.php">
             <img src="../../../assets/UPMLogo.png" alt="UPM logo" width="100px" id="upm-logo">
         </a>
         
@@ -42,8 +76,8 @@
                 <div id="containerFYPAssess">FYPAssess</div>
             </div>
             <div id="course-session">
-                <div id="courseCode">SWE4949A</div>
-                <div id="courseSession">2024/2025 - 2 </div>
+                <div id="courseCode"><?php echo htmlspecialchars($courseCode); ?></div>
+                <div id="courseSession"><?php echo htmlspecialchars($fypSession . ' - ' . $semesterRaw); ?></div>
             </div>
         </div>
     </div>
@@ -222,12 +256,30 @@
             return;
         }
         
-        // Use the file from input or the already uploaded file
-        var fileToUpload = file || uploadedFile;
-        
-        // In a real application, you would upload the file to a server here
-        // Show success modal
-        openModal(uploadModal);
+        var formData = new FormData();
+        formData.append('signature_file', file || uploadedFile);
+
+        var saveBtn = document.getElementById('saveBtn');
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Uploading...';
+
+        fetch('save_signature.php', { method: 'POST', body: formData })
+            .then(async r => {
+                const raw = await r.text();
+                let data = {};
+                try { data = raw ? JSON.parse(raw) : {}; } catch(e) { throw new Error('Invalid JSON: ' + raw.substring(0,300)); }
+                if (!r.ok || !data.success) { throw new Error(data.error || ('HTTP ' + r.status)); }
+                return data;
+            })
+            .then(() => {
+                openModal(uploadModal);
+                fileSaved = true;
+            })
+            .catch(err => { alert('Upload error: ' + err.message); })
+            .finally(() => {
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'Save';
+            });
     });
 
     // Close upload modal and show preview
@@ -259,9 +311,37 @@
     window.onload = function() {
         document.getElementById("nameSide").style.display = "none";
         closeNav();
+        // Preload existing signature (image/pdf/any file)
+        fetch('get_signature.php')
+            .then(r => {
+                if (!r.ok) throw new Error('No signature');
+                return r.blob();
+            })
+            .then(blob => {
+                var url = URL.createObjectURL(blob);
+                var type = blob.type || '';
+                var uploadPrompt = document.getElementById('uploadPrompt');
+                var filePreview = document.getElementById('filePreview');
+                var previewImage = document.getElementById('previewImage');
+                var previewFileName = document.getElementById('previewFileName');
+                uploadPrompt.style.display = 'none';
+                filePreview.style.display = 'block';
+                if (type.startsWith('image/')) {
+                    previewImage.src = url;
+                    previewImage.style.display = 'block';
+                    previewFileName.textContent = 'Existing signature (' + type + ')';
+                } else {
+                    // For non-image, show a simple link
+                    previewImage.style.display = 'none';
+                    previewFileName.innerHTML = 'Existing file (' + type + ') - <a href="'+url+'" target="_blank">Open/Download</a>';
+                }
+                fileSaved = true;
+            })
+            .catch(() => {
+                // No existing signature; keep prompt
+            });
     };
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
-

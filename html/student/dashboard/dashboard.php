@@ -1,3 +1,82 @@
+
+<?php
+include '../../../php/mysqlConnect.php';
+session_start();
+
+if (!isset($_SESSION['upmId']) || $_SESSION['role'] !== 'Student') {
+    header("Location: ../../login/Login.php");
+    exit();
+}
+
+$studentId = $_SESSION['upmId'];
+
+$query = "SELECT 
+    s.Student_ID,
+    s.Student_Name,
+    s.Semester,
+    fs.FYP_Session,
+    c.Course_Code,
+    fp.Title_Status
+FROM student s
+LEFT JOIN fyp_session fs ON s.FYP_Session_ID = fs.FYP_Session_ID
+LEFT JOIN course c ON fs.Course_ID = c.Course_ID
+LEFT JOIN fyp_project fp ON fp.Student_ID = s.Student_ID
+WHERE s.Student_ID = ?";
+
+$stmt = $conn->prepare($query);
+$stmt->bind_param("s", $studentId);
+$stmt->execute();
+$result = $stmt->get_result();
+$student = $result->fetch_assoc();
+$stmt->close();
+
+$studentName = $student['Student_Name'] ?? 'N/A';
+$courseCode = $student['Course_Code'] ?? 'N/A';
+$semesterRaw = $student['Semester'] ?? 'N/A';
+$fypSession = $student['FYP_Session'] ?? 'N/A';
+$titleStatus = trim($student['Title_Status'] ?? '');
+
+// Map DB title status to display text for widget
+if ($titleStatus === 'Approved') {
+    $approvalDisplay = 'APPROVED';
+} elseif ($titleStatus === 'Rejected' || strcasecmp($titleStatus, 'Declined') === 0) {
+    $approvalDisplay = 'REJECTED';
+} elseif ($titleStatus === '') {
+    $approvalDisplay = 'PENDING';
+} else {
+    // Any other status (e.g., Waiting For Approval) treated as pending
+    $approvalDisplay = 'PENDING';
+}
+
+// Logbook progress counts (Approved / Waiting / Rejected)
+$approvedCount = 0;
+$waitingCount = 0;
+$rejectedCount = 0;
+$requiredTotal = 6; // Fixed total required logbooks
+
+$logbookStatusQuery = "SHOW TABLES LIKE 'logbook'";
+$tableExists = $conn->query($logbookStatusQuery);
+if ($tableExists && $tableExists->num_rows > 0) {
+    $statusQuery = "SELECT Logbook_Status FROM logbook WHERE Student_ID = ?";
+    $stmtStatus = $conn->prepare($statusQuery);
+    if ($stmtStatus) {
+        $stmtStatus->bind_param("s", $studentId);
+        $stmtStatus->execute();
+        $resultStatus = $stmtStatus->get_result();
+        while ($rowStatus = $resultStatus->fetch_assoc()) {
+            $status = trim($rowStatus['Logbook_Status'] ?? '');
+            if ($status === 'Approved') {
+                $approvedCount++;
+            } elseif (strcasecmp($status, 'Declined') === 0 || $status === 'Rejected') {
+                $rejectedCount++;
+            } else {
+                $waitingCount++;
+            }
+        }
+        $stmtStatus->close();
+    }
+}
+?>
 <!DOCTYPE html>
 <html>
 <head>
@@ -17,14 +96,14 @@
             <a href="javascript:void(0)" class="closebtn" id="close" onclick="closeNav()">
                 Close <span class="x-symbol">x</span>
             </a>
-            <span id="nameSide">HI, NURUL SAIDAHTUL FATIHA BINTI SHAHARUDIN</span>
-            <a href="../dashboard/dashboard.html" id="dashboard" class="focus"> <i class="bi bi-house-fill" style="padding-right: 10px;"></i>Dashboard</a>
-            <a href="../fypInformation/fypInformation.html" id="fypInformation"><i class="bi bi-file-earmark-text-fill" style="padding-right: 10px;"></i>FYP Information</a>
-            <a href="../logbook/logbook.html" id="logbookSubmission"><i class="bi bi-file-earmark-text-fill" style="padding-right: 10px;"></i>Logbook Submission</a>
-            <a href="../notification/notification.html" id="notification"><i class="bi bi-bell-fill" style="padding-right: 10px;"></i>Notification</a>
-            <a href="../signatureUpload/signatureUpload.html" id="signatureSubmission"><i class="bi bi-pen-fill" style="padding-right: 10px;"></i>Signature Submission</a>
+            <span id="nameSide">HI, <?php echo htmlspecialchars($studentName); ?></span>
+            <a href="../dashboard/dashboard.php" id="dashboard" class="focus"> <i class="bi bi-house-fill" style="padding-right: 10px;"></i>Dashboard</a>
+            <a href="../fypInformation/fypInformation.php" id="fypInformation"><i class="bi bi-file-earmark-text-fill" style="padding-right: 10px;"></i>FYP Information</a>
+            <a href="../logbook/logbook.php" id="logbookSubmission"><i class="bi bi-file-earmark-text-fill" style="padding-right: 10px;"></i>Logbook Submission</a>
+            <a href="../notification/notification.php" id="notification"><i class="bi bi-bell-fill" style="padding-right: 10px;"></i>Notification</a>
+            <a href="../signatureUpload/signatureUpload.php" id="signatureSubmission"><i class="bi bi-pen-fill" style="padding-right: 10px;"></i>Signature Submission</a>
           
-            <a href="../../login/login.html" id="logout">
+            <a href="../../login/login.php" id="logout">
                 <i class="bi bi-box-arrow-left" style="padding-right: 10px;"></i> Logout
             </a>
         </div>
@@ -32,7 +111,7 @@
     
     <div id="containerAtas" class="containerAtas">
         
-        <a href="../dashboard/dashboard.html">
+        <a href="../dashboard/dashboard.php">
             <img src="../../../assets/UPMLogo.png" alt="UPM logo" width="100px" id="upm-logo">
         </a>
         
@@ -42,8 +121,8 @@
                 <div id="containerFYPAssess">FYPAssess</div>
             </div>
             <div id="course-session">
-                <div id="courseCode">SWE4949A</div>
-                <div id="courseSession">2024/2025 - 2 </div>
+                <div id="courseCode"><?php echo htmlspecialchars($courseCode); ?></div>
+                <div id="courseSession"><?php echo htmlspecialchars($fypSession . ' - ' . $semesterRaw); ?></div>
             </div>
         </div>
     </div>
@@ -56,14 +135,14 @@
                 <span class="widget-icon"><i class="fa-solid fa-check-circle"></i></span>
                 <div class="widget-content">
                     <span class="widget-title">Title Approval Status</span>
-                    <span id="approvalStatus" class="widget-value status-approved">APPROVED</span>
+                    <span id="approvalStatus" class="widget-value"><?php echo htmlspecialchars($approvalDisplay); ?></span>
                 </div>
             </div>
             <div class="widget">
                 <span class="widget-icon"><i class="fa-solid fa-book"></i></span>
                 <div class="widget-content">
                     <span class="widget-title">Logbook Progress</span>
-                    <span id="logbookProgress" class="widget-value">4/10</span>
+                    <span id="logbookProgress" class="widget-value"><?php echo htmlspecialchars($approvedCount . '/' . $requiredTotal); ?></span>
                 </div>
             </div>
             <div class="widget">
@@ -189,21 +268,32 @@
         document.addEventListener('DOMContentLoaded', function() {
             const ctx = document.getElementById('barChart');
             if (ctx) {
+                // Inject server-derived counts
+                var approvedCount = <?php echo json_encode($approvedCount); ?>;
+                var waitingCount = <?php echo json_encode($waitingCount); ?>;
+                var rejectedCount = <?php echo json_encode($rejectedCount); ?>;
+                var totalRequired = <?php echo json_encode($requiredTotal); ?>;
+
+                // Calculate percentages (cap at 0 if totalRequired is 0)
+                var approvedPct = totalRequired ? Math.round((approvedCount / totalRequired) * 100) : 0;
+                var waitingPct = totalRequired ? Math.round((waitingCount / totalRequired) * 100) : 0;
+                var rejectedPct = totalRequired ? Math.round((rejectedCount / totalRequired) * 100) : 0;
+
                 new Chart(ctx, {
                     type: 'bar',
                     data: {
-                        labels: ['Submitted', 'Waiting for approval', 'Not submitted'],
+                        labels: ['Approved', 'Waiting for approval', 'Rejected'],
                         datasets: [{
-                            label: 'Logbook Progress (%)', 
-                            data: [50, 33, 17], 
-                            raw_data: [3, 2, 1], 
-                            total_count: 6,
+                            label: 'Logbook Progress (%)',
+                            data: [approvedPct, waitingPct, rejectedPct],
+                            raw_data: [approvedCount, waitingCount, rejectedCount],
+                            total_count: totalRequired,
                             backgroundColor: [
-                                '#4CAF50', 
+                                '#4CAF50',
                                 '#FF9800',
                                 '#F44336'
                             ],
-                            borderColor: 'transparent', 
+                            borderColor: 'transparent',
                             borderWidth: 0,
                             barPercentage: 0.8,
                             categoryPercentage: 0.8
@@ -290,7 +380,7 @@
                                         indicatorColor = '#4CAF50'; // Green
                                     } else if (label === 'Waiting for approval') {
                                         indicatorColor = '#FF9800'; // Orange
-                                    } else if (label === 'Not submitted') {
+                                    } else if (label === 'Rejected') {
                                         indicatorColor = '#F44336'; // Red
                                     }
 
