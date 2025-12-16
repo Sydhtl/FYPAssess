@@ -323,9 +323,9 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
                                     </div>
                                 </div>
                                 <button id="downloadButtonNotifyA" class="btn-download btn-notify-group" onclick="notifyAllIncomplete('swe4949a')">
-                                    <i class="bi bi-bell"></i>
+                                        <i class="bi bi-bell"></i>
                                     <span>Notify All</span>
-                                </button>
+                                    </button>
                             </div>
                         </div>
 
@@ -401,9 +401,9 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
                                     </div>
                                 </div>
                                 <button id="downloadButtonNotifyB" class="btn-download btn-notify-group" onclick="notifyAllIncomplete('swe4949b')">
-                                    <i class="bi bi-bell"></i>
+                                        <i class="bi bi-bell"></i>
                                     <span>Notify All</span>
-                                </button>
+                                    </button>
                             </div>
                         </div>
 

@@ -1926,6 +1926,83 @@ $assessmentDataJson = json_encode($assessmentData);
             if (dropdown.classList.contains('show')) {
                 openDropdown = dropdownId;
                 
+                // Position dropdown using fixed positioning to float above table
+                const customDropdown = dropdown.closest('.custom-dropdown');
+                const button = customDropdown ? customDropdown.querySelector('.dropdown-btn') : null;
+                if (button) {
+                    const rect = button.getBoundingClientRect();
+                    const tableContainer = button.closest('.table-scroll-container');
+                    const containerRect = tableContainer ? tableContainer.getBoundingClientRect() : null;
+                    
+                    dropdown.style.position = 'fixed';
+                    
+                    // Check if there's enough space below, otherwise position above
+                    const maxDropdownHeight = 300; // Match CSS max-height
+                    const spaceBelow = window.innerHeight - rect.bottom;
+                    const spaceAbove = rect.top;
+                    const gap = 4; // Gap between button and dropdown
+                    const minRequiredSpace = maxDropdownHeight + gap + 10; // Add some buffer
+                    
+                    let positionAbove = false;
+                    if (spaceBelow < minRequiredSpace && spaceAbove >= minRequiredSpace) {
+                        // Not enough space below but enough above - position above
+                        positionAbove = true;
+                        // Position dropdown above: bottom edge of dropdown is (button top - gap) from top of viewport
+                        // In fixed positioning, bottom = window.innerHeight - (rect.top - gap)
+                        dropdown.style.bottom = (window.innerHeight - rect.top + gap) + 'px';
+                        dropdown.style.top = 'auto';
+                    } else {
+                        // Default: position below
+                        dropdown.style.top = (rect.bottom + gap) + 'px';
+                        dropdown.style.bottom = 'auto';
+                    }
+                    
+                    // Calculate available width - adjust for screen size
+                    const minDropdownWidth = window.innerWidth <= 576 ? 150 : 200;
+                    const maxDropdownWidth = 400;
+                    const padding = 10; // Padding from edges
+                    
+                    let leftPosition = rect.left;
+                    let dropdownWidth = Math.max(rect.width, minDropdownWidth);
+                    
+                    // Constrain width to container if available
+                    if (containerRect) {
+                        const containerLeft = containerRect.left + padding;
+                        const containerRight = containerRect.right - padding;
+                        const maxWidthInContainer = containerRight - containerLeft;
+                        dropdownWidth = Math.min(dropdownWidth, maxWidthInContainer, maxDropdownWidth);
+                    } else {
+                        dropdownWidth = Math.min(dropdownWidth, maxDropdownWidth);
+                    }
+                    
+                    // Also constrain to viewport width to prevent overflow
+                    dropdownWidth = Math.min(dropdownWidth, window.innerWidth - (padding * 2));
+                    
+                    // Adjust position to stay within container/screen bounds
+                    const rightEdge = leftPosition + dropdownWidth;
+                    const screenRight = containerRect ? containerRect.right - padding : window.innerWidth - padding;
+                    const screenLeft = containerRect ? containerRect.left + padding : padding;
+                    
+                    // If dropdown would exceed right edge, shift it left
+                    if (rightEdge > screenRight) {
+                        leftPosition = screenRight - dropdownWidth;
+                    }
+                    
+                    // If dropdown would exceed left edge, align to left
+                    if (leftPosition < screenLeft) {
+                        leftPosition = screenLeft;
+                        // Adjust width if needed to fit
+                        if (leftPosition + dropdownWidth > screenRight) {
+                            dropdownWidth = screenRight - leftPosition;
+                        }
+                    }
+                    
+                    dropdown.style.left = leftPosition + 'px';
+                    dropdown.style.width = dropdownWidth + 'px';
+                    dropdown.style.minWidth = dropdownWidth + 'px';
+                    dropdown.style.maxWidth = dropdownWidth + 'px';
+                }
+                
                 // Update remaining quotas before showing dropdown to ensure accurate options
                 updateAllRemainingQuotas();
                 
@@ -1950,6 +2027,11 @@ $assessmentDataJson = json_encode($assessmentData);
                 }
             } else {
                 openDropdown = null;
+                // Reset positioning when closed
+                dropdown.style.position = '';
+                dropdown.style.top = '';
+                dropdown.style.left = '';
+                dropdown.style.width = '';
             }
         }
 
@@ -4535,6 +4617,94 @@ $assessmentDataJson = json_encode($assessmentData);
             }
         }
 
+        // Function to reposition open dropdown (used on scroll/resize)
+        function repositionOpenDropdown() {
+            if (openDropdown) {
+                const dropdownElement = document.getElementById(openDropdown);
+                if (dropdownElement && dropdownElement.classList.contains('show')) {
+                    const customDropdown = dropdownElement.closest('.custom-dropdown');
+                    const button = customDropdown ? customDropdown.querySelector('.dropdown-btn') : null;
+                    if (button) {
+                        const rect = button.getBoundingClientRect();
+                        const tableContainer = button.closest('.table-scroll-container');
+                        const containerRect = tableContainer ? tableContainer.getBoundingClientRect() : null;
+                        
+                        dropdownElement.style.position = 'fixed';
+                        
+                        // Check if there's enough space below, otherwise position above
+                        const maxDropdownHeight = 300; // Match CSS max-height
+                        const spaceBelow = window.innerHeight - rect.bottom;
+                        const spaceAbove = rect.top;
+                        const gap = 4; // Gap between button and dropdown
+                        const minRequiredSpace = maxDropdownHeight + gap + 10; // Add some buffer
+                        
+                        let positionAbove = false;
+                        if (spaceBelow < minRequiredSpace && spaceAbove >= minRequiredSpace) {
+                            // Not enough space below but enough above - position above
+                            positionAbove = true;
+                            // Position dropdown above: bottom edge of dropdown is (button top - gap) from top of viewport
+                            // In fixed positioning, bottom = window.innerHeight - (rect.top - gap)
+                            dropdownElement.style.bottom = (window.innerHeight - rect.top + gap) + 'px';
+                            dropdownElement.style.top = 'auto';
+                        } else {
+                            // Default: position below
+                            dropdownElement.style.top = (rect.bottom + gap) + 'px';
+                            dropdownElement.style.bottom = 'auto';
+                        }
+                        
+                        // Calculate available width - adjust for screen size
+                        const minDropdownWidth = window.innerWidth <= 576 ? 150 : 200;
+                        const maxDropdownWidth = 400;
+                        const padding = 10;
+                        
+                        let leftPosition = rect.left;
+                        let dropdownWidth = Math.max(rect.width, minDropdownWidth);
+                        
+                        // Constrain width to container if available
+                        if (containerRect) {
+                            const containerLeft = containerRect.left + padding;
+                            const containerRight = containerRect.right - padding;
+                            const maxWidthInContainer = containerRight - containerLeft;
+                            dropdownWidth = Math.min(dropdownWidth, maxWidthInContainer, maxDropdownWidth);
+                        } else {
+                            dropdownWidth = Math.min(dropdownWidth, maxDropdownWidth);
+                        }
+                        
+                        // Also constrain to viewport width to prevent overflow
+                        dropdownWidth = Math.min(dropdownWidth, window.innerWidth - (padding * 2));
+                        
+                        // Adjust position to stay within container/screen bounds
+                        const rightEdge = leftPosition + dropdownWidth;
+                        const screenRight = containerRect ? containerRect.right - padding : window.innerWidth - padding;
+                        const screenLeft = containerRect ? containerRect.left + padding : padding;
+                        
+                        // If dropdown would exceed right edge, shift it left
+                        if (rightEdge > screenRight) {
+                            leftPosition = screenRight - dropdownWidth;
+                        }
+                        
+                        // If dropdown would exceed left edge, align to left
+                        if (leftPosition < screenLeft) {
+                            leftPosition = screenLeft;
+                            // Adjust width if needed to fit
+                            if (leftPosition + dropdownWidth > screenRight) {
+                                dropdownWidth = screenRight - leftPosition;
+                            }
+                        }
+                        
+                        dropdownElement.style.left = leftPosition + 'px';
+                        dropdownElement.style.width = dropdownWidth + 'px';
+                        dropdownElement.style.minWidth = dropdownWidth + 'px';
+                        dropdownElement.style.maxWidth = dropdownWidth + 'px';
+                    }
+                }
+            }
+        }
+        
+        // Add scroll and resize handlers to reposition dropdown
+        window.addEventListener('scroll', repositionOpenDropdown, true);
+        window.addEventListener('resize', repositionOpenDropdown);
+
         // Close dropdown when clicking outside
         document.addEventListener('click', function(event) {
             // Handle all download dropdowns (including course filter)
@@ -4570,9 +4740,17 @@ $assessmentDataJson = json_encode($assessmentData);
                 const openDropdownElement = document.getElementById(openDropdown);
                 if (openDropdownElement) {
                     openDropdownElement.classList.remove('show');
+                    // Reset positioning
+                    openDropdownElement.style.position = '';
+                    openDropdownElement.style.top = '';
+                    openDropdownElement.style.bottom = '';
+                    openDropdownElement.style.left = '';
+                    openDropdownElement.style.width = '';
                     openDropdown = null;
                 }
             }
+            
+
 
             // Handle modals - close when clicking on modal backdrop
             const modals = [

@@ -239,20 +239,20 @@ try {
         // we can now safely insert new ones
         foreach ($studentIds as $studentId) {
             // Insert new student_session record
-            $insertStudentQuery = "INSERT INTO student_session (Session_ID, Student_ID) 
-                                  VALUES (?, ?)";
-            $insertStudentStmt = $conn->prepare($insertStudentQuery);
-            if (!$insertStudentStmt) {
-                throw new Exception('Prepare failed (insertStudent): ' . $conn->error);
-            }
-            
-            $insertStudentStmt->bind_param("is", $sessionId, $studentId);
-            if (!$insertStudentStmt->execute()) {
-                throw new Exception('Execute failed (insertStudent): ' . $insertStudentStmt->error);
-            }
-            
-            $insertStudentStmt->close();
-            $processedStudents++;
+                $insertStudentQuery = "INSERT INTO student_session (Session_ID, Student_ID) 
+                                      VALUES (?, ?)";
+                $insertStudentStmt = $conn->prepare($insertStudentQuery);
+                if (!$insertStudentStmt) {
+                    throw new Exception('Prepare failed (insertStudent): ' . $conn->error);
+                }
+                
+                $insertStudentStmt->bind_param("is", $sessionId, $studentId);
+                if (!$insertStudentStmt->execute()) {
+                    throw new Exception('Execute failed (insertStudent): ' . $insertStudentStmt->error);
+                }
+                
+                $insertStudentStmt->close();
+                $processedStudents++;
             
             // Get Assessor_ID_1 and Assessor_ID_2 from student_enrollment
             // We need to find the FYP_Session_ID for this student first
