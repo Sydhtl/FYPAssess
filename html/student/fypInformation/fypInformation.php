@@ -226,7 +226,7 @@ if ($commentStmt) {
         </div>
     </div>
 
-<div id="main">
+<div id="main" style="overflow-x: hidden; max-width: 100%; box-sizing: border-box;">
     <div class="info-card">
         <div class="tab-buttons">
             <button id="tabInfo" class="task-tab active-tab">FYP Information</button>
@@ -464,6 +464,7 @@ if ($commentStmt) {
                 })
                 .then(response => response.json())
                 .then(data => {
+                    hideLoadingModal();
                     if (data.success) {
                         // UPDATE UI: Show Pending Box
                         pendingText.innerText = newTitleVal;
@@ -484,15 +485,12 @@ if ($commentStmt) {
                             </div>`;
 
                         editModal.innerHTML = contentHtml;
-                        editModal.querySelector('#okSubmitted').onclick = function(){
-                            closeModal(editModal);
-                            // Reload the page to show updated data
-                            window.location.reload();
-                        };
-                    } else {
-                        hideLoadingModal();
                         editModal.querySelector('#closeEditModalAfter').onclick = function(){
                             closeModal(editModal);
+                        };
+                        editModal.querySelector('#okSubmitted').onclick = function(){
+                            closeModal(editModal);
+                            hideLoadingModal();
                             // Reload the page to show updated data
                             window.location.reload();
                         };
@@ -500,10 +498,12 @@ if ($commentStmt) {
                         alert("Error: " + (data.message || "Failed to submit."));
                         saveBtn.innerHTML = "Save & Send to Supervisor";
                         saveBtn.disabled = false;
+                        closeModal(editModal);
                     }
                 })
                 .catch(error => {
                     console.error('Error:', error);
+                    hideLoadingModal();
                     alert("An error occurred connecting to the server.");
                     saveBtn.innerHTML = "Save & Send to Supervisor";
                     saveBtn.disabled = false;

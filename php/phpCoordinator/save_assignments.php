@@ -381,39 +381,95 @@ try {
         $processedKeys[$studentId . '_' . $fypSessionId] = true;
     }
 
-    // After processing provided assignments, ensure EVERY student in DB has an enrollment record
-    $allStudentsQuery = "
-        SELECT Student_ID, FYP_Session_ID, Supervisor_ID
-        FROM student
-    ";
-    if ($allStudentsResult = $conn->query($allStudentsQuery)) {
-        while ($row = $allStudentsResult->fetch_assoc()) {
-            $studentId    = $row['Student_ID'];
-            $fypSessionId = (int)$row['FYP_Session_ID'];
-            $existingSup  = $row['Supervisor_ID'];
-
-            if (empty($studentId) || empty($fypSessionId)) {
-                continue;
+    // After processing provided assignments, ensure students from CURRENT SESSION only have enrollment records
+    // Get FYP_Session_IDs from the assignments (only process students from current session/semester)
+    $currentSessionIds = [];
+    foreach ($assignments as $assignment) {
+        $studentId = $assignment['id'] ?? '';
+        if (!empty($studentId)) {
+            $lookupSession = $conn->prepare("SELECT FYP_Session_ID FROM student WHERE Student_ID = ? LIMIT 1");
+            if ($lookupSession) {
+                $lookupSession->bind_param("s", $studentId);
+                $lookupSession->execute();
+                $sessionResult = $lookupSession->get_result();
+                if ($sessionRow = $sessionResult->fetch_assoc()) {
+                    $fypSessionId = (int)$sessionRow['FYP_Session_ID'];
+                    if (!in_array($fypSessionId, $currentSessionIds)) {
+                        $currentSessionIds[] = $fypSessionId;
+                    }
+                }
+                $lookupSession->close();
             }
-
-            $key = $studentId . '_' . $fypSessionId;
-            if (isset($processedKeys[$key])) {
-                continue; // Already upserted above with fresh data
-            }
-
-            // Use existing supervisor from student table; assessors remain null
-            upsertStudentEnrollment(
-                $conn,
-                $studentId,
-                $fypSessionId,
-                $existingSup,
-                null,
-                null
-            );
         }
-        $allStudentsResult->free();
-    } else {
-        throw new Exception('Query failed (allStudentsQuery): ' . $conn->error);
+    }
+    
+    // Only process students from the current session(s) - do NOT touch students from other sessions
+    if (!empty($currentSessionIds)) {
+        $sessionPlaceholders = implode(',', array_fill(0, count($currentSessionIds), '?'));
+        $currentStudentsQuery = "
+            SELECT Student_ID, FYP_Session_ID, Supervisor_ID
+            FROM student
+            WHERE FYP_Session_ID IN ($sessionPlaceholders)
+        ";
+        $currentStmt = $conn->prepare($currentStudentsQuery);
+        if ($currentStmt) {
+            $types = str_repeat('i', count($currentSessionIds));
+            $currentStmt->bind_param($types, ...$currentSessionIds);
+            $currentStmt->execute();
+            $currentStudentsResult = $currentStmt->get_result();
+            
+            while ($row = $currentStudentsResult->fetch_assoc()) {
+                $studentId    = $row['Student_ID'];
+                $fypSessionId = (int)$row['FYP_Session_ID'];
+                $existingSup  = $row['Supervisor_ID'];
+
+                if (empty($studentId) || empty($fypSessionId)) {
+                    continue;
+                }
+
+                $key = $studentId . '_' . $fypSessionId;
+                if (isset($processedKeys[$key])) {
+                    continue; // Already upserted above with fresh data
+                }
+
+                // For students not in the assignment list, preserve existing enrollment data
+                // Check if enrollment exists and preserve assessors
+                $checkExisting = $conn->prepare("
+                    SELECT Supervisor_ID, Assessor_ID_1, Assessor_ID_2
+                    FROM student_enrollment
+                    WHERE Student_ID = ? AND Fyp_Session_ID = ?
+                    LIMIT 1
+                ");
+                if ($checkExisting) {
+                    $checkExisting->bind_param("si", $studentId, $fypSessionId);
+                    $checkExisting->execute();
+                    $existingResult = $checkExisting->get_result();
+                    if ($existingRow = $existingResult->fetch_assoc()) {
+                        // Use existing enrollment data (preserve assessors)
+                        upsertStudentEnrollment(
+                            $conn,
+                            $studentId,
+                            $fypSessionId,
+                            $existingRow['Supervisor_ID'] ?? $existingSup,
+                            $existingRow['Assessor_ID_1'] ?? null,
+                            $existingRow['Assessor_ID_2'] ?? null
+                        );
+                    } else {
+                        // No existing enrollment - create with supervisor only
+                        upsertStudentEnrollment(
+                            $conn,
+                            $studentId,
+                            $fypSessionId,
+                            $existingSup,
+                            null,
+                            null
+                        );
+                    }
+                    $checkExisting->close();
+                }
+            }
+            $currentStmt->close();
+        }
     }
 
     // Commit all changes

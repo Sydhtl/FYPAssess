@@ -135,8 +135,33 @@ if ($displayFypSessionId) {
     }
 }
 
+// Fetch assessor data (lecturer to assessor ID mapping) for JavaScript
+$assessorData = [];
+$assessorQuery = "SELECT a.Assessor_ID, l.Lecturer_ID, l.Lecturer_Name
+                  FROM assessor a
+                  INNER JOIN lecturer l ON a.Lecturer_ID = l.Lecturer_ID
+                  WHERE l.Department_ID = (
+                      SELECT Department_ID FROM lecturer WHERE Lecturer_ID = ?
+                  )
+                  ORDER BY l.Lecturer_Name";
+if ($stmt = $conn->prepare($assessorQuery)) {
+    $stmt->bind_param("s", $userId);
+    if ($stmt->execute()) {
+        $result = $stmt->get_result();
+        while ($row = $result->fetch_assoc()) {
+            $assessorData[] = [
+                'assessor_id' => $row['Assessor_ID'],
+                'lecturer_id' => $row['Lecturer_ID'],
+                'name' => $row['Lecturer_Name']
+            ];
+        }
+    }
+    $stmt->close();
+}
+
 // Encode lecturer data as JSON for JavaScript
 $lecturerDataJson = json_encode($lecturerData);
+$assessorDataJson = json_encode($assessorData);
 
 // Fetch students for the selected year/semester across ALL matching FYP_Session_IDs
 // (i.e., across all Course_IDs in the coordinator's department for that year/semester)
@@ -230,6 +255,7 @@ if ($result = $conn->query($assessmentQuery)) {
 $studentsDataJson = json_encode($studentsData);
 $courseFilterOptionsJson = json_encode($courseFilterOptions);
 $assessmentDataJson = json_encode($assessmentData);
+$assessorDataJson = json_encode($assessorData);
 ?>
 <!DOCTYPE html>
 <html>
@@ -676,6 +702,27 @@ $assessmentDataJson = json_encode($assessmentData);
         </div>
     </div>
 
+    <!-- Loading Modal -->
+    <div id="loadingModal" class="custom-modal" style="display: none;">
+        <div class="modal-dialog">
+            <div class="modal-content-custom">
+                <div class="modal-icon" style="color: #007bff;"><i class="bi bi-hourglass-split" style="animation: spin 1s linear infinite; font-size: 48px;"></i></div>
+                <div class="modal-title-custom">Processing...</div>
+                <div class="modal-message" id="loadingModalMessage">Saving data and sending emails. Please wait.</div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        #loadingModal .modal-icon i {
+            font-size: 48px;
+        }
+    </style>
+
     <script>
         // --- FILTER RELOAD FUNCTION ---
         function reloadPageWithFilters() {
@@ -762,6 +809,7 @@ $assessmentDataJson = json_encode($assessmentData);
         // Real student data from backend based on selected sessions and department
         const students = <?php echo $studentsDataJson; ?>;
         const courseFilterOptions = <?php echo $courseFilterOptionsJson ?? '[]'; ?>;
+        const assessorData = <?php echo $assessorDataJson ?? '[]'; ?>;
         // Selected year & semester from PHP (used in exports)
         const selectedYear = <?php echo json_encode($selectedYear); ?>;
         const selectedSemester = <?php echo json_encode($selectedSemester); ?>;
@@ -844,6 +892,25 @@ $assessmentDataJson = json_encode($assessmentData);
         }
         let filteredAssessmentStudents = [...assessmentSessionData];
         let currentAssessmentCourseFilter = 'both'; // 'both' or specific Course_ID
+
+        // Loading modal functions
+        function showLoadingModal(message) {
+            const modal = document.getElementById('loadingModal');
+            const messageElement = document.getElementById('loadingModalMessage');
+            if (modal) {
+                if (message && messageElement) {
+                    messageElement.textContent = message;
+                }
+                modal.style.display = 'flex';
+            }
+        }
+        
+        function hideLoadingModal() {
+            const modal = document.getElementById('loadingModal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+        }
 
         // Initialize page
         document.addEventListener('DOMContentLoaded', function() {
@@ -2515,13 +2582,21 @@ $assessmentDataJson = json_encode($assessmentData);
             return match ? match.id : null;
         }
 
+        // Helper: get assessor ID by lecturer name from assessor data
+        function getAssessorIdByName(lecturerName) {
+            if (!lecturerName || !assessorData || assessorData.length === 0) return null;
+            const match = assessorData.find(a => a && a.name === lecturerName);
+            return match ? match.assessor_id : null;
+        }
+
         // Save assignments
         function saveAssignments() {
             // Build payload with both names and IDs for supervisor/assessors
             const assignmentData = students.map(student => {
                 const supervisorId = getSupervisorIdByName(student.supervisor);
-                const assessor1Id = getSupervisorIdByName(student.assessor1);
-                const assessor2Id = getSupervisorIdByName(student.assessor2);
+                // Use getAssessorIdByName for assessors (not getSupervisorIdByName)
+                const assessor1Id = getAssessorIdByName(student.assessor1);
+                const assessor2Id = getAssessorIdByName(student.assessor2);
 
                 return {
                     id: student.id,
@@ -2537,7 +2612,7 @@ $assessmentDataJson = json_encode($assessmentData);
 
             // Show loading modal
             showLoadingModal('Saving assignments and sending emails. Please wait.');
-            
+
             // Make AJAX call to save assignments to backend
             fetch('../../../php/phpCoordinator/save_assignments.php', {
                 method: 'POST',
@@ -4043,6 +4118,9 @@ $assessmentDataJson = json_encode($assessmentData);
                 course_code: student.course_code
             }));
 
+            // Show loading modal
+            showLoadingModal('Saving assessment sessions and sending emails. Please wait.');
+
             // Make AJAX call to save assessment sessions
             fetch('../../../php/phpCoordinator/save_assessment_sessions.php', {
                 method: 'POST',
@@ -4088,11 +4166,6 @@ $assessmentDataJson = json_encode($assessmentData);
             })
             .finally(() => {
                 hideLoadingModal();
-            });
-        }
-            .catch(error => {
-                console.error('Error saving assessment sessions:', error);
-                showSaveError('An error occurred while saving assessment sessions. Please try again.');
             });
         }
 

@@ -1,6 +1,10 @@
 /* --- Global & Font Styles --- */
+html, body {
+    margin: 0;
+    padding: 0;
+}
+
 body {
-   
     font-family: Montserrat;
 }
 @font-face {
@@ -314,7 +318,8 @@ body .btn:not(.btn-xs):not(.btn-sm) {
 
 .containerAtas {
     /* Set up for the sidebar movement */
-    margin-left: 60px; 
+    margin-left: 60px;
+    margin-top: 0; /* Ensure no top margin */
     transition: margin-left .5s;
     
     /* CRITICAL FIX: Flexbox for horizontal layout */
@@ -324,9 +329,14 @@ body .btn:not(.btn-xs):not(.btn-sm) {
     
     background-color: #ffffff;
     box-shadow: 0 6px 8px rgba(0, 0, 0, 0.1);
-    padding: 15px 20px; 
+    padding: 0 20px 15px 20px; /* Removed top padding */
     min-height: 80px; /* Ensure minimum height */
-    position: relative; 
+    position: relative;
+    top: 0; /* Ensure it's at the top */
+    width: calc(100vw - 60px);
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow-x: hidden;
 }
 
 #courseCode,
@@ -351,6 +361,17 @@ body .btn:not(.btn-xs):not(.btn-sm) {
 /* UPM Logo styling */
 #upm-logo {
     width: 100px;
+    margin: 0;
+    padding: 0;
+    display: block;
+}
+
+/* Remove top padding/margin from logo link */
+.containerAtas > a {
+    margin: 0;
+    padding: 0;
+    display: flex;
+    align-items: flex-start;
 }
 
 /* Group for the two title divs */
@@ -441,7 +462,9 @@ body .btn:not(.btn-xs):not(.btn-sm) {
     padding: 16px;
     background-color: white; /* Added background for visibility */
     min-height: 80vh;
-    overflow-x: auto;
+    overflow-x: hidden;
+    max-width: 100%;
+    box-sizing: border-box;
 }
 @media(max-height:450px){
    #sidebarLinks #logout {

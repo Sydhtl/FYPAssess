@@ -358,6 +358,34 @@ if ($tableExists && $tableExists->num_rows > 0) {
         var selectedStatus = filterElement.value;
         renderTable(section, selectedStatus);
     }
+    
+    // Check for status filter from URL parameter and apply it on page load
+    function applyStatusFilterFromURL() {
+        var urlParams = new URLSearchParams(window.location.search);
+        var statusFilter = urlParams.get('status');
+        
+        if (statusFilter) {
+            // Apply filter to both sections
+            var filterElementA = document.getElementById('statusFilterA');
+            var filterElementB = document.getElementById('statusFilterB');
+            
+            // Map status values (normalize to lowercase)
+            var statusValue = statusFilter.toLowerCase();
+            
+            // Validate status value
+            if (statusValue === 'approved' || statusValue === 'rejected' || statusValue === 'pending') {
+                if (filterElementA) {
+                    filterElementA.value = statusValue;
+                    renderTable('A', statusValue);
+                }
+                
+                if (filterElementB) {
+                    filterElementB.value = statusValue;
+                    renderTable('B', statusValue);
+                }
+            }
+        }
+    }
 
     function getStatusClass(status) {
         if (status === 'Approved') return 'status-approved';
@@ -713,8 +741,19 @@ if ($tableExists && $tableExists->num_rows > 0) {
         document.getElementById("nameSide").style.display = "none";
         closeNav();
         loadExtraEntries();
-        renderTable('A', 'all');
-        renderTable('B', 'all');
+        
+        // Check for status filter from URL parameter
+        var urlParams = new URLSearchParams(window.location.search);
+        var statusFilter = urlParams.get('status');
+        
+        if (statusFilter) {
+            // Apply status filter from URL parameter
+            applyStatusFilterFromURL();
+        } else {
+            // No filter, show all
+            renderTable('A', 'all');
+            renderTable('B', 'all');
+        }
     };
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
