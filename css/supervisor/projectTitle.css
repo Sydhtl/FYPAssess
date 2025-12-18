@@ -3,10 +3,10 @@
         }
 
         .page-title {
-            font-size: 1.5rem;
+            font-size: 16px;
             font-weight: 700;
             margin-bottom: 20px;
-            color: #3f000d;
+            color: #333;
         }
 
         /* --- 2-Column Layout --- */
@@ -31,9 +31,9 @@
         }
 
         .filter-box h3 {
-            font-size: 1.1rem;
+            font-size: 16px;;
             font-weight: 700;
-            color: #3f000d;
+            color: #333;
             margin-bottom: 15px;
             border-bottom: 1px solid #eee;
             padding-bottom: 10px;
@@ -115,3 +115,19 @@
             width: 90px; /* Aligns the text */
             color: #555;
         }
+
+        /* Styling for the role header (Supervisor, Coordinator, Assessor) */
+.role-header {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  /* Pushes the arrow to the right */
+  align-items: center;
+  padding: 10px 15px;
+  /* Adjust padding to match other links */
+  text-decoration: none;
+  color: #fff;
+  /* White text */
+  background-color: var(--sidebar-color);
+  /* Your default sidebar color */
+}
