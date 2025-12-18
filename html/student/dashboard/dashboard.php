@@ -15,13 +15,16 @@ $query = "SELECT
     s.Student_Name,
     s.Semester,
     fs.FYP_Session,
+    fs.FYP_Session_ID,
     c.Course_Code,
     fp.Title_Status
 FROM student s
 LEFT JOIN fyp_session fs ON s.FYP_Session_ID = fs.FYP_Session_ID
 LEFT JOIN course c ON fs.Course_ID = c.Course_ID
 LEFT JOIN fyp_project fp ON fp.Student_ID = s.Student_ID
-WHERE s.Student_ID = ?";
+WHERE s.Student_ID = ?
+ORDER BY fs.FYP_Session_ID DESC
+LIMIT 1";
 
 $stmt = $conn->prepare($query);
 $stmt->bind_param("s", $studentId);
@@ -57,10 +60,10 @@ $requiredTotal = 6; // Fixed total required logbooks
 $logbookStatusQuery = "SHOW TABLES LIKE 'logbook'";
 $tableExists = $conn->query($logbookStatusQuery);
 if ($tableExists && $tableExists->num_rows > 0) {
-    $statusQuery = "SELECT Logbook_Status FROM logbook WHERE Student_ID = ?";
+    $statusQuery = "SELECT Logbook_Status FROM logbook WHERE Student_ID = ? AND Fyp_Session_ID = ?";
     $stmtStatus = $conn->prepare($statusQuery);
     if ($stmtStatus) {
-        $stmtStatus->bind_param("s", $studentId);
+        $stmtStatus->bind_param("si", $studentId, $student['FYP_Session_ID']);
         $stmtStatus->execute();
         $resultStatus = $stmtStatus->get_result();
         while ($rowStatus = $resultStatus->fetch_assoc()) {
@@ -86,13 +89,14 @@ $assessmentDateTime = null;
 $assessmentQuery = "SELECT as_session.Date, as_session.Time, as_session.Venue
                     FROM student_session ss
                     INNER JOIN assessment_session as_session ON ss.Session_ID = as_session.Session_ID
-                    WHERE ss.Student_ID = ?
+                    INNER JOIN student s ON ss.Student_ID = s.Student_ID
+                    WHERE ss.Student_ID = ? AND ss.FYP_Session_ID = ? AND s.FYP_Session_ID = ?
                     ORDER BY as_session.Date ASC, as_session.Time ASC
                     LIMIT 1";
 
 $assessmentStmt = $conn->prepare($assessmentQuery);
 if ($assessmentStmt) {
-    $assessmentStmt->bind_param("s", $studentId);
+    $assessmentStmt->bind_param("sii", $studentId, $student['FYP_Session_ID'], $student['FYP_Session_ID']);
     $assessmentStmt->execute();
     $assessmentResult = $assessmentStmt->get_result();
     if ($assessmentRow = $assessmentResult->fetch_assoc()) {
@@ -110,7 +114,8 @@ if ($assessmentStmt) {
     $assessmentStmt->close();
 }
 
-// Get all assessment sessions with assessor names for reminder section
+// Get the latest assessment session with assessor names for reminder section
+// Only fetch the most recent assessment for the latest FYP_Session_ID
 $assessmentSessions = [];
 $assessmentSessionsQuery = "SELECT 
                                 as_session.Date, 
@@ -126,12 +131,13 @@ $assessmentSessionsQuery = "SELECT
                             LEFT JOIN lecturer l1 ON a1.Lecturer_ID = l1.Lecturer_ID
                             LEFT JOIN assessor a2 ON se.Assessor_ID_2 = a2.Assessor_ID
                             LEFT JOIN lecturer l2 ON a2.Lecturer_ID = l2.Lecturer_ID
-                            WHERE ss.Student_ID = ?
-                            ORDER BY as_session.Date ASC, as_session.Time ASC";
+                            WHERE ss.Student_ID = ? AND ss.FYP_Session_ID = ? AND s.FYP_Session_ID = ?
+                            ORDER BY as_session.Date ASC, as_session.Time ASC
+                            LIMIT 1";
 
 $assessmentSessionsStmt = $conn->prepare($assessmentSessionsQuery);
 if ($assessmentSessionsStmt) {
-    $assessmentSessionsStmt->bind_param("s", $studentId);
+    $assessmentSessionsStmt->bind_param("sii", $studentId, $student['FYP_Session_ID'], $student['FYP_Session_ID']);
     $assessmentSessionsStmt->execute();
     $assessmentSessionsResult = $assessmentSessionsStmt->get_result();
     while ($sessionRow = $assessmentSessionsResult->fetch_assoc()) {
@@ -446,9 +452,14 @@ if ($assessmentSessionsStmt) {
                                 };
                                 const selectedLabel = labels[dataIndex];
                                 const statusFilter = statusMap[selectedLabel];
+                                const fypSessionId = <?php echo json_encode($student['FYP_Session_ID'] ?? null); ?>;
                                 
-                                // Navigate to logbook page with status filter
-                                window.location.href = '../logbook/logbook.php?status=' + encodeURIComponent(statusFilter);
+                                // Navigate to logbook page with status filter and session ID
+                                let url = '../logbook/logbook.php?status=' + encodeURIComponent(statusFilter);
+                                if (fypSessionId) {
+                                    url += '&fyp_session_id=' + encodeURIComponent(fypSessionId);
+                                }
+                                window.location.href = url;
                             }
                         },
                         scales: {

@@ -52,7 +52,7 @@ try {
     }
     
     // Fetch assessment session data for students
-    // Join assessment_session, student_session, and student tables
+    // Ensure joins stay within the same FYP session to avoid cross-session leakage
     $placeholders = implode(',', array_fill(0, count($fypSessionIds), '?'));
     $sessionsQuery = "SELECT 
                         s.Student_ID,
@@ -64,8 +64,12 @@ try {
                         ass.Venue
                       FROM student s
                       INNER JOIN course c ON s.Course_ID = c.Course_ID
-                      LEFT JOIN student_session ss ON s.Student_ID = ss.Student_ID
-                      LEFT JOIN assessment_session ass ON ss.Session_ID = ass.Session_ID
+                      LEFT JOIN student_session ss 
+                        ON s.Student_ID = ss.Student_ID 
+                        AND ss.FYP_Session_ID = s.FYP_Session_ID
+                      LEFT JOIN assessment_session ass 
+                        ON ss.Session_ID = ass.Session_ID 
+                        AND ass.FYP_Session_ID = ss.FYP_Session_ID
                       WHERE s.FYP_Session_ID IN ($placeholders)
                       AND s.Department_ID = (
                           SELECT Department_ID FROM lecturer WHERE Lecturer_ID = ?

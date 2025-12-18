@@ -9,20 +9,37 @@ if (!isset($_SESSION['upmId']) || $_SESSION['role'] !== 'Student') {
 
 $studentId = $_SESSION['upmId'];
 
+// Check if a specific FYP session is passed in the URL (from dashboard graph click)
+$urlFypSessionId = isset($_GET['fyp_session_id']) ? (int)$_GET['fyp_session_id'] : null;
+
 $query = "SELECT 
     s.Student_ID,
     s.Student_Name,
     s.Semester,
     s.Department_ID,
     fs.FYP_Session,
+    fs.FYP_Session_ID,
     c.Course_Code
 FROM student s
 LEFT JOIN fyp_session fs ON s.FYP_Session_ID = fs.FYP_Session_ID
 LEFT JOIN course c ON fs.Course_ID = c.Course_ID
 WHERE s.Student_ID = ?";
 
+// If a specific session is passed from the dashboard, use it; otherwise get the latest
+if ($urlFypSessionId) {
+    $query .= " AND s.FYP_Session_ID = ?";
+} else {
+    $query .= " ORDER BY fs.FYP_Session_ID DESC LIMIT 1";
+}
+
 $stmt = $conn->prepare($query);
-$stmt->bind_param("s", $studentId);
+
+if ($urlFypSessionId) {
+    $stmt->bind_param("si", $studentId, $urlFypSessionId);
+} else {
+    $stmt->bind_param("s", $studentId);
+}
+
 $stmt->execute();
 $result = $stmt->get_result();
 $student = $result->fetch_assoc();

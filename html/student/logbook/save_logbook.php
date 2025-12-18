@@ -43,6 +43,32 @@ if ($validAgendaCount === 0) {
     exit();
 }
 
+// Resolve FYP session for this student & course (use most recent if multiple)
+$fypSessionId = null;
+$sessionLookup = $conn->prepare(
+    "SELECT s.FYP_Session_ID
+     FROM student s
+     JOIN fyp_session fs ON s.FYP_Session_ID = fs.FYP_Session_ID
+     WHERE s.Student_ID = ? AND fs.Course_ID = ?
+     ORDER BY fs.FYP_Session_ID DESC
+     LIMIT 1"
+);
+if ($sessionLookup) {
+    $sessionLookup->bind_param('si', $studentId, $courseId);
+    if ($sessionLookup->execute()) {
+        $sessionRes = $sessionLookup->get_result();
+        if ($sessionRes && $sessionRes->num_rows > 0) {
+            $fypSessionId = (int)$sessionRes->fetch_assoc()['FYP_Session_ID'];
+        }
+    }
+    $sessionLookup->close();
+}
+
+if (empty($fypSessionId)) {
+    echo json_encode(['success' => false, 'error' => 'Unable to resolve FYP session for this course. Please contact administrator.']);
+    exit();
+}
+
 // Load email configuration
 $emailConfig = require __DIR__ . '/../../../php/emailConfig.php';
 
@@ -72,9 +98,9 @@ if ($stmtSup) {
 
 $conn->begin_transaction();
 try {
-    $stmt = $conn->prepare("INSERT INTO logbook (Student_ID, course_id, Logbook_Name, Logbook_Date, Logbook_Status) VALUES (?, ?, ?, ?, 'Waiting for approval')");
+    $stmt = $conn->prepare("INSERT INTO logbook (Student_ID, course_id, Fyp_Session_ID, Logbook_Name, Logbook_Date, Logbook_Status) VALUES (?, ?, ?, ?, ?, 'Waiting for approval')");
     if (!$stmt) { throw new Exception("Prepare failed: " . $conn->error); }
-    $stmt->bind_param("siss", $studentId, $courseId, $logbookTitle, $logbookDate);
+    $stmt->bind_param("siiss", $studentId, $courseId, $fypSessionId, $logbookTitle, $logbookDate);
     if (!$stmt->execute()) { throw new Exception("Execute failed: " . $stmt->error); }
     $logbookId = $conn->insert_id;
     $stmt->close();

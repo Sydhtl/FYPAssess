@@ -175,6 +175,7 @@ if (!empty($fypSessionIds)) {
                           s.Student_Name,
                           s.Course_ID,
                           c.Course_Code,
+                          s.FYP_Session_ID,
                           lsup.Lecturer_Name AS Supervisor_Name,
                           la1.Lecturer_Name AS Assessor1_Name,
                           la2.Lecturer_Name AS Assessor2_Name
@@ -230,6 +231,7 @@ if (!empty($fypSessionIds)) {
                     'assessor2' => $row['Assessor2_Name'] ?? null,
                     'course_id' => $row['Course_ID'],
                     'course_code' => $row['Course_Code'],
+                    'fyp_session_id' => $row['FYP_Session_ID'],
                     'selected' => false
                 ];
             }
@@ -431,6 +433,7 @@ $assessorDataJson = json_encode($assessorData);
                                     <i class="bi bi-plus-circle"></i>
                                     <span>Assign Remaining Quota</span>
                                 </button>
+                                <button class="btn btn-outline-dark" onclick="followPastQuota()" style="background-color: white; color: black; border-color: black;" onmouseover="this.style.backgroundColor='white'; this.style.color='black';" onmouseout="this.style.backgroundColor='white'; this.style.color='black';">Follow Past Quota</button>
                                 <div class="download-dropdown">
                                     <button class="btn-download" onclick="toggleDownloadDropdown()">
                                         <i class="bi bi-download"></i>
@@ -818,6 +821,61 @@ $assessorDataJson = json_encode($assessorData);
         let currentCourseFilter = 'both'; // 'both' or specific Course_ID
         // total students for this year+semester across all courses is taken from the distribution list
         let totalStudents = students.length;
+
+        // Follow past quota: fetch previous session/semester quotas and apply
+        function followPastQuota() {
+            try {
+                const year = document.getElementById('yearFilter')?.value || selectedYear;
+                const semester = document.getElementById('semesterFilter')?.value || selectedSemester;
+
+                const payload = {
+                    year: year,
+                    semester: semester,
+                    lecturer_ids: (lecturers || []).map(l => l.id)
+                };
+
+                // Optional: simple loading state
+                const saveMsg = document.getElementById('remainingStudent');
+                const oldText = saveMsg ? saveMsg.textContent : '';
+                if (saveMsg) saveMsg.textContent = 'Loading past quotas...';
+
+                fetch('../../../php/phpCoordinator/fetch_past_quotas.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (!data || !data.success) {
+                        console.error('Failed to fetch past quotas:', data && data.message);
+                        return;
+                    }
+                    const map = new Map();
+                    (data.quotas || []).forEach(q => map.set(String(q.supervisor_id), Number(q.quota)));
+
+                    // Apply to current lecturers
+                    (lecturers || []).forEach(l => {
+                        const q = map.get(String(l.id));
+                        if (typeof q === 'number' && !Number.isNaN(q)) {
+                            l.quota = q;
+                        }
+                    });
+
+                    // Refresh UI and remaining counts
+                    updateAllRemainingQuotas();
+                    renderLecturerTable();
+                    updateRemainingStudent();
+                })
+                .catch(err => {
+                    console.error('Error fetching past quotas:', err);
+                })
+                .finally(() => {
+                    if (saveMsg) saveMsg.textContent = oldText || saveMsg.textContent;
+                });
+            } catch (e) {
+                console.error('followPastQuota() error:', e);
+            }
+        }
         let openDropdown = null; // Track which dropdown is currently open
 
         // --- ASSESSMENT SESSION ---
@@ -855,6 +913,7 @@ $assessorDataJson = json_encode($assessorData);
             name: student.name,
             course_id: student.course_id,
             course_code: student.course_code,
+            fyp_session_id: student.fyp_session_id,
             supervisor: student.supervisor,
             assessor1: student.assessor1,
             assessor2: student.assessor2,
@@ -934,7 +993,7 @@ $assessorDataJson = json_encode($assessorData);
                 const row = document.createElement('tr');
                 // Calculate remaining quota based on actual student assignments
                 const assignedCount = students.filter(s => s.supervisor === lecturer.name).length;
-                lecturer.remaining_quota = Math.max(0, lecturer.quota - assignedCount);
+                lecturer.remaining_quota = lecturer.quota - assignedCount;
                 
                 row.innerHTML = `
                     <td>${index + 1}</td>
@@ -963,7 +1022,7 @@ $assessorDataJson = json_encode($assessorData);
                 // Initialize remaining quota to quota when quota is set
                 // Then update based on actual student assignments
                 const assignedCount = students.filter(s => s.supervisor === lecturer.name).length;
-                lecturer.remaining_quota = Math.max(0, quotaValue - assignedCount);
+                lecturer.remaining_quota = quotaValue - assignedCount;
                 updateRemainingQuota(lecturerId);
                 updateRemainingStudent();
                 // Re-render student table to update supervisor dropdowns
@@ -979,7 +1038,7 @@ $assessorDataJson = json_encode($assessorData);
             if (lecturer) {
                 // Count how many students have this lecturer as supervisor
                 const assignedCount = students.filter(s => s.supervisor === lecturer.name).length;
-                lecturer.remaining_quota = Math.max(0, lecturer.quota - assignedCount);
+                lecturer.remaining_quota = lecturer.quota - assignedCount;
                 
                 const element = document.getElementById(`remaining-${lecturerId}`);
                 if (element) {
@@ -994,7 +1053,7 @@ $assessorDataJson = json_encode($assessorData);
                 // Count how many students have this lecturer as supervisor
                 const assignedCount = students.filter(s => s.supervisor === lecturer.name).length;
                 // Calculate remaining quota
-                lecturer.remaining_quota = Math.max(0, lecturer.quota - assignedCount);
+                lecturer.remaining_quota = lecturer.quota - assignedCount;
                 
                 // Update display in lecturer quota table (if visible)
                 const element = document.getElementById(`remaining-${lecturer.id}`);
@@ -2312,7 +2371,7 @@ $assessorDataJson = json_encode($assessorData);
                 let supervisorsWithRemaining = lecturersWithQuota
                     .map(l => ({
                         ref: l,
-                        remaining: Math.max(0, l.remaining_quota || 0)
+                        remaining: l.remaining_quota || 0
                     }))
                     .filter(x => x.remaining > 0);
 
@@ -4115,7 +4174,8 @@ $assessorDataJson = json_encode($assessorData);
                 time: student.time || null,
                 venue: student.venue || null,
                 course_id: student.course_id,
-                course_code: student.course_code
+                course_code: student.course_code,
+                fyp_session_id: student.fyp_session_id
             }));
 
             // Show loading modal

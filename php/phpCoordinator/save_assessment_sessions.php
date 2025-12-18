@@ -24,6 +24,11 @@ $sessions = $input['sessions'];
 $year = $input['year'] ?? '';
 $semester = $input['semester'] ?? '';
 
+// Log received data
+error_log("=== SAVE ASSESSMENT SESSIONS START ===");
+error_log("Received " . count($sessions) . " session(s)");
+error_log("Year: $year, Semester: $semester");
+
 if (empty($sessions)) {
     http_response_code(400);
     echo json_encode(['success' => false, 'message' => 'No assessment sessions provided']);
@@ -117,16 +122,26 @@ try {
         }
     }
     
-    // Delete all existing student_session records for these students first
-    // This ensures we handle updates properly (remove old, add new)
-    if (!empty($allStudentIds)) {
-        $placeholders = implode(',', array_fill(0, count($allStudentIds), '?'));
-        $deleteStudentSessionsQuery = "DELETE FROM student_session WHERE Student_ID IN ($placeholders)";
-        $deleteStmt = $conn->prepare($deleteStudentSessionsQuery);
+    // Delete existing student_session rows ONLY for the (Student_ID, FYP_Session_ID) pairs we will rewrite.
+    // This prevents wiping other sessions the student has in different FYP_Session_IDs.
+    $targetStudentSessions = [];
+    foreach ($sessions as $session) {
+        if (!empty($session['student_id']) && !empty($session['fyp_session_id'])) {
+            $key = $session['student_id'] . '|' . $session['fyp_session_id'];
+            $targetStudentSessions[$key] = [
+                'student_id' => $session['student_id'],
+                'fyp_session_id' => $session['fyp_session_id']
+            ];
+        }
+    }
+
+    if (!empty($targetStudentSessions)) {
+        $deleteStmt = $conn->prepare("DELETE FROM student_session WHERE Student_ID = ? AND FYP_Session_ID = ?");
         if ($deleteStmt) {
-            $types = str_repeat('s', count($allStudentIds));
-            $deleteStmt->bind_param($types, ...$allStudentIds);
-            $deleteStmt->execute();
+            foreach ($targetStudentSessions as $pair) {
+                $deleteStmt->bind_param("si", $pair['student_id'], $pair['fyp_session_id']);
+                $deleteStmt->execute();
+            }
             $deleteStmt->close();
         }
     }
@@ -137,9 +152,12 @@ try {
         return !empty($session['date']) && !empty($session['time']) && !empty($session['venue']);
     });
     
+    error_log("Valid sessions (with date/time/venue): " . count($validSessions));
+    
     // If no valid sessions, just commit the deletions
     if (empty($validSessions)) {
         $conn->commit();
+        error_log("No valid sessions to process. Committing deletions only.");
         echo json_encode([
             'success' => true,
             'message' => "Assessment sessions saved successfully. Removed all student session assignments."
@@ -148,22 +166,25 @@ try {
         exit();
     }
     
-    // Group sessions by date, time, venue, and course_id to create assessment_session records
-    // Each unique combination gets one assessment_session record
+    // Group sessions by date, time, venue, course_id, and FYP_Session_ID to create assessment_session records
+    // Each unique combination gets one assessment_session record scoped to the FYP session
     $sessionGroups = [];
     foreach ($validSessions as $session) {
-        $key = $session['date'] . '|' . $session['time'] . '|' . $session['venue'] . '|' . $session['course_id'];
+        $key = $session['date'] . '|' . $session['time'] . '|' . $session['venue'] . '|' . $session['course_id'] . '|' . $session['fyp_session_id'];
         if (!isset($sessionGroups[$key])) {
             $sessionGroups[$key] = [
                 'date' => $session['date'],
                 'time' => $session['time'],
                 'venue' => $session['venue'],
                 'course_id' => $session['course_id'],
+                'fyp_session_id' => $session['fyp_session_id'],
                 'students' => []
             ];
         }
         $sessionGroups[$key]['students'][] = $session['student_id'];
     }
+    
+    error_log("Created " . count($sessionGroups) . " session group(s) from valid sessions");
     
     $processedSessions = 0;
     $processedStudents = 0;
@@ -196,16 +217,23 @@ try {
             continue;
         }
         
-        // Check if assessment_session already exists for this date, time, venue, and assessment
+        // Use the group's FYP_Session_ID (already grouped by fyp_session_id above)
+        $groupFypSessionId = $group['fyp_session_id'] ?? null;
+        if (!$groupFypSessionId) {
+            // Skip if no FYP_Session_ID found
+            continue;
+        }
+        
+        // Check if assessment_session already exists for this date, time, venue, assessment AND FYP_Session_ID
         $checkSessionQuery = "SELECT Session_ID FROM assessment_session 
-                             WHERE Assessment_ID = ? AND Date = ? AND Time = ? AND Venue = ? 
-                             LIMIT 1";
+                     WHERE Assessment_ID = ? AND Date = ? AND Time = ? AND Venue = ? AND FYP_Session_ID = ?
+                     LIMIT 1";
         $checkSessionStmt = $conn->prepare($checkSessionQuery);
         if (!$checkSessionStmt) {
             throw new Exception('Prepare failed (checkSession): ' . $conn->error);
         }
         
-        $checkSessionStmt->bind_param("isss", $assessmentId, $date, $time, $venue);
+        $checkSessionStmt->bind_param("isssi", $assessmentId, $date, $time, $venue, $groupFypSessionId);
         $checkSessionStmt->execute();
         $sessionResult = $checkSessionStmt->get_result();
         $sessionId = null;
@@ -217,73 +245,69 @@ try {
         
         // Create or use existing assessment_session
         if (!$sessionId) {
-            $insertSessionQuery = "INSERT INTO assessment_session (Assessment_ID, Date, Time, Venue) 
-                                  VALUES (?, ?, ?, ?)";
+            // Log the attempt to insert
+            error_log("Attempting to insert assessment_session: Assessment_ID=$assessmentId, Date=$date, Time=$time, Venue=$venue, FYP_Session_ID=$groupFypSessionId");
+            
+            $insertSessionQuery = "INSERT INTO assessment_session (Assessment_ID, Date, Time, Venue, FYP_Session_ID) 
+                                  VALUES (?, ?, ?, ?, ?)";
             $insertSessionStmt = $conn->prepare($insertSessionQuery);
             if (!$insertSessionStmt) {
-                throw new Exception('Prepare failed (insertSession): ' . $conn->error);
+                $error = 'Prepare failed (insertSession): ' . $conn->error;
+                error_log($error);
+                throw new Exception($error);
             }
             
-            $insertSessionStmt->bind_param("isss", $assessmentId, $date, $time, $venue);
+            $insertSessionStmt->bind_param("isssi", $assessmentId, $date, $time, $venue, $groupFypSessionId);
             if (!$insertSessionStmt->execute()) {
-                throw new Exception('Execute failed (insertSession): ' . $insertSessionStmt->error);
+                $error = 'Execute failed (insertSession): ' . $insertSessionStmt->error;
+                error_log($error);
+                throw new Exception($error);
             }
             
             $sessionId = $insertSessionStmt->insert_id;
+            error_log("Successfully inserted assessment_session with Session_ID=$sessionId");
             $insertSessionStmt->close();
             $processedSessions++;
+        } else {
+            error_log("Reusing existing assessment_session with Session_ID=$sessionId");
         }
         
         // Process each student in this session
         // Since we already deleted all existing student_session records for these students,
         // we can now safely insert new ones
         foreach ($studentIds as $studentId) {
-            // Insert new student_session record
-                $insertStudentQuery = "INSERT INTO student_session (Session_ID, Student_ID) 
-                                      VALUES (?, ?)";
-                $insertStudentStmt = $conn->prepare($insertStudentQuery);
-                if (!$insertStudentStmt) {
-                    throw new Exception('Prepare failed (insertStudent): ' . $conn->error);
-                }
-                
-                $insertStudentStmt->bind_param("is", $sessionId, $studentId);
-                if (!$insertStudentStmt->execute()) {
-                    throw new Exception('Execute failed (insertStudent): ' . $insertStudentStmt->error);
-                }
-                
-                $insertStudentStmt->close();
-                $processedStudents++;
-            
-            // Get Assessor_ID_1 and Assessor_ID_2 from student_enrollment
-            // We need to find the FYP_Session_ID for this student first
+            // Use the student's specific FYP_Session_ID from payload to avoid cross-session mixing
             $studentFypSessionId = null;
-            if (!empty($fypSessionIds)) {
-                // Try to find FYP_Session_ID from student table
-                $studentQuery = "SELECT FYP_Session_ID FROM student WHERE Student_ID = ? LIMIT 1";
-                $studentStmt = $conn->prepare($studentQuery);
-                if ($studentStmt) {
-                    $studentStmt->bind_param("s", $studentId);
-                    $studentStmt->execute();
-                    $studentFypResult = $studentStmt->get_result();
-                    if ($studentFypRow = $studentFypResult->fetch_assoc()) {
-                        $studentFypSessionId = $studentFypRow['FYP_Session_ID'];
-                    }
-                    $studentStmt->close();
-                }
-            } else {
-                // If $fypSessionIds is empty, still try to get FYP_Session_ID directly
-                $studentQuery = "SELECT FYP_Session_ID FROM student WHERE Student_ID = ? LIMIT 1";
-                $studentStmt = $conn->prepare($studentQuery);
-                if ($studentStmt) {
-                    $studentStmt->bind_param("s", $studentId);
-                    $studentStmt->execute();
-                    $studentFypResult = $studentStmt->get_result();
-                    if ($studentFypRow = $studentFypResult->fetch_assoc()) {
-                        $studentFypSessionId = $studentFypRow['FYP_Session_ID'];
-                    }
-                    $studentStmt->close();
+            foreach ($validSessions as $s) {
+                if ($s['student_id'] === $studentId && $s['course_id'] == $courseId) {
+                    $studentFypSessionId = $s['fyp_session_id'] ?? null;
+                    break;
                 }
             }
+            
+            if (!$studentFypSessionId) {
+                // Skip this student if no FYP_Session_ID found for this course
+                continue;
+            }
+            
+            // Insert new student_session record with FYP_Session_ID
+            $insertStudentQuery = "INSERT INTO student_session (Session_ID, Student_ID, FYP_Session_ID) 
+                                  VALUES (?, ?, ?)";
+            $insertStudentStmt = $conn->prepare($insertStudentQuery);
+            if (!$insertStudentStmt) {
+                throw new Exception('Prepare failed (insertStudent): ' . $conn->error);
+            }
+            
+            $insertStudentStmt->bind_param("isi", $sessionId, $studentId, $studentFypSessionId);
+            if (!$insertStudentStmt->execute()) {
+                throw new Exception('Execute failed (insertStudent): ' . $insertStudentStmt->error);
+            }
+            
+            $insertStudentStmt->close();
+            $processedStudents++;
+            
+            // Get Assessor_ID_1 and Assessor_ID_2 from student_enrollment
+            // We already have the FYP_Session_ID for this student
             
             if ($studentFypSessionId) {
                 // Get assessor IDs from student_enrollment
@@ -303,21 +327,21 @@ try {
                         // Insert assessor_session for Assessor_ID_1 if exists
                         if ($assessorId1) {
                             $checkAssessor1Query = "SELECT Session_ID FROM assessor_session 
-                                                    WHERE Session_ID = ? AND Assessor_ID = ? 
+                                                    WHERE Session_ID = ? AND Assessor_ID = ? AND FYP_Session_ID = ?
                                                     LIMIT 1";
                             $checkAssessor1Stmt = $conn->prepare($checkAssessor1Query);
                             if ($checkAssessor1Stmt) {
-                                $checkAssessor1Stmt->bind_param("ii", $sessionId, $assessorId1);
+                                $checkAssessor1Stmt->bind_param("iii", $sessionId, $assessorId1, $studentFypSessionId);
                                 $checkAssessor1Stmt->execute();
                                 $assessor1Result = $checkAssessor1Stmt->get_result();
                                 $checkAssessor1Stmt->close();
                                 
                                 if ($assessor1Result->num_rows == 0) {
-                                    $insertAssessor1Query = "INSERT INTO assessor_session (Session_ID, Assessor_ID) 
-                                                            VALUES (?, ?)";
+                                    $insertAssessor1Query = "INSERT INTO assessor_session (Session_ID, Assessor_ID, FYP_Session_ID) 
+                                                            VALUES (?, ?, ?)";
                                     $insertAssessor1Stmt = $conn->prepare($insertAssessor1Query);
                                     if ($insertAssessor1Stmt) {
-                                        $insertAssessor1Stmt->bind_param("ii", $sessionId, $assessorId1);
+                                        $insertAssessor1Stmt->bind_param("iii", $sessionId, $assessorId1, $studentFypSessionId);
                                         if ($insertAssessor1Stmt->execute()) {
                                             $processedAssessors++;
                                         }
@@ -330,21 +354,21 @@ try {
                         // Insert assessor_session for Assessor_ID_2 if exists
                         if ($assessorId2) {
                             $checkAssessor2Query = "SELECT Session_ID FROM assessor_session 
-                                                    WHERE Session_ID = ? AND Assessor_ID = ? 
+                                                    WHERE Session_ID = ? AND Assessor_ID = ? AND FYP_Session_ID = ?
                                                     LIMIT 1";
                             $checkAssessor2Stmt = $conn->prepare($checkAssessor2Query);
                             if ($checkAssessor2Stmt) {
-                                $checkAssessor2Stmt->bind_param("ii", $sessionId, $assessorId2);
+                                $checkAssessor2Stmt->bind_param("iii", $sessionId, $assessorId2, $studentFypSessionId);
                                 $checkAssessor2Stmt->execute();
                                 $assessor2Result = $checkAssessor2Stmt->get_result();
                                 $checkAssessor2Stmt->close();
                                 
                                 if ($assessor2Result->num_rows == 0) {
-                                    $insertAssessor2Query = "INSERT INTO assessor_session (Session_ID, Assessor_ID) 
-                                                            VALUES (?, ?)";
+                                    $insertAssessor2Query = "INSERT INTO assessor_session (Session_ID, Assessor_ID, FYP_Session_ID) 
+                                                            VALUES (?, ?, ?)";
                                     $insertAssessor2Stmt = $conn->prepare($insertAssessor2Query);
                                     if ($insertAssessor2Stmt) {
-                                        $insertAssessor2Stmt->bind_param("ii", $sessionId, $assessorId2);
+                                        $insertAssessor2Stmt->bind_param("iii", $sessionId, $assessorId2, $studentFypSessionId);
                                         if ($insertAssessor2Stmt->execute()) {
                                             $processedAssessors++;
                                         }
@@ -362,6 +386,8 @@ try {
     
     // Commit transaction
     $conn->commit();
+    error_log("Transaction committed successfully");
+    error_log("Processed: $processedSessions session(s), $processedStudents student(s), $processedAssessors assessor(s)");
     
     // After successful save, send email notifications to assessors
     try {

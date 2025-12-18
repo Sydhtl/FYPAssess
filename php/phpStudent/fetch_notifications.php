@@ -10,6 +10,22 @@ if (!isset($_SESSION['upmId']) || !isset($_SESSION['role']) || $_SESSION['role']
 
 $studentId = $_SESSION['upmId'];
 
+// Get student's latest FYP_Session_ID
+$sessionQuery = "SELECT FYP_Session_ID FROM student WHERE Student_ID = ? ORDER BY FYP_Session_ID DESC LIMIT 1";
+$sessionStmt = $conn->prepare($sessionQuery);
+$sessionStmt->bind_param("s", $studentId);
+$sessionStmt->execute();
+$sessionResult = $sessionStmt->get_result();
+$studentSession = $sessionResult->fetch_assoc();
+$sessionStmt->close();
+
+$fypSessionId = $studentSession['FYP_Session_ID'] ?? null;
+
+if (!$fypSessionId) {
+    echo json_encode(['success' => false, 'error' => 'No session found']);
+    exit();
+}
+
 // Initialize session for tracking notification changes
 if (!isset($_SESSION['last_notifications'])) {
     $_SESSION['last_notifications'] = [];
@@ -100,28 +116,30 @@ if ($titleStmt) {
 
 // 2. Fetch Logbook notifications from logbook table
 $logbookQuery = "
-    SELECT l.Logbook_Name, l.Logbook_Status, l.Logbook_Date,
+    SELECT l.Logbook_ID, l.Logbook_Name, l.Logbook_Status, l.Logbook_Date,
            lec.Lecturer_Name as Supervisor_Name
     FROM logbook l
-    INNER JOIN student s ON l.Student_ID = s.Student_ID
+    INNER JOIN student s ON l.Student_ID = s.Student_ID AND l.Fyp_Session_ID = s.FYP_Session_ID
     LEFT JOIN supervisor sup ON s.Supervisor_ID = sup.Supervisor_ID
     LEFT JOIN lecturer lec ON sup.Lecturer_ID = lec.Lecturer_ID
     WHERE l.Student_ID = ?
+      AND l.Fyp_Session_ID = ?
       AND l.Logbook_Status IS NOT NULL
       AND l.Logbook_Status != ''
     ORDER BY l.Logbook_Date DESC, l.Logbook_ID DESC
 ";
 $logbookStmt = $conn->prepare($logbookQuery);
 if ($logbookStmt) {
-    $logbookStmt->bind_param("s", $studentId);
+    $logbookStmt->bind_param("si", $studentId, $fypSessionId);
     $logbookStmt->execute();
     $logbookResult = $logbookStmt->get_result();
     $logbookIndex = 0;
     while ($logRow = $logbookResult->fetch_assoc()) {
+        $logbookId = $logRow['Logbook_ID'];
         $logbookName = $logRow['Logbook_Name'];
         $logbookDate = $logRow['Logbook_Date'];
         $status = $logRow['Logbook_Status'];
-        $notifKey = 'logbook_' . $logbookName . '_' . $logbookDate;
+        $notifKey = 'logbook_' . $logbookId;
         
         // Check if this logbook notification has changed since last view
         $isNew = false;

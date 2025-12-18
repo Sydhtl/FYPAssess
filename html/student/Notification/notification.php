@@ -14,11 +14,14 @@ $query = "SELECT
     s.Student_Name,
     s.Semester,
     fs.FYP_Session,
+    fs.FYP_Session_ID,
     c.Course_Code
 FROM student s
 LEFT JOIN fyp_session fs ON s.FYP_Session_ID = fs.FYP_Session_ID
 LEFT JOIN course c ON fs.Course_ID = c.Course_ID
-WHERE s.Student_ID = ?";
+WHERE s.Student_ID = ?
+ORDER BY fs.FYP_Session_ID DESC
+LIMIT 1";
 
 $stmt = $conn->prepare($query);
 $stmt->bind_param("s", $studentId);
@@ -123,28 +126,30 @@ if ($titleStmt) {
 
 // 2. Fetch Logbook notifications from logbook table
 $logbookQuery = "
-    SELECT l.Logbook_Name, l.Logbook_Status, l.Logbook_Date,
+    SELECT l.Logbook_ID, l.Logbook_Name, l.Logbook_Status, l.Logbook_Date,
            lec.Lecturer_Name as Supervisor_Name
     FROM logbook l
-    INNER JOIN student s ON l.Student_ID = s.Student_ID
+    INNER JOIN student s ON l.Student_ID = s.Student_ID AND l.Fyp_Session_ID = s.FYP_Session_ID
     LEFT JOIN supervisor sup ON s.Supervisor_ID = sup.Supervisor_ID
     LEFT JOIN lecturer lec ON sup.Lecturer_ID = lec.Lecturer_ID
     WHERE l.Student_ID = ?
+      AND l.Fyp_Session_ID = ?
       AND l.Logbook_Status IS NOT NULL
       AND l.Logbook_Status != ''
     ORDER BY l.Logbook_Date DESC, l.Logbook_ID DESC
 ";
 $logbookStmt = $conn->prepare($logbookQuery);
 if ($logbookStmt) {
-    $logbookStmt->bind_param("s", $studentId);
+    $logbookStmt->bind_param("si", $studentId, $student['FYP_Session_ID']);
     $logbookStmt->execute();
     $logbookResult = $logbookStmt->get_result();
     $logbookIndex = 0;
     while ($logRow = $logbookResult->fetch_assoc()) {
+        $logbookId = $logRow['Logbook_ID'];
         $logbookName = $logRow['Logbook_Name'];
         $logbookDate = $logRow['Logbook_Date'];
         $status = $logRow['Logbook_Status'];
-        $notifKey = 'logbook_' . $logbookName . '_' . $logbookDate;
+        $notifKey = 'logbook_' . $logbookId;
         
         // Check if this logbook notification has changed since last view
         $isNew = false;

@@ -31,7 +31,9 @@ LEFT JOIN course c ON fs.Course_ID = c.Course_ID
 LEFT JOIN supervisor sup ON s.Supervisor_ID = sup.Supervisor_ID
 LEFT JOIN lecturer l ON sup.Lecturer_ID = l.Lecturer_ID
 LEFT JOIN fyp_project fp ON s.Student_ID = fp.Student_ID
-WHERE s.Student_ID = ?";
+WHERE s.Student_ID = ?
+ORDER BY fs.FYP_Session_ID DESC
+LIMIT 1";
 
 $stmt = $conn->prepare($query);
 $stmt->bind_param("s", $studentId);

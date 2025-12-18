@@ -12,10 +12,19 @@ $stmt-> execute();
 $result=$stmt-> get_result();
 
 if($result->num_rows>0){
-echo "<script>
-         alert('This UPMID is already exist in the system. Please use another UPMID.');
-          window.location.href='../html/login/signup.php';
-          </script>";
+    // Account exists: ask if registering for a new semester
+    $_SESSION['signup_fullName']  = $fullname;
+    $_SESSION['signup_upmId']     = $upmId;
+    $_SESSION['signup_password']  = $password;
+    $_SESSION['existing_student'] = true;
+
+    echo "<script>
+        if (confirm('The account is already registered. Are you registering for a new semester?')) {
+            window.location.href = '../html/login/information.php?existing=1';
+        } else {
+            window.location.href = '../html/login/Login.php';
+        }
+    </script>";
 }
 else{
  $_SESSION['signup_fullName'] = $fullname;
