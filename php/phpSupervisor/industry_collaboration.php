@@ -1,14 +1,73 @@
+<?php
+session_start();
+include '../db_connect.php';
+
+// 1. CAPTURE ROLE & ID
+$activeRole = isset($_GET['role']) ? $_GET['role'] : 'supervisor';
+if (isset($_SESSION['user_id'])) {
+    $loginID = $_SESSION['user_id'];
+} else {
+    $loginID = 'hazura';
+}
+
+// 2. GET NUMERIC SUPERVISOR ID
+$currentUserID = null;
+$stmt = $conn->prepare("SELECT Supervisor_ID FROM supervisor WHERE Lecturer_ID = ?");
+$stmt->bind_param("s", $loginID);
+$stmt->execute();
+if ($row = $stmt->get_result()->fetch_assoc()) {
+    $currentUserID = $row['Supervisor_ID'];
+}
+
+// 3. GET CURRENT SESSION (For new submissions)
+// We get the current active session to tag any NEW form submission.
+$currentSessionID = null;
+$sqlSession = "SELECT FYP_Session_ID FROM fyp_session ORDER BY FYP_Session DESC, Semester DESC LIMIT 1";
+$resSession = $conn->query($sqlSession);
+if ($resSession && $row = $resSession->fetch_assoc()) {
+    $currentSessionID = $row['FYP_Session_ID'];
+}
+
+// 4. FETCH SUBMISSION HISTORY (For Sidebar)
+$submissionHistory = [];
+if ($currentUserID) {
+    // We select DISTINCT FYP_Session so we display "2024/2025" regardless of Sem 1 or 2
+    $sqlHist = "SELECT c.Collaboration_ID, fs.FYP_Session
+                FROM collaboration c
+                LEFT JOIN fyp_session fs ON c.FYP_Session_ID = fs.FYP_Session_ID
+                WHERE c.Supervisor_ID = ?
+                ORDER BY fs.FYP_Session DESC"; // Newest years first
+
+    if ($stmtHist = $conn->prepare($sqlHist)) {
+        $stmtHist->bind_param("i", $currentUserID);
+        $stmtHist->execute();
+        $resHist = $stmtHist->get_result();
+        while ($row = $resHist->fetch_assoc()) {
+            // Label: "2024/2025" (Covers both semesters)
+            $label = $row['FYP_Session'] ? $row['FYP_Session'] : "Form #" . $row['Collaboration_ID'];
+
+            $submissionHistory[] = [
+                'id' => $row['Collaboration_ID'],
+                'label' => $label
+            ];
+        }
+    }
+}
+?>
 <!DOCTYPE html>
 <html>
 
 <head>
     <title>IndustryCollaboration_Supervisor</title>
-    <link rel="stylesheet" href="../../../css/supervisor/dashboard.css">
-    <link rel="stylesheet" href="../../../css/supervisor/industryCollaboration.css">
-    <link rel="stylesheet" href="../../../css/background.css">
-    <link rel="stylesheet" href="../../../css/dashboard.css">
+    <link rel="stylesheet" href="../../css/supervisor/dashboard.css">
+    <link rel="stylesheet" href="../../css/supervisor/industryCollaboration.css?v=<?php echo time(); ?>">
+    <link rel="stylesheet" href="../../css/background.css">
+    <link rel="stylesheet" href="../../css/dashboard.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat&family=Overlock" rel="stylesheet">
 </head>
 
 <body>
@@ -21,69 +80,68 @@
                 Close <span class="x-symbol">x</span>
             </a>
 
-            <span id="nameSide">HI, SAZLINAH BINTI HASSAN</span>
+            <span id="nameSide">HI, <?php echo strtoupper($loginID); ?></span>
 
-            <!-- <a href="#coordinatorMenu" class="role-header" data-role="coordinator">
-                <span class="role-text">Coordinator</span>
-                <span class="arrow-container">
-                    <i class="bi bi-chevron-right arrow-icon"></i>
-                </span>
-            </a> -->
-
-            <a href="#supervisorMenu" class="role-header active-role menu-expanded" data-role="supervisor">
+            <a href="javascript:void(0)"
+                class="role-header <?php echo ($activeRole == 'supervisor') ? 'menu-expanded' : ''; ?>"
+                onclick="toggleMenu('supervisorMenu', this)">
                 <span class="role-text">Supervisor</span>
-                <span class="arrow-container">
-                    <i class="bi bi-chevron-right arrow-icon"></i>
-                </span>
+                <span class="arrow-container"><i class="bi bi-chevron-right arrow-icon"></i></span>
             </a>
 
-            <div id="supervisorMenu" class="menu-items expanded">
-                <a href="dashboard.html" id="dashboard"><i class="bi bi-house-fill icon-padding"></i> Dashboard</a>
-                <a href="notification.html" id="Notification"><i class="bi bi-bell-fill icon-padding"></i>
-                    Notification</a>
-                <a href="industryCollaboration.html" id="industryCollaboration"><i
-                        class="bi bi-file-earmark-text-fill icon-padding"></i>
-                    Industry
-                    Collaboration</a>
-                <a href="evaluationForm.html" id="evaluationForm"><i
-                        class="bi bi-file-earmark-text-fill icon-padding"></i> Evaluation
-                    Form</a>
-                <a href="report.html" id="superviseesReport"><i class="bi bi-bar-chart-fill icon-padding"></i>
-                    Supervisees'
-                    Report</a>
-                <a href="logbookSubmission.html" id="logbookSubmission"><i
-                        class="bi bi-calendar-check-fill icon-padding"></i> Logbook
-                    Submission</a>
-                <a href="signatureSubmission.html" id="signatureSubmission"><i
-                        class="bi bi-calendar-check-fill icon-padding"></i> Signature
-                    Submission</a>
-                <a href="projectTitle.html" id="projectTitle"><i class="bi bi-calendar-check-fill icon-padding"></i>
-                    Project Title</a>
+            <div id="supervisorMenu" class="menu-items <?php echo ($activeRole == 'supervisor') ? 'expanded' : ''; ?>">
+                <a href="../dashboard/dashboard.html" id="dashboard"><i class="bi bi-house-fill icon-padding"></i>
+                    Dashboard</a>
+                <a href="../notification/notification.html" id="Notification"><i
+                        class="bi bi-bell-fill icon-padding"></i> Notification</a>
+                <a href="industry_collaboration.php?role=supervisor" id="industryCollaboration"
+                    class="<?php echo ($activeRole == 'supervisor') ? 'active-menu-item active-page' : ''; ?>">
+                    <i class="bi bi-calendar-check-fill icon-padding"></i> Industry Collaboration
+                </a>
+
+                <a href="../phpAssessor_Supervisor/evaluation_form.php?role=supervisor" id="evaluationForm"
+                    class="<?php echo ($activeRole == 'supervisor') ?: ''; ?>">
+                    <i class="bi bi-file-earmark-text-fill icon-padding"></i> Evaluation Form
+                </a>
+                <a href="../report/report.html" id="superviseesReport"><i class="bi bi-bar-chart-fill icon-padding"></i>
+                    Supervisees' Report</a>
+                <a href="../logbook/logbookSubmission.html" id="logbookSubmission"><i
+                        class="bi bi-calendar-check-fill icon-padding"></i> Logbook Submission</a>
+                <a href="../signature/signatureSubmission.html" id="signatureSubmission"><i
+                        class="bi bi-calendar-check-fill icon-padding"></i> Signature Submission</a>
+
+                <a href="project_title.php?role=supervisor" id="projectTitle"
+                    class="<?php echo ($activeRole == 'supervisor') ? 'active-menu-item active-page' : ''; ?>">
+                    <i class="bi bi-calendar-check-fill icon-padding"></i> Project Title
+                </a>
             </div>
 
-            <a href="#assessorMenu" class="role-header" data-role="assessor">
+            <a href="javascript:void(0)"
+                class="role-header <?php echo ($activeRole == 'assessor') ? 'menu-expanded' : ''; ?>"
+                onclick="toggleMenu('assessorMenu', this)">
                 <span class="role-text">Assessor</span>
-                <span class="arrow-container">
-                    <i class="bi bi-chevron-right arrow-icon"></i>
-                </span>
+                <span class="arrow-container"><i class="bi bi-chevron-right arrow-icon"></i></span>
             </a>
 
-            <div id="assessorMenu" class="menu-items">
-                <a href="#" id="Dashboard"><i class="bi bi-house-fill icon-padding"></i> Dashboard</a>
-                <a href="#" id="Notification"><i class="bi bi-bell-fill icon-padding"></i> Notification</a>
-                <a href="#" id="EvaluationForm"><i class="bi bi-file-earmark-text-fill icon-padding"></i> Evaluation
-                    Form</a>
+            <div id="assessorMenu" class="menu-items <?php echo ($activeRole == 'assessor') ? 'expanded' : ''; ?>">
+                <a href="../dashboard/dashboard.html" id="Dashboard"><i class="bi bi-house-fill icon-padding"></i>
+                    Dashboard</a>
+                <a href="../notification/notification.html" id="Notification"><i
+                        class="bi bi-bell-fill icon-padding"></i> Notification</a>
+                <a href="../phpAssessor_Supervisor/evaluation_form.php?role=assessor" id="AssessorEvaluationForm"
+                    class="<?php echo ($activeRole == 'assessor') ? 'active-menu-item active-page' : ''; ?>">
+                    <i class="bi bi-file-earmark-text-fill icon-padding"></i> Evaluation Form
+                </a>
             </div>
-            <a href="#" id="logout">
-                <i class="bi bi-box-arrow-left" style="padding-right: 10px;"></i> Logout
-            </a>
+
+            <a href="#" id="logout"><i class="bi bi-box-arrow-left" style="padding-right: 10px;"></i> Logout</a>
         </div>
     </div>
 
     <div id="containerAtas" class="containerAtas">
 
         <a href="../dashboard/dashboard.html">
-            <img src="../../../assets/UPMLogo.png" alt="UPM logo" width="100px" id="upm-logo">
+            <img src="../../assets/UPMLogo.png" alt="UPM logo" width="100px" id="upm-logo">
         </a>
 
         <div class="header-text-group">
@@ -169,10 +227,41 @@
                             Industry topic selection
                         </div>
                     </div>
+                    <div class="history-section">
+                        <div class="history-header">Past Sessions</div>
+
+                        <?php if (empty($submissionHistory)): ?>
+                            <div class="text-muted small fst-italic">No forms submitted yet.</div>
+                        <?php else: ?>
+                            <?php foreach ($submissionHistory as $item): ?>
+                                <a href="view_collaboration_pdf.php?id=<?php echo $item['id']; ?>" target="_blank"
+                                    class="session-link">
+                                    <i class="bi bi-file-earmark-pdf-fill pdf-icon"></i>
+                                    <div>
+                                        <div class="fw-bold"><?php echo $item['label']; ?></div>
+                                        <div class="small text-muted" style="font-size: 0.75rem;">Click to view PDF</div>
+                                    </div>
+                                </a>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </div>
                 </div>
 
                 <!-- 2. RIGHT SECTION: FORM AREA (Wider, white panel) -->
                 <div id="form-area">
+                    <!-- Year Selector and Download PDF -->
+                    <div class="year-selector-container">
+                        <div>
+                            <label for="session-year">Year</label>
+                            <select id="session-year" class="form-select d-inline-block">
+                                <option value="">Loading...</option>
+                            </select>
+                        </div>
+                        <button type="button" id="download-pdf-btn" class="btn btn-download-pdf">
+                            <i class="bi bi-download"></i> Download as PDF
+                        </button>
+                    </div>
+
                     <form id="industry-form">
 
                         <!-- ============================================== -->
@@ -328,30 +417,31 @@
                             <div class="mt-0 d-flex justify-content-end">
                                 <button type="button" id="add-supervisor-btn"
                                     class="btn btn-outline-primary btn-sm btn-add">
-                                    Add industry supervisor <i class="bi bi-plus"></i></button>
+                                    <i class="bi bi-plus-circle me-1"></i> Add industry supervisor
+                                </button>
                             </div>
 
                             <!-- SECTION 5: INDUSTRY REQUIREMENTS -->
                             <h2 class="form-section-title" data-step-target="requirements">Industry requirements</h2>
                             <div class="row g-3 mb-4">
                                 <div class="col-md-6">
-                                    <label class="form-label">Number of students</label>
+                                    <label class="form-label">Student Quota</label>
                                     <select name="num_students" class="form-select collaboration-required">
                                         <option value="">Select</option>
                                         <option value="1">1</option>
                                         <option value="2">2</option>
                                         <option value="3">3</option>
-                                        <option value="4+">4</option>
+                                        <option value="4">4</option>
                                     </select>
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label">Academic qualification</label>
                                     <select name="academic_qualification" class="form-select collaboration-required">
                                         <option value="">Select</option>
-                                        <option value="cgpa1">At least 3.00 CGPA</option>
-                                        <option value="cgpa2">At least 3.50 CGPA</option>
-                                        <option value="cgpa3">At least 3.75 CGPA</option>
-                                        <option value="cgpa4">No requirement</option>
+                                        <option value="At least 3.00 CGPA">At least 3.00 CGPA</option>
+                                        <option value="At least 3.50 CGPA">At least 3.50 CGPA</option>
+                                        <option value="At least 3.75 CGPA">At least 3.75 CGPA</option>
+                                        <option value="No requirement">No requirement</option>
                                     </select>
                                 </div>
                             </div>
@@ -367,9 +457,10 @@
                                     </div>
 
                                 </div>
-                                <div class="d-flex justify-content-end mt-2">
-                                    <button type="button" id="add-skill-btn" class="btn btn-add btn-sm">
-                                        Add required skills <i class="bi bi-plus-square-fill"></i>
+                                <div class="mt-0 d-flex justify-content-end">
+                                    <button type="button" id="add-skill-btn"
+                                        class="btn btn-outline-primary btn-sm btn-add">
+                                        <i class="bi bi-plus-circle me-1"></i> Add required skill
                                     </button>
                                 </div>
                             </div>
@@ -387,9 +478,10 @@
                                     </div>
 
                                 </div>
-                                <div class="d-flex justify-content-end mt-2">
-                                    <button type="button" id="add-ind-topic-btn" class="btn btn-add btn-sm">
-                                        Add industry topic <i class="bi bi-plus-square-fill"></i>
+                                <div class="mt-0 d-flex justify-content-end">
+                                    <button type="button" id="add-ind-topic-btn"
+                                        class="btn btn-outline-primary btn-sm btn-add">
+                                        <i class="bi bi-plus-circle me-1"></i> Add industry topic
                                     </button>
                                 </div>
 
@@ -421,84 +513,98 @@
                     <div class="modal-icon-container">
                         <i class="bi bi-check-circle-fill text-success" style="font-size: 3rem;"></i>
                     </div>
-                    <h3 class="modal-title-custom mt-3">Evaluation saved successfully!</h3>
+                    <h3 class="modal-title-custom mt-3">Information saved successfully!</h3>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        // --- JAVASCRIPT LOGIC ---
-        function openNav() {
-            var fullWidth = "220px";
-            var sidebar = document.getElementById("mySidebar");
-            var header = document.getElementById("containerAtas");
-            // CRITICAL FIX: Targets the main content area (now with id="main")
-            var mainContent = document.getElementById("main");
-            var menuIcon = document.querySelector(".menu-icon");
+        // ==========================================
+        // SIDEBAR LOGIC
+        // ==========================================
 
-            // 1. Expand the Sidebar
-            document.getElementById("mySidebar").style.width = fullWidth;
+        // 1. Toggle Menu (Accordion)
+        function toggleMenu(menuId, headerElement) {
+            const menu = document.getElementById(menuId);
+            if (!menu) return;
 
-            // 2. Push the main content AND the header container to the right
-            if (mainContent) mainContent.style.marginLeft = fullWidth;
-            if (header) header.style.marginLeft = fullWidth;
-
-            // 3. Show the links
-            document.getElementById("nameSide").style.display = "block";
-
-            var links = document.getElementById("sidebarLinks").getElementsByTagName("a");
-            for (var i = 0; i < links.length; i++) {
-                // Show role headers and other links
-                if (links[i].classList.contains('role-header') || links[i].id === 'logout') {
-                    links[i].style.display = 'flex';
-                } else if (links[i].id === 'close') {
-                    links[i].style.display = 'flex';
+            // Collapse all other menus
+            document.querySelectorAll('.menu-items').forEach(m => {
+                if (m !== menu) {
+                    m.classList.remove('expanded');
+                    // Find header associated with this menu to remove highlighting
+                    const header = document.querySelector(`.role-header[onclick*="${m.id}"]`);
+                    if (header) header.classList.remove('menu-expanded');
                 }
-            }
+            });
 
-            // Show currently expanded menu items
-            document.querySelectorAll('.menu-items.expanded a').forEach(a => a.style.display = 'block');
+            // Toggle current menu
+            menu.classList.toggle('expanded');
+            headerElement.classList.toggle('menu-expanded');
 
-
-            // 4. Hide the open icon
-            if (menuIcon) menuIcon.style.display = "none";
+            updateRoleHeaderHighlighting();
         }
 
+        function updateRoleHeaderHighlighting() {
+            document.querySelectorAll('.role-header').forEach(header => {
+                const onclickAttr = header.getAttribute('onclick');
+                if (!onclickAttr) return;
+
+                // Extract menu ID from onclick attribute
+                const match = onclickAttr.match(/toggleMenu\('(\w+)'/);
+                if (!match) return;
+
+                const menuId = match[1];
+                const targetMenu = document.getElementById(menuId);
+                if (!targetMenu) return;
+
+                // Check if this menu contains the active page
+                const hasActiveLink = targetMenu.querySelector('.active-menu-item') !== null;
+
+                // Check if this menu is currently expanded
+                const isExpanded = targetMenu.classList.contains('expanded');
+
+                // Logic: Highlight role header ONLY when it contains active page BUT menu is collapsed
+                if (hasActiveLink && !isExpanded) {
+                    header.classList.add('active-role');
+                } else {
+                    header.classList.remove('active-role');
+                }
+            });
+        }
+
+        // 2. Open Sidebar
+        function openNav() {
+            document.getElementById("mySidebar").style.width = "250px";
+            document.getElementById("main").style.marginLeft = "250px";
+            document.getElementById("containerAtas").style.marginLeft = "250px";
+
+            document.getElementById("nameSide").style.display = "block";
+            document.getElementById("close").style.display = "block";
+            document.getElementById("logout").style.display = "flex";
+
+            const links = document.querySelectorAll("#sidebarLinks a");
+            links.forEach(l => l.style.display = 'flex');
+
+            document.querySelector(".menu-icon").style.display = "none";
+        }
+
+        // 3. Close Sidebar
         function closeNav() {
-            var collapsedWidth = "60px";
-            var sidebar = document.getElementById("mySidebar");
-            var header = document.getElementById("containerAtas");
-            // CRITICAL FIX: Targets the main content area (now with id="main")
-            var mainContent = document.getElementById("main");
-            var menuIcon = document.querySelector(".menu-icon");
+            document.getElementById("mySidebar").style.width = "60px";
+            document.getElementById("main").style.marginLeft = "60px";
+            document.getElementById("containerAtas").style.marginLeft = "60px";
 
-            // 1. Collapse the Sidebar
-            sidebar.style.width = collapsedWidth;
-
-            // 2. Move the main content AND the header container back
-            if (mainContent) mainContent.style.marginLeft = collapsedWidth;
-            if (header) header.style.marginLeft = collapsedWidth;
-
-            // 3. Hide the name and the links (except for the open menu icon)
             document.getElementById("nameSide").style.display = "none";
+            document.getElementById("close").style.display = "none";
+            document.getElementById("logout").style.display = "none";
 
-            var links = document.getElementById("sidebarLinks").getElementsByTagName("a");
-            for (var i = 0; i < links.length; i++) {
-                links[i].style.display = "none";
-            }
+            const links = document.querySelectorAll("#sidebarLinks a");
+            links.forEach(l => l.style.display = 'none');
 
-            // 4. Show the open icon
-            if (menuIcon) menuIcon.style.display = "block";
+            document.querySelector(".menu-icon").style.display = "block";
         }
-
-        // Ensure the collapsed state is set immediately on page load
-        window.onload = function () {
-            closeNav();
-        };
-
-
-        // --- Role Toggle Logic (Integrated into DOMContentLoaded) ---
 
         // =================================================================
         // FORM AND PROGRESS INDICATOR LOGIC
@@ -511,6 +617,9 @@
             const radioNo = document.getElementById('collaboration-no');
             const progressLineFill = document.getElementById('progress-line-fill');
             const roleHeaders = document.querySelectorAll('.role-header');
+            const sessionYearDropdown = document.getElementById('session-year');
+            const downloadPdfBtn = document.getElementById('download-pdf-btn');
+            let currentCollaborationID = null; // Track if we're editing
 
             let stepIndicators = Array.from(document.querySelectorAll('.step-indicator')).map((el, index) => ({
                 element: el,
@@ -519,6 +628,271 @@
             }));
 
             let collaborationRequiredFields = document.querySelectorAll('.collaboration-required');
+
+            // ============================================
+            // LOAD FYP SESSIONS (For Semester 1 only)
+            // ============================================
+            async function loadSessions() {
+                try {
+                    const response = await fetch('fetch_sessions.php');
+                    const data = await response.json();
+
+                    sessionYearDropdown.innerHTML = '';
+
+                    if (data.status === 'success' && data.sessions.length > 0) {
+                        data.sessions.forEach((session, index) => {
+                            const option = document.createElement('option');
+                            option.value = session.FYP_Session_ID;
+                            option.textContent = session.FYP_Session;
+                            if (index === 0) option.selected = true; // Select newest
+                            sessionYearDropdown.appendChild(option);
+                        });
+
+                        // Load data for the first session
+                        loadCollaborationData(data.sessions[0].FYP_Session_ID);
+                    } else {
+                        sessionYearDropdown.innerHTML = '<option value="">No sessions available</option>';
+                    }
+                } catch (error) {
+                    console.error('Error loading sessions:', error);
+                    sessionYearDropdown.innerHTML = '<option value="">Error loading sessions</option>';
+                }
+            }
+
+            // ============================================
+            // LOAD COLLABORATION DATA FOR SELECTED SESSION
+            // ============================================
+            async function loadCollaborationData(sessionID) {
+                if (!sessionID) return;
+
+                try {
+                    const response = await fetch(`fetch_collaboration.php?session_id=${sessionID}`);
+                    const result = await response.json();
+
+                    if (result.status === 'success' && result.data) {
+                        const data = result.data;
+                        console.log('Loaded data:', data); // Debug log
+                        currentCollaborationID = data.Collaboration_ID;
+
+                        // Load collaboration status
+                        if (data.Collaboration_Status === 'Yes') {
+                            radioYes.checked = true;
+                            extendedFields.classList.remove('d-none');
+                            toggleRequiredFields(true);
+
+                            // Load company info
+                            document.querySelector('[name="company_name"]').value = data.Company_Name || '';
+                            document.querySelector('[name="company_email"]').value = data.Company_Email || '';
+                            document.querySelector('[name="company_address"]').value = data.Company_Address || '';
+                            document.querySelector('[name="company_postcode"]').value = data.Company_Postcode || '';
+                            document.querySelector('[name="company_city"]').value = data.Company_City || '';
+                            document.querySelector('[name="company_state"]').value = data.Company_State || '';
+
+                            // Load quota and academic qualification
+                            document.querySelector('[name="num_students"]').value = data.Student_Quota || '';
+                            const academicQual = data.Academic_Qualification || '';
+                            if (academicQual) {
+                                const selectBox = document.querySelector('[name="academic_qualification"]');
+                                if (selectBox) selectBox.value = academicQual;
+                            }
+
+                            // Load supervisor topics (from Topic_List array)
+                            loadTopics(data.Topic_List || []);
+
+                            // Load industry topics (from Ind_Topic_List array)
+                            loadIndTopics(data.Ind_Topic_List || []);
+
+                            // Load required skills (from Skill_List array)
+                            loadSkills(data.Skill_List || []);
+
+                            // Load supervisor details (from Supervisor_List array)
+                            loadSupervisorsFromList(data.Supervisor_List || []);
+
+                        } else {
+                            radioNo.checked = true;
+                            extendedFields.classList.add('d-none');
+                            toggleRequiredFields(false);
+                            currentCollaborationID = data.Collaboration_ID;
+                        }
+
+                        updateStepIndicators();
+                    } else {
+                        // No data for this session - clear form
+                        clearForm();
+                        currentCollaborationID = null;
+                    }
+                } catch (error) {
+                    console.error('Error loading collaboration data:', error);
+                }
+            }
+
+            function loadTopics(topics) {
+                const container = document.getElementById('topic-list-container');
+                container.innerHTML = ''; // Clear existing
+
+                topics.forEach((topic, index) => {
+                    const cleanTopic = topic.replace(/^\d+\.\s*/, '').trim(); // Remove numbering
+                    const inputGroup = document.createElement('div');
+                    inputGroup.className = 'input-group mb-2';
+                    inputGroup.innerHTML = `
+                        <span class="input-group-text fixed-width-addon">${index + 1}.</span>
+                        <input type="text" name="topic[]" class="form-control topic-required" value="${cleanTopic}" required>
+                    `;
+                    container.appendChild(inputGroup);
+                });
+
+                // Ensure minimum 3 fields
+                while (container.children.length < 3) {
+                    const index = container.children.length;
+                    const inputGroup = document.createElement('div');
+                    inputGroup.className = 'input-group mb-2';
+                    inputGroup.innerHTML = `
+                        <span class="input-group-text fixed-width-addon">${index + 1}.</span>
+                        <input type="text" name="topic[]" class="form-control topic-required" required>
+                    `;
+                    container.appendChild(inputGroup);
+                }
+            }
+
+            function loadSkills(skills) {
+                const container = document.getElementById('skill-list-container');
+                container.innerHTML = '';
+
+                if (skills.length === 0) skills = [''];
+
+                skills.forEach((skill, index) => {
+                    const inputGroup = document.createElement('div');
+                    inputGroup.className = 'input-group mb-2 skill-input-group';
+                    inputGroup.innerHTML = `
+                        <span class="input-group-text fixed-width-addon">${index + 1}.</span>
+                        <input type="text" name="required_skill[]" class="form-control collaboration-required" value="${skill}">
+                        ${index > 0 ? '<button type="button" class="btn btn-sm btn-outline-danger input-group-text remove-skill-btn"><i class="bi bi-x"></i></button>' : ''}
+                    `;
+                    container.appendChild(inputGroup);
+
+                    // Attach remove listener
+                    if (index > 0) {
+                        inputGroup.querySelector('.remove-skill-btn').addEventListener('click', function () {
+                            inputGroup.remove();
+                            updateSkillNumbers();
+                        });
+                    }
+                });
+            }
+
+            function loadIndTopics(indTopics) {
+                const container = document.getElementById('ind-topic-list-container');
+                container.innerHTML = '';
+
+                if (indTopics.length === 0) indTopics = [''];
+
+                indTopics.forEach((topic, index) => {
+                    const inputGroup = document.createElement('div');
+                    inputGroup.className = 'input-group mb-2 ind-topic-input-group';
+                    inputGroup.innerHTML = `
+                        <span class="input-group-text fixed-width-addon">${index + 1}.</span>
+                        <input type="text" name="ind_topic[]" class="form-control collaboration-required" value="${topic}">
+                        ${index > 0 ? '<button type="button" class="btn btn-sm btn-outline-danger input-group-text remove-ind-topic-btn"><i class="bi bi-x"></i></button>' : ''}
+                    `;
+                    container.appendChild(inputGroup);
+
+                    // Attach remove listener
+                    if (index > 0) {
+                        inputGroup.querySelector('.remove-ind-topic-btn').addEventListener('click', function () {
+                            inputGroup.remove();
+                            updateIndTopicNumbers();
+                        });
+                    }
+                });
+            }
+
+            function loadSupervisorsFromList(supervisorList) {
+                const container = document.getElementById('supervisor-container');
+                container.innerHTML = '';
+
+                // If no supervisors, create at least one empty card
+                if (!supervisorList || supervisorList.length === 0) {
+                    supervisorList = [{ name: '', email: '', phone: '', role: '' }];
+                }
+
+                supervisorList.forEach((supervisor, i) => {
+                    const card = document.createElement('div');
+                    card.className = 'card p-0 mb-3 border-0 supervisor-card';
+                    card.innerHTML = `
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <label class="fw-normal text-secondary supervisor-number-label">Industry Supervisor ${i + 1}</label>
+                            ${i > 0 ? '<button type="button" class="btn btn-outline-danger btn-sm btn-remove"><i class="bi bi-x"></i> Remove</button>' : '<button type="button" class="btn btn-outline-danger btn-sm btn-remove d-none"><i class="bi bi-x"></i> Remove</button>'}
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Name</label>
+                            <input type="text" name="ind_supervisor_name[]" class="form-control collaboration-required" value="${supervisor.name || ''}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Email address</label>
+                            <input type="email" name="ind_supervisor_email[]" class="form-control collaboration-required" value="${supervisor.email || ''}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Phone No</label>
+                            <input type="tel" name="ind_supervisor_phone[]" class="form-control collaboration-required" value="${supervisor.phone || ''}" pattern="^01[0-9]-[0-9]{7,8}$">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Role/Position</label>
+                            <input type="text" name="ind_supervisor_role[]" class="form-control collaboration-required" value="${supervisor.role || ''}">
+                        </div>
+                    `;
+                    container.appendChild(card);
+
+                    // Attach remove listener
+                    if (i > 0) {
+                        card.querySelector('.btn-remove').addEventListener('click', function () {
+                            card.remove();
+                            updateSupervisorLabels();
+                        });
+                    }
+                });
+            }
+
+            function clearForm() {
+                form.reset();
+                radioNo.checked = false;
+                radioYes.checked = false;
+                extendedFields.classList.add('d-none');
+                toggleRequiredFields(false);
+                currentCollaborationID = null;
+
+                // Reset topics to 3 empty fields
+                const topicContainer = document.getElementById('topic-list-container');
+                topicContainer.innerHTML = '';
+                for (let i = 0; i < 3; i++) {
+                    const inputGroup = document.createElement('div');
+                    inputGroup.className = 'input-group mb-2';
+                    inputGroup.innerHTML = `
+                        <span class="input-group-text fixed-width-addon">${i + 1}.</span>
+                        <input type="text" name="topic[]" class="form-control topic-required" required>
+                    `;
+                    topicContainer.appendChild(inputGroup);
+                }
+
+                updateStepIndicators();
+            }
+
+            // Year dropdown change handler
+            sessionYearDropdown.addEventListener('change', (e) => {
+                loadCollaborationData(e.target.value);
+            });
+
+            // Download PDF handler
+            downloadPdfBtn.addEventListener('click', () => {
+                const sessionID = sessionYearDropdown.value;
+                if (!sessionID || !currentCollaborationID) {
+                    alert('No submission found for this session.');
+                    return;
+                }
+                window.open(`view_collaboration_pdf.php?id=${currentCollaborationID}`, '_blank');
+            });
+
+            // Initialize: Load sessions on page load
+            loadSessions();
 
 
             // --- Helper Functions ---
@@ -857,67 +1231,98 @@
             });
 
             // 5. Submission Handler
-            form.addEventListener('submit', (e) => {
+            form.addEventListener('submit', async (e) => {
                 e.preventDefault();
 
                 if (form.checkValidity()) {
-                    // --- THIS BLOCK CREATES AND DISPLAYS THE SUCCESS POP-UP ---
-                    const messageBox = document.createElement('div');
+                    const statusVal = radioYes.checked ? 'Yes' : 'No';
 
-                    // You'll need to update the content to match your modal/dialog structure
-                    // If the 'Information is saved!' is a simple alert:
-                    messageBox.textContent = 'Information is saved!';
-                    messageBox.classList.add('alert', 'alert-success');
-                    messageBox.style.cssText = 'position: fixed; top: 90px; right: 20px; z-index: 1000; border-radius: 0.5rem;';
+                    // Helper for Arrays
+                    const getArrayVal = (name) => {
+                        return Array.from(document.querySelectorAll(`input[name="${name}[]"]`))
+                            .map(input => input.value)
+                            .filter(val => val.trim() !== '');
+                    };
 
-                    document.body.appendChild(messageBox);
-                    setTimeout(() => messageBox.remove(), 4000); // Remove after 4 seconds
-                    // -----------------------------------------------------------
+                    const payload = {
+                        collaboration_id: currentCollaborationID, // Include ID for update
+                        collaboration_status: statusVal,
+                        session_id: sessionYearDropdown.value,
+
+                        // Array Data
+                        topic: getArrayVal('topic'),
+                        required_skill: getArrayVal('required_skill'),
+                        ind_topic: getArrayVal('ind_topic'),
+
+                        // Company Fields
+                        company_name: document.querySelector('input[name="company_name"]')?.value || '',
+                        company_address: document.querySelector('input[name="company_address"]')?.value || '',
+                        company_postcode: document.querySelector('input[name="company_postcode"]')?.value || '',
+                        company_city: document.querySelector('input[name="company_city"]')?.value || '',
+                        company_state: document.querySelector('select[name="company_state"]')?.value || '',
+                        company_email: document.querySelector('input[name="company_email"]')?.value || '',
+
+                        // Dropdowns
+                        student_quota: document.querySelector('select[name="num_students"]')?.value || '',
+                        academic_qualification: document.querySelector('select[name="academic_qualification"]')?.value || '',
+
+                        // Supervisor Arrays (using correct field names from HTML)
+                        supervisor_name: getArrayVal('ind_supervisor_name'),
+                        supervisor_email: getArrayVal('ind_supervisor_email'),
+                        supervisor_phone: getArrayVal('ind_supervisor_phone'),
+                        supervisor_role: getArrayVal('ind_supervisor_role')
+                    };
+
+                    const submitBtn = document.querySelector('.btn-submit');
+                    const originalText = submitBtn.innerText;
+                    submitBtn.innerText = "Saving...";
+                    submitBtn.disabled = true;
+
+                    try {
+                        const response = await fetch('submit_collaboration.php', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+
+                        const data = await response.json();
+
+                        if (data.status === 'success') {
+                            acknowledgementModal.classList.remove('d-none');
+                            // Reload data to get the new ID if it was an insert
+                            setTimeout(() => {
+                                loadCollaborationData(sessionYearDropdown.value);
+                            }, 500);
+                        } else {
+                            alert("Error saving data: " + (data.message || 'Unknown error'));
+                        }
+                    } catch (err) {
+                        console.error("Network Error:", err);
+                        alert("Connection failed. Please check console.");
+                    } finally {
+                        submitBtn.innerText = originalText;
+                        submitBtn.disabled = false;
+                    }
 
                 } else {
-                    console.error("Form validation failed. Please check required fields.");
-                    form.reportValidity(); // Shows built-in browser validation messages
-                }
-            });
-            // Get references to your new modal elements
-            const acknowledgementModal = document.getElementById('acknowledgementModal');
-            const closeModalBtns = document.querySelectorAll('.modal-close-btn'); // Both 'X' and 'Close' button
-
-
-            // Add event listeners to close the modal
-            closeModalBtns.forEach(btn => {
-                btn.addEventListener('click', () => {
-                    acknowledgementModal.classList.add('d-none'); // Hide the modal
-                });
-            });
-
-
-            // Inside your form.addEventListener('submit', ...)
-            form.addEventListener('submit', (e) => {
-                e.preventDefault();
-
-                if (form.checkValidity()) {
-                    // Form is valid, show the full-page acknowledgment modal
-                    acknowledgementModal.classList.remove('d-none'); // Show the modal
-
-                    // Optionally, reset the form after showing the success message
-                    // form.reset(); 
-                    // Or you might navigate to another page, etc.
-
-                } else {
-                    console.error("Form validation failed. Please check required fields.");
+                    console.error("Form validation failed.");
                     form.reportValidity();
                 }
             });
 
-            // IMPORTANT: Add this to your initial setup (DOMContentLoaded) 
-            // to ensure the modal is hidden when the page first loads.
-            document.addEventListener('DOMContentLoaded', () => {
-                // ... other initial setup ...
-                acknowledgementModal.classList.add('d-none'); // Ensure modal is hidden initially
-                // ...
+            // Get references to modal elements
+            const acknowledgementModal = document.getElementById('acknowledgementModal');
+            const closeModalBtns = document.querySelectorAll('.modal-close-btn');
+
+            // Add event listeners to close the modal
+            closeModalBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    acknowledgementModal.classList.add('d-none');
+                });
             });
+
             // --- Initial Setup ---
+            acknowledgementModal.classList.add('d-none');
 
             // Set initial state based on radio (which defaults to 'No' in HTML)
             extendedFields.classList.add('d-none');
