@@ -1,6 +1,6 @@
 <?php
 session_start();
-include '../db_connect.php'; 
+include '../db_connect.php';
 
 // 1. CAPTURE ROLE
 $activeRole = isset($_GET['role']) ? $_GET['role'] : 'supervisor';
@@ -127,16 +127,22 @@ if ($currentUserID) {
             <div id="supervisorMenu" class="menu-items <?php echo ($activeRole == 'supervisor') ? 'expanded' : ''; ?>">
                 <a href="../dashboard/dashboard.html" id="dashboard"><i class="bi bi-house-fill icon-padding"></i> Dashboard</a>
                 <a href="../notification/notification.html" id="Notification"><i class="bi bi-bell-fill icon-padding"></i> Notification</a>
-                <a href="../industry/industryCollaboration.html" id="industryCollaboration"><i class="bi bi-file-earmark-text-fill icon-padding"></i> Industry Collaboration</a>
+                <a href="../phpSupervisor/industry_collaboration.php?role=supervisor" id="industryCollaboration"
+                    class="<?php echo ($activeRole == 'supervisor') ? : ''; ?>">
+                    <i class="bi bi-calendar-check-fill icon-padding"></i> Industry Collaboration
+                </a>
                 
                 <a href="evaluation_form.php?role=supervisor" id="evaluationForm" class="<?php echo ($activeRole == 'supervisor') ? 'active-menu-item active-page' : ''; ?>">
                     <i class="bi bi-file-earmark-text-fill icon-padding"></i> Evaluation Form
                 </a>
 
                 <a href="../report/report.html" id="superviseesReport"><i class="bi bi-bar-chart-fill icon-padding"></i> Supervisees' Report</a>
-                <a href="../logbook/logbookSubmission.html" id="logbookSubmission"><i class="bi bi-calendar-check-fill icon-padding"></i> Logbook Submission</a>
+                <a href="../phpSupervisor/logbook_submission.php?role=supervisor" id="logbookSubmission"
+                    class="<?php echo ($activeRole == 'supervisor') ? : ''; ?>">
+                    <i class="bi bi-calendar-check-fill icon-padding"></i> Logbook Submission
+                </a>
                 <a href="../signature/signatureSubmission.html" id="signatureSubmission"><i class="bi bi-calendar-check-fill icon-padding"></i> Signature Submission</a>
-                <a href="../project/projectTitle.html" id="projectTitle"><i class="bi bi-calendar-check-fill icon-padding"></i> Project Title</a>
+                <a href="../phpSupervisor/project_title.php" id="projectTitle"><i class="bi bi-calendar-check-fill icon-padding"></i> Project Title</a>
             </div>
 
             <a href="javascript:void(0)" class="role-header <?php echo ($activeRole == 'assessor') ? 'menu-expanded' : ''; ?>" 
