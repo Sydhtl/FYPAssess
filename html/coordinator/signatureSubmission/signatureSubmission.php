@@ -1,7 +1,8 @@
+<?php include '../../../php/coordinator_bootstrap.php'; ?>
 <!DOCTYPE html>
 <html>
 <head>
-    <title>FYPAssess - Signature Submission</title>
+    <title>FYPAssess - Stamp Submission</title>
     <link rel="stylesheet" href="../../../css/background.css">
     <link rel="stylesheet" href="../../../css/coordinator/dashboard.css">
     <link rel="stylesheet" href="../../../css/coordinator/signatureSubmission.css">
@@ -18,7 +19,7 @@
                 Close <span class="x-symbol">x</span>
             </a>
 
-            <span id="nameSide">HI, AZRINA BINTI KAMARUDDIN</span>
+            <span id="nameSide">HI, <?php echo htmlspecialchars($coordinatorName); ?></span>
 
             <a href="#supervisorMenu" class="role-header" data-role="supervisor">
                 <span class="role-text">Supervisor</span>
@@ -56,23 +57,23 @@
             </a>
 
             <div id="coordinatorMenu" class="menu-items expanded">
-                <a href="../dashboard/dashboardCoordinator.html" id="coordinatorDashboard"><i class="bi bi-house-fill icon-padding"></i> Dashboard</a>
-                <a href="../studentAssignation/studentAssignation.html" id="studentAssignation"><i class="bi bi-people-fill icon-padding"></i> Student Assignation</a>
-                <a href="../learningObjective/learningObjective.html" id="learningObjective"><i class="bi bi-book-fill icon-padding"></i> Learning Objective</a>
-                <a href="../markSubmission/markSubmission.html" id="markSubmission"><i class="bi bi-clipboard-check-fill icon-padding"></i> Progress Submission</a>
-                <a href="../notification/notification.html" id="coordinatorNotification"><i class="bi bi-bell-fill icon-padding"></i> Notification</a>
-                <a href="./signatureSubmission.html" id="signatureSubmission" class="active-menu-item"><i class="bi bi-pen-fill icon-padding"></i> Signature Submission</a>
-                <a href="../dateTimeAllocation/dateTimeAllocation.html" id="dateTimeAllocation"><i class="bi bi-calendar-event-fill icon-padding"></i> Date and Time Allocation</a>
+                <a href="../dashboard/dashboardCoordinator.php" id="coordinatorDashboard"><i class="bi bi-house-fill icon-padding"></i> Dashboard</a>
+                <a href="../studentAssignation/studentAssignation.php" id="studentAssignation"><i class="bi bi-people-fill icon-padding"></i> Student Assignment</a>
+                <a href="../learningObjective/learningObjective.php" id="learningObjective"><i class="bi bi-book-fill icon-padding"></i> Learning Objective</a>
+                <a href="../markSubmission/markSubmission.php" id="markSubmission"><i class="bi bi-clipboard-check-fill icon-padding"></i> Progress Submission</a>
+                <a href="../notification/notification.php" id="coordinatorNotification"><i class="bi bi-bell-fill icon-padding"></i> Notification</a>
+                <a href="./signatureSubmission.php" id="signatureSubmission" class="active-menu-item"><i class="bi bi-pen-fill icon-padding"></i> Signature Submission</a>
+                <a href="../dateTimeAllocation/dateTimeAllocation.php" id="dateTimeAllocation"><i class="bi bi-calendar-event-fill icon-padding"></i> Date and Time Allocation</a>
             </div>
 
-            <a href="../../login/login.html" id="logout">
+            <a href="../../login/login.php" id="logout">
                 <i class="bi bi-box-arrow-left" style="padding-right: 10px;"></i> Logout
             </a>
         </div>
     </div>
 
     <div id="containerAtas" class="containerAtas">
-        <a href="../dashboard/dashboardCoordinator.html">
+        <a href="../dashboard/dashboardCoordinator.php">
             <img src="../../../assets/UPMLogo.png" alt="UPM logo" width="100px" id="upm-logo">
         </a>
 
@@ -90,28 +91,9 @@
 
     <div id="main">
         <div class="signature-container">
-            <h4 class="section-title">Signature Submission</h4>
+            <h4 class="section-title">Stamp Submission</h4>
 
             <form id="signatureForm">
-                <div class="upload-section">
-                    <label class="upload-label" for="signatureFileInput">Signature</label>
-                    <div class="file-upload-area" id="signatureUploadArea">
-                        <input type="file" id="signatureFileInput" accept="image/*" style="display: none;">
-                        <div class="upload-prompt">
-                            <i class="bi bi-arrow-up-circle file-upload-icon"></i>
-                            <p class="file-upload-text">Upload File Here</p>
-                        </div>
-                        <div class="file-preview" style="display: none;">
-                            <img class="preview-image" alt="Signature preview">
-                            <div class="preview-overlay">
-                                <p class="preview-file-name"></p>
-                                <button type="button" class="btn-change-file">Change File</button>
-                            </div>
-                        </div>
-                    </div>
-                    <p class="upload-instruction">Note: The file must be an image file (JPG, JPEG, PNG, or any other image format).</p>
-                </div>
-
                 <div class="upload-section">
                     <label class="upload-label" for="stampFileInput">Stamp</label>
                     <div class="file-upload-area" id="stampUploadArea">
@@ -145,7 +127,7 @@
                 <span class="close-btn" id="closeUploadModal">&times;</span>
                 <div class="modal-icon"><i class="bi bi-check-circle-fill"></i></div>
                 <div class="modal-title-custom">Upload Successful!</div>
-                <div class="modal-message">Your signature and stamp have been uploaded successfully.</div>
+                <div class="modal-message">Your stamp has been uploaded successfully.</div>
                 <div style="display:flex; justify-content:center;">
                     <button id="okUploadBtn" class="btn btn-success" type="button">OK</button>
                 </div>
@@ -155,18 +137,18 @@
 
     <script>
         var collapsedWidth = "60px";
+        const expandedWidth = "220px";
 
         function openNav() {
-            var fullWidth = "220px";
             var sidebar = document.getElementById("mySidebar");
             var header = document.getElementById("containerAtas");
             var mainContent = document.getElementById("main");
             var menuIcon = document.querySelector(".menu-icon");
 
-            sidebar.style.width = fullWidth;
+            sidebar.style.width = expandedWidth;
 
-            if (mainContent) mainContent.style.marginLeft = fullWidth;
-            if (header) header.style.marginLeft = fullWidth;
+            if (mainContent) mainContent.style.marginLeft = expandedWidth;
+            if (header) header.style.marginLeft = expandedWidth;
 
             document.getElementById("nameSide").style.display = "block";
 
@@ -207,15 +189,8 @@
             if (menuIcon) menuIcon.style.display = "block";
         }
 
-        var uploadSections = ['signature', 'stamp'];
+        var uploadSections = ['stamp'];
         var uploadState = {
-            signature: {
-                uploadedFile: null,
-                fileSaved: false,
-                hasUnsavedChanges: false,
-                savedPreview: null,
-                savedFileName: ''
-            },
             stamp: {
                 uploadedFile: null,
                 fileSaved: false,
@@ -353,17 +328,53 @@
         document.getElementById('signatureForm').addEventListener('submit', function(e) {
             e.preventDefault();
 
-            var missingSection = uploadSections.find(function(section) {
-                var state = uploadState[section];
-                return !state.uploadedFile && !state.fileSaved;
-            });
-
-            if (missingSection) {
-                alert('Please upload the ' + missingSection + ' file.');
+            var stampState = uploadState.stamp;
+            if (!stampState.uploadedFile && !stampState.fileSaved) {
+                alert('Please upload the stamp file.');
                 return;
             }
 
-            openModal(uploadModal);
+            // If there's a new file to upload, send it to the server
+            if (stampState.uploadedFile) {
+                var formData = new FormData();
+                formData.append('stamp_file', stampState.uploadedFile);
+
+                var saveBtn = document.getElementById('saveBtn');
+                saveBtn.disabled = true;
+                saveBtn.textContent = 'Uploading...';
+
+                fetch('../../../php/phpCoordinator/save_stamp.php', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(async response => {
+                    const raw = await response.text();
+                    let data = {};
+                    try {
+                        data = raw ? JSON.parse(raw) : {};
+                    } catch(e) {
+                        throw new Error('Invalid JSON: ' + raw.substring(0, 300));
+                    }
+                    if (!response.ok || !data.success) {
+                        throw new Error(data.error || ('HTTP ' + response.status));
+                    }
+                    return data;
+                })
+                .then(() => {
+                    openModal(uploadModal);
+                    storeSavedState('stamp');
+                })
+                .catch(err => {
+                    alert('Upload error: ' + err.message);
+                })
+                .finally(() => {
+                    saveBtn.disabled = false;
+                    saveBtn.textContent = 'Save';
+                });
+            } else {
+                // No new file, just show success modal
+                openModal(uploadModal);
+            }
         });
 
         document.getElementById('closeUploadModal').onclick = function() {
@@ -508,7 +519,7 @@
 
                     // Show/hide child links for the current menu (only when sidebar is expanded)
                     const sidebar = document.getElementById("mySidebar");
-                    const isSidebarExpanded = sidebar.style.width === "220px" || sidebar.style.width === "250px";
+                    const isSidebarExpanded = sidebar.style.width === expandedWidth;
 
                     menu.querySelectorAll('a').forEach(a => {
                         if (isSidebarExpanded) {
@@ -521,9 +532,41 @@
             });
         }
 
+        function loadExistingStamp() {
+            fetch('../../../php/phpCoordinator/get_stamp.php')
+                .then(response => {
+                    if (response.ok) {
+                        return response.blob();
+                    } else if (response.status === 404) {
+                        // No stamp exists yet, that's fine
+                        return null;
+                    } else {
+                        throw new Error('Failed to load stamp');
+                    }
+                })
+                .then(blob => {
+                    if (blob) {
+                        var reader = new FileReader();
+                        reader.onload = function(e) {
+                            var state = uploadState.stamp;
+                            state.savedPreview = e.target.result;
+                            state.savedFileName = 'stamp';
+                            state.fileSaved = true;
+                            showSavedPreview('stamp');
+                        };
+                        reader.readAsDataURL(blob);
+                    }
+                })
+                .catch(err => {
+                    // Silently fail if no stamp exists
+                    console.log('No existing stamp found');
+                });
+        }
+
         window.onload = function() {
             closeNav();
             initializeRoleToggle();
+            loadExistingStamp();
         };
     </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
