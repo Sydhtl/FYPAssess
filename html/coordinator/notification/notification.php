@@ -1,3 +1,55 @@
+<?php 
+include '../../../php/coordinator_bootstrap.php'; 
+
+// Get the latest session from database for this department
+$userId = $_SESSION['upmId'] ?? null;
+$departmentId = null;
+$currentYear = null;
+$currentSemester = null;
+
+if ($userId) {
+    $deptStmt = $conn->prepare("SELECT Department_ID FROM lecturer WHERE Lecturer_ID = ? LIMIT 1");
+    if ($deptStmt) {
+        $deptStmt->bind_param('s', $userId);
+        if ($deptStmt->execute()) {
+            $deptRes = $deptStmt->get_result();
+            if ($deptRow = $deptRes->fetch_assoc()) {
+                $departmentId = (int)$deptRow['Department_ID'];
+            }
+        }
+        $deptStmt->close();
+    }
+}
+
+// Get the latest session from database for this department
+if ($departmentId !== null) {
+    $latestSessionStmt = $conn->prepare("
+        SELECT fs.FYP_Session, fs.Semester
+        FROM fyp_session fs
+        INNER JOIN course c ON fs.Course_ID = c.Course_ID
+        WHERE c.Department_ID = ?
+        ORDER BY fs.FYP_Session DESC, fs.Semester DESC
+        LIMIT 1
+    ");
+    if ($latestSessionStmt) {
+        $latestSessionStmt->bind_param('i', $departmentId);
+        if ($latestSessionStmt->execute()) {
+            $latestRes = $latestSessionStmt->get_result();
+            if ($latestRow = $latestRes->fetch_assoc()) {
+                $currentYear = $latestRow['FYP_Session'];
+                $currentSemester = (int)$latestRow['Semester'];
+            }
+        }
+        $latestSessionStmt->close();
+    }
+}
+
+// Fallback to default if no session found
+if ($currentYear === null) {
+    $currentYear = '2024/2025';
+    $currentSemester = 2;
+}
+?>
 <!DOCTYPE html>
 <html>
 <head>
@@ -18,7 +70,7 @@
                 Close <span class="x-symbol">x</span>
             </a>
 
-            <span id="nameSide">HI, AZRINA BINTI KAMARUDDIN</span>
+            <span id="nameSide">HI, <?php echo htmlspecialchars($coordinatorName); ?></span>
 
             <a href="#supervisorMenu" class="role-header" data-role="supervisor">
                 <span class="role-text">Supervisor</span>
@@ -56,23 +108,23 @@
             </a>
 
             <div id="coordinatorMenu" class="menu-items expanded">
-                <a href="../dashboard/dashboardCoordinator.html" id="coordinatorDashboard"><i class="bi bi-house-fill icon-padding"></i> Dashboard</a>
-                <a href="../studentAssignation/studentAssignation.html" id="studentAssignation"><i class="bi bi-people-fill icon-padding"></i> Student Assignation</a>
-                <a href="../learningObjective/learningObjective.html" id="learningObjective"><i class="bi bi-book-fill icon-padding"></i> Learning Objective</a>
-                <a href="../markSubmission/markSubmission.html" id="markSubmission"><i class="bi bi-clipboard-check-fill icon-padding"></i> Progress Submission</a>
-                <a href="../notification/notification.html" id="coordinatorNotification"><i class="bi bi-bell-fill icon-padding"></i> Notification</a>
-                <a href="../signatureSubmission/signatureSubmission.html" id="signatureSubmission"><i class="bi bi-pen-fill icon-padding"></i> Signature Submission</a>
-                <a href="../dateTimeAllocation/dateTimeAllocation.html" id="dateTimeAllocation"><i class="bi bi-calendar-event-fill icon-padding"></i> Date and Time Allocation</a>
+                <a href="../dashboard/dashboardCoordinator.php" id="coordinatorDashboard"><i class="bi bi-house-fill icon-padding"></i> Dashboard</a>
+                <a href="../studentAssignation/studentAssignation.php" id="studentAssignation"><i class="bi bi-people-fill icon-padding"></i> Student Assignment</a>
+                <a href="../learningObjective/learningObjective.php" id="learningObjective"><i class="bi bi-book-fill icon-padding"></i> Learning Objective</a>
+                <a href="../markSubmission/markSubmission.php" id="markSubmission"><i class="bi bi-clipboard-check-fill icon-padding"></i> Progress Submission</a>
+                <a href="../notification/notification.php" id="coordinatorNotification"><i class="bi bi-bell-fill icon-padding"></i> Notification</a>
+                <a href="../signatureSubmission/signatureSubmission.php" id="signatureSubmission"><i class="bi bi-pen-fill icon-padding"></i> Signature Submission</a>
+                <a href="../dateTimeAllocation/dateTimeAllocation.php" id="dateTimeAllocation"><i class="bi bi-calendar-event-fill icon-padding"></i> Date and Time Allocation</a>
             </div>
 
-            <a href="../../login/login.html" id="logout">
+            <a href="../../login/login.php" id="logout">
                 <i class="bi bi-box-arrow-left" style="padding-right: 10px;"></i> Logout
             </a>
         </div>
     </div>
 
     <div id="containerAtas" class="containerAtas">
-        <a href="../dashboard/dashboardCoordinator.html">
+        <a href="../dashboard/dashboardCoordinator.php">
             <img src="../../../assets/UPMLogo.png" alt="UPM logo" width="100px" id="upm-logo">
         </a>
 
@@ -91,92 +143,23 @@
     <div id="main" class="main-grid">
         <div class="notification-container">
             <h1 class="page-title">Notification</h1>
-
-            <div class="notification-item">
-                <div class="notification-description">
-                    <span class="notif-number">1.</span> Student FYP title submission requires coordinator review.
-                </div>
-                <div class="notif-card">
-                    <div class="notif-details">
-                        <p><strong>Student</strong>: NURUL SAIDAHTUL FATIHA BINTI SHAHARUDIN</p>
-                        <p><strong>Proposed Title</strong>: DEVELOPMENT OF AN AUTOMATED ASSESSMENT AND EVALUATION SYSTEM</p>
-                        <p><strong>Status</strong>: Pending Coordinator Approval</p>
-                        <p><strong>Submitted On</strong>: 9 Aug 2025, Wed</p>
-                    </div>
-                    <div class="notif-action">
-                        <button type="button" class="btn btn-outline-dark action-btn" onclick="window.location.href='../learningObjective/learningObjective.html'">
-                            View Details
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="notification-item">
-                <div class="notification-description">
-                    <span class="notif-number">2.</span> Supervisor allocation quota nearing limit.
-                </div>
-                <div class="notif-card">
-                    <div class="notif-details">
-                        <p><strong>Lecturer</strong>: DR. AZRINA BINTI KAMARUDDIN</p>
-                        <p><strong>Assigned Students</strong>: 18</p>
-                        <p><strong>Quota</strong>: 20</p>
-                        <p><strong>Last Updated</strong>: 10 Aug 2025, Thu</p>
-                    </div>
-                    <div class="notif-action">
-                        <button type="button" class="btn btn-outline-dark action-btn" onclick="window.location.href='../studentAssignation/studentAssignation.html'">
-                            Manage Quota
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="notification-item">
-                <div class="notification-description">
-                    <span class="notif-number">3.</span> Upcoming submission deadline reminder for SWE4949A.
-                </div>
-                <div class="notif-card">
-                    <div class="notif-details">
-                        <p><strong>Submission</strong>: Progress Report</p>
-                        <p><strong>Due Date</strong>: 15 Aug 2025, Mon</p>
-                        <p><strong>Pending Reviews</strong>: 12</p>
-                        <p><strong>Action Required</strong>: Ensure assessors are allocated.</p>
-                    </div>
-                    <div class="notif-action">
-                        <button type="button" class="btn btn-outline-dark action-btn" onclick="window.location.href='../studentAssignation/studentAssignation.html'">
-                            Review Allocation
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="notification-item">
-                <div class="notification-description">
-                    <span class="notif-number">4.</span> New announcement: Industry collaboration briefing.
-                </div>
-                <div class="notif-card">
-                    <div class="notif-details">
-                        <p><strong>Topic</strong>: Collaboration with Industry Partners</p>
-                        <p><strong>Date</strong>: 20 Aug 2025, Sat</p>
-                        <p><strong>Time</strong>: 10:00 AM - 12:00 PM</p>
-                        <p><strong>Venue</strong>: Faculty Seminar Hall</p>
-                    </div>
-                    <div class="notif-action">
-                        <button type="button" class="btn btn-outline-dark action-btn" onclick="javascript:void(0)">
-                            View Memo
-                        </button>
-                    </div>
-                </div>
+            <div id="notificationsList">
+                <!-- Notifications will be dynamically loaded here -->
             </div>
         </div>
     </div>
 
     <script>
         const collapsedWidth = "60px";
-        const expandedWidth = "250px";
+        const expandedWidth = "220px";
 
         document.addEventListener('DOMContentLoaded', function() {
             initializeRoleToggle();
             closeNav();
+            
+            // Initialize notifications
+            initializeNotifications();
+            startNotificationPolling();
         });
 
         function openNav() {
@@ -341,7 +324,7 @@
 
                     // Show/hide child links for the current menu (only when sidebar is expanded)
                     const sidebar = document.getElementById("mySidebar");
-                    const isSidebarExpanded = sidebar.style.width === "220px" || sidebar.style.width === "250px";
+                    const isSidebarExpanded = sidebar.style.width === expandedWidth;
 
                     menu.querySelectorAll('a').forEach(a => {
                         if (isSidebarExpanded) {
@@ -353,6 +336,162 @@
                 });
             });
         }
+        
+        // --- REAL-TIME NOTIFICATION UPDATES ---
+        let notificationUpdateInterval = null;
+        let currentNotificationsHash = '';
+        
+        // Helper function to format remaining days
+        function formatRemainingDays(days) {
+            if (days === null || days === undefined) return 'N/A';
+            if (days < 0) return 'Overdue (' + Math.abs(days) + ' days)';
+            if (days === 0) return 'Due today';
+            if (days === 1) return '1 day remaining';
+            return days + ' days remaining';
+        }
+        
+        // Helper function to format date
+        function formatDate(dateStr) {
+            if (!dateStr) return 'N/A';
+            const date = new Date(dateStr);
+            const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const dayName = days[date.getDay()];
+            const day = date.getDate();
+            const month = months[date.getMonth()];
+            const year = date.getFullYear();
+            return day + ' ' + month + ' ' + year + ', ' + dayName;
+        }
+        
+        // Helper function to escape HTML
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Function to generate a hash for notifications array
+        function getNotificationsHash(notifications) {
+            return JSON.stringify(notifications.map(n => ({
+                lecturer_id: n.lecturer_id,
+                tasks: n.tasks.map(t => ({
+                    assessment_id: t.assessment_id,
+                    role: t.role
+                }))
+            })));
+        }
+        
+        // Function to render notifications
+        function renderNotifications(notifications) {
+            const container = document.getElementById('notificationsList');
+            if (!container) return;
+            
+            if (!notifications || notifications.length === 0) {
+                container.innerHTML = '<div class="notification-item">' +
+                    '<div class="notification-description">No incomplete tasks for lecturers at this time.</div>' +
+                    '</div>';
+                return;
+            }
+            
+            let html = '';
+            notifications.forEach((notif, index) => {
+                const lecturerName = escapeHtml(notif.lecturer_name || 'N/A');
+                
+                // Group tasks by role
+                const supervisorTasks = notif.tasks.filter(t => t.role === 'Supervisor');
+                const assessorTasks = notif.tasks.filter(t => t.role === 'Assessor');
+                
+                html += '<div class="notification-item">' +
+                    '<div class="notification-description">' +
+                    '<span class="notif-number">' + (index + 1) + '.</span> ' +
+                    'Lecturer ' + lecturerName + ' has incomplete assessment tasks.' +
+                    '</div>' +
+                    '<div class="notif-card">' +
+                    '<div class="notif-details">' +
+                    '<p><strong>Lecturer</strong>: ' + lecturerName + '</p>';
+                
+                // Supervisor tasks
+                if (supervisorTasks.length > 0) {
+                    html += '<div style="margin-top: 10px;"><strong>Supervisor Tasks:</strong></div>';
+                    supervisorTasks.forEach(task => {
+                        html += '<div style="margin-left: 20px; margin-top: 5px;">' +
+                            '<p style="margin: 0;">' + escapeHtml(task.assessment_name) + '</p>' +
+                            '</div>';
+                    });
+                }
+                
+                // Assessor tasks
+                if (assessorTasks.length > 0) {
+                    html += '<div style="margin-top: 10px;"><strong>Assessor Tasks:</strong></div>';
+                    assessorTasks.forEach(task => {
+                        html += '<div style="margin-left: 20px; margin-top: 5px;">' +
+                            '<p style="margin: 0;">' + escapeHtml(task.assessment_name) + '</p>' +
+                            '</div>';
+                    });
+                }
+                
+                html += '</div>' +
+                    '<div class="notif-action">' +
+                    '<button type="button" class="btn btn-outline-dark action-btn" onclick="window.location.href=\'../markSubmission/markSubmission.php\'">' +
+                    'View Details' +
+                    '</button>' +
+                    '</div>' +
+                    '</div>' +
+                    '</div>';
+            });
+            
+            container.innerHTML = html;
+        }
+        
+        // Function to fetch notifications from server
+        function fetchNotifications() {
+            const year = <?php echo json_encode($currentYear); ?>;
+            const semester = <?php echo json_encode($currentSemester); ?>;
+            const params = new URLSearchParams({
+                year: year,
+                semester: semester
+            });
+            fetch('../../../php/phpCoordinator/fetch_lecturer_notifications.php?' + params.toString())
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.notifications) {
+                        const newHash = getNotificationsHash(data.notifications);
+                        // Only update if there are changes
+                        if (newHash !== currentNotificationsHash) {
+                            currentNotificationsHash = newHash;
+                            renderNotifications(data.notifications);
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching notifications:', error);
+                });
+        }
+        
+        // Initialize notifications (first load)
+        function initializeNotifications() {
+            fetchNotifications();
+        }
+        
+        // Start polling for updates every 5 seconds
+        function startNotificationPolling() {
+            // Set up interval to check every 5 seconds
+            notificationUpdateInterval = setInterval(fetchNotifications, 5000);
+        }
+        
+        // Stop polling when page is hidden (to save resources)
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                if (notificationUpdateInterval) {
+                    clearInterval(notificationUpdateInterval);
+                    notificationUpdateInterval = null;
+                }
+            } else {
+                if (!notificationUpdateInterval) {
+                    startNotificationPolling();
+                }
+            }
+        });
     </script>
 </body>
 </html>
