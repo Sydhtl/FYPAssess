@@ -1,21 +1,22 @@
-/* --- Notification Page Specific Styles (Unchanged) --- */
+/* logbookSubmission.css */
 
+/* Page Headers */
 .page-title {
-  font-size: 16px;
-  font-weight: bold;
-  margin-bottom: 20px;
-  color: hsl(0, 0%, 20%);
-}
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            color: #333;
+        }
 
-/* Styling for the new top-level course header (Unchanged) */
+
+/* Accordion / Course Header */
 .course-header {
-  background-color: #FDF0D5;
+  background-color: #fdf0d5;
   color: #333;
-  padding: 10px 15px;
+  padding: 12px 15px;
   font-weight: bold;
-  font-size: 16PX;
   cursor: pointer;
-  border: 1px solid #dee2e6;
+  /* border: 1px solid #dee2e6; */
   margin-top: 15px;
   display: flex;
   align-items: center;
@@ -31,102 +32,140 @@
   transition: transform 0.3s ease;
 }
 
-/* Ensure the logbook table wrapper border is only for the bottom/sides now (Unchanged) */
-.logbook-table-wrapper {
-  border-left: 1px solid #dee2e6;
-
+.course-header.collapsed .toggle-icon {
+  transform: rotate(90deg);
 }
 
-/* Main 5-Column Grid (Crucial: display: grid is here) */
+.course-header:not(.collapsed) .toggle-icon {
+  transform: rotate(0deg);
+}
+
+/* --- THE GRID SYSTEM --- */
+.logbook-table-wrapper {
+  border: 1px solid #dee2e6;
+  background: #fff;
+  margin-bottom: 15px;
+}
+
 .logbook-grid-container {
   display: grid;
-  /* Define 5 columns: Student, Meeting progress, Status, Submitted, Approved */
-  grid-template-columns: 1fr 2fr 1fr 0.5fr 0.5fr;
-  
+  /* 5 Columns: Student | Meeting | Status | Submitted | Approved */
+  grid-template-columns: 3fr 1.7fr 1.7fr 0.8fr 0.8fr;
+  width: 100%;
+  border-top: 1px solid #dee2e6;
 }
 
-/* Header Cells Styling (Unchanged) */
-.grid-cell.header-row {
-
+/* Header Cells */
+.grid-header {
+  background-color: #780000;
+  color: white;
   font-weight: bold;
-  padding: 10px;
-  
-  border-bottom: 2px solid #333;
-  color: #333;
+  padding: 12px;
+  border-right: 1px solid #ccc;
+  border-bottom: 2px solid #dee2e6;
+  text-align: center;
+}
+.grid-header.student-col {
+  text-align: left;
+  padding-left: 15px;
+}
+.grid-header.meeting-col {
+  text-align: left;
+  padding-left: 15px;
 }
 
-/* General Data Cell Styling (Unchanged) */
+/* Wrapper for "display: contents" to handle row spans */
+.student-group-wrapper {
+  display: contents;
+}
+
+/* Common Cell Styles */
 .grid-cell {
-  padding: 8px 10px;
+  padding: 12px;
   border-right: 1px solid #dee2e6;
   border-bottom: 1px solid #dee2e6;
+  font-size: 0.95rem;
   display: flex;
   align-items: center;
 }
 
-/* The student entry block just makes its children flow into the main grid */
-.student-entry-block {
-  display: contents;
+/* Column Specific Alignments */
+.student-col {
+  grid-column: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
 }
-
-/* ========================================================== */
-/* NEW / MODIFIED CSS FOR ROW-SPANNING              */
-/* ========================================================== */
-
-/* Dynamically set the row span based on the data-num-meetings attribute on student-entry-block.
-   This requires JavaScript/server-side logic to set the data attribute AND CSS to read it.
-   
-   Example if you know the exact number (3 meetings):
-   .student-entry-block[data-num-meetings="3"] .student-data-cell {
-       grid-row-end: span 3; 
-   }
-   
-   A simpler, but less flexible, approach is to dynamically add a class like 'row-span-X': */
-.student-entry-block[data-num-meetings="3"] .student-data-cell {
-  grid-row-end: span 4;
-}
-
-/* You must ensure the student-entry-block is given the correct row-span class 
-   (e.g., student-data-cell row-span-3) for the Submitted/Approved cells. */
-
-/* Positioning of repeatable meeting/status cells */
 .meeting-col {
-  grid-column: 2; /* Forces meeting links to column 2 */
+  grid-column: 2;
+  justify-content: flex-start;
+  align-items: flex-start;
 }
-
 .status-col {
-  grid-column: 3; /* Forces status dropdowns to column 3 */
+  grid-column: 3;
+  justify-content: center;
+  align-items: flex-start;
 }
-
 .submitted-col {
   grid-column: 4;
+  justify-content: center;
+  
 }
-
 .approved-col {
   grid-column: 5;
-
+  justify-content: center;
 }
 
-/* Ensure the Submitted/Approved cells are vertically centered to start at the top */
-.submitted-col.student-data-cell,
-.approved-col.student-data-cell {
-    /* Change the main display setting for these cells to allow centering */
-    display: flex; 
-    justify-content: center; /* Centers content horizontally */
-    /* This ensures the number sits at the top row, spanning down */
-    align-items: flex-start; 
-    padding-top: 10px; 
+/* Ensure the Submitted/Approved spanned cells align to top */
+.submitted-col.spanned-cell,
+.approved-col.spanned-cell {
+  align-items: flex-start;
+  padding-top: 10px;
 }
 
-.student-col.student-data-cell{
-    align-items: flex-start;
+/* Clean background for spanned cells */
+.spanned-cell {
+  background-color: #fff;
 }
 
-.course-header.collapsed .toggle-icon {
-  transform: rotate(90deg); /* Start in the "right" position */
+/* Links & Misc */
+.pdf-link {
+  text-decoration: none;
+  color: #0d6efd;
+  font-weight: 500;
+}
+.pdf-link:hover {
+  text-decoration: underline;
 }
 
-/* When header is *not* collapsed (expanded), icon points down (90deg) */
-.course-header:not(.collapsed) .toggle-icon {
-  transform: rotate(0deg);
+.date-small {
+  font-size: 0.8em;
+  color: #888;
+  margin-left: 10px;
+}
+
+.no-data-row {
+  grid-column: 1 / -1;
+  padding: 20px;
+  text-align: center;
+  color: #6c757d;
+  font-style: italic;
+}
+
+/* Status Colors */
+.status-select {
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+.status-approved {
+  color: #198754;
+  border-color: #198754;
+}
+.status-declined {
+  color: #dc3545;
+  border-color: #dc3545;
+}
+.status-pending {
+  color: #d68c0b;
+  border-color: #ffc107;
 }
