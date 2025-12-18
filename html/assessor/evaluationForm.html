@@ -8,12 +8,15 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat&family=Overlock" rel="stylesheet">
 </head>
 
 <body>
 
     <div id="mySidebar" class="sidebar">
-        <button class="menu-icon" onclick="openNav()">☰</button>
+        <button class="menu-icon" onclick="openNav()"><i class="bi bi-list"></i></button>
 
         <div id="sidebarLinks">
             <a href="javascript:void(0)" class="closebtn" id="close" onclick="closeNav()">
@@ -43,7 +46,7 @@
                     Submission</a>
             </div>
 
-            <a href="#assessorMenu" class="role-header active-role menu-expanded" data-role="assessor">
+            <a href="#assessorMenu" class="role-header menu-expanded" data-role="assessor">
                 <span class="role-text">Assessor</span>
                 <span class="arrow-container">
                     <i class="bi bi-chevron-right arrow-icon"></i>
@@ -51,8 +54,10 @@
             </a>
             <div id="assessorMenu" class="menu-items expanded">
                 <a href="dashboard.html" id="Dashboard"><i class="bi bi-house-fill icon-padding"></i> Dashboard</a>
-                <a href="notification.html" id="Notification"><i class="bi bi-bell-fill icon-padding"></i> Notification</a>
-                <a href="evaluationForm.html" id="EvaluationForm"><i class="bi bi-file-earmark-text-fill icon-padding"></i> Evaluation
+                <a href="notification.html" id="Notification"><i class="bi bi-bell-fill icon-padding"></i>
+                    Notification</a>
+                <a href="evaluationForm.html" class="active-menu-item active-page" id="EvaluationForm"><i
+                        class="bi bi-file-earmark-text-fill icon-padding"></i> Evaluation
                     Form</a>
             </div>
             <a href="#" id="logout">
@@ -77,15 +82,11 @@
                 <div id="courseSession">2024/2025 - 2 </div>
             </div>
         </div>
-
-        <!-- <div id="username">NURUL SAIDAHTUL FATIHA BINTI SHAHARUDIN</div> -->
-        <!-- <span id="notificationCircle"><i class="bi bi-bell-fill" style="color: white;"></i></span> -->
-        <!-- <span id="logoutCircle"><i class="bi bi-box-arrow-left"style="color: white;"></i></span> -->
-
     </div>
 
     </div>
 
+    <!-- Main Content Area -->
     <div id="main">
         <div class="evaluation-container">
             <h1 class="page-title">Evaluation Form</h1>
@@ -95,9 +96,11 @@
                 <div class="form-field">
                     <p class="form-label"><strong>Select student</strong></p>
                     <div class="evaluation-action">
-                        <select class="form-select action-dropdown">
-                            <option value="student">214668 - Siti Athirah Binti Othman</option>
-                            <option value="student">215332 - Atiya Aisya Binti Aiman</option>
+                        <select class="form-select action-dropdown" id="studentSelect">
+                            <!-- Placeholder option added to enforce selection -->
+                            <option value="" disabled selected>Select a student...</option>
+                            <option value="214668">214668 - Siti Athirah Binti Othman</option>
+                            <option value="215332">215332 - Atiya Aisya Binti Aiman</option>
                         </select>
                     </div>
                 </div>
@@ -106,114 +109,184 @@
                 <div class="form-field">
                     <p class="form-label"><strong>Select assessment</strong></p>
                     <div class="evaluation-action">
-                        <select class="form-select action-dropdown">
-                            <option value="proposal">Proposal Seminar</option>
-                            <option value="demonstration">Seminar Demonstration</option>
+                        <select class="form-select action-dropdown" id="assessmentSelect">
+                            <!-- Placeholder option added to enforce selection -->
+                            <option value="" disabled selected>Select an assessment type...</option>
+                            <option value="proposal-seminar">Proposal Seminar</option>
+                            <option value="seminar-demonstration">Seminar Demonstration</option>
                         </select>
                     </div>
                 </div>
             </div>
-            <!-- Student details -->
-            <div class="student-details">
-                <p><strong>Matric Number</strong>: 214668</p>
-                <p><strong>Name</strong>: Siti Athirah Binti Othman</p>
-                <p><strong>Programme Code</strong>: 42-D BKP</p>
-                <p><strong>Supervisor</strong>: Dr Azrina Binti Kamaruddin</p>
-                <p><strong>Project title</strong>: FYPAssess : Development of an Automated Assessment and
-                    Evaluation for Bachelor Projects</p>
-            </div>
-            <!-- Evaluation table -->
-            <div class="report-table-wrapper">
-                <div class="report-grid-container">
 
-                    <div class="grid-cell header-row">Evaluation criteria</div>
-                    <div class="grid-cell header-row">Learning outcome</div>
-                    <div class="grid-cell header-row">Marks (%)</div>
+            <!-- START: Dynamic Content Wrapper - HIDDEN ON LOAD -->
+            <div id="dynamicFormContent" class="hidden-content">
 
-                    <div class="grid-cell criteria-cell">
-                        <h4 class="criteria-title">1. Content of the proposal</h4>
-                        <ul class="criteria-list">
-                            <li>Clearly identifies and articulates the problem, the objectives, or need.</li>
-                            <li>Clearly demonstrates adaptability, creativity, originality and flexibility in responding
-                                to new knowledge and technology.</li>
-                            <li>Clearly demonstrates a deep understanding of the impact on target users/stakeholder and
-                                markets.</li>
-                            <li>Clearly identifying key competitors, existing research and systems.</li>
-                            <li>Clearly articulate strong, compelling unique value propositions with return of value
-                                (ROV) / return of investment (ROI).</li>
-                        </ul>
-                        <div class="evaluation-action">
-                            <select class="form-select action-dropdown">
-                                <option value="" disabled selected>Select a descriptive mark...</option>
-                                <option value="marks">0 - Does not present the project proposal. </option>
-                                <option value="marks">1 - Justify one of the project proposal elements.</option>
-                                <option value="marks">2 - Justify two of the project proposal elements with basic
-                                    understanding.</option>
-                                <option value="marks">3 - Justify more than two project proposal elements with a good
-                                    explanation.</option>
-                                <option value="marks">4 - Justify all the project proposal elements with a detail
-                                    explanation.</option>
-                                <option value="marks">5 - Justify all project proposal elements with well-justified,
-                                    in-depth analysis, including potential of value.</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="grid-cell lo-cell">
-                        CPSI (C5)
-                    </div>
-                    <div class="grid-cell mark-cell">
-                        <input type="text" class="form-control marks-input" placeholder=""> 
-                    </div>
-
-                    <div class="grid-cell criteria-cell">
-                        <h4 class="criteria-title">2. Content of the proposal (Delivery)</h4>
-                        <ul class="criteria-list">
-                            <li>Captivate the audience right from the start with strong knowledge.</li>
-                            <li>Strong pacing, maintaining audience interest throughout.</li>
-                            <li>Handles questions confidently and effectively, demonstrating deep understanding.</li>
-                            <li>Strong, clear conclusion with a compelling call to action.</li>
-                        </ul>
-                        <div class="evaluation-action">
-                            <select class="form-select action-dropdown">
-                                <option value="" disabled selected>Select a descriptive mark...</option>
-                                <option value="marks">0 - Does not deliver a presentation.</option>
-                                <option value="marks">1 - Unclear, weak responses...</option>
-                                <option value="marks">2 - Somewhat clear presentation...</option>
-                                <option value="marks">3 - Clear relevance, with good responses...</option>
-                                <option value="marks">4 - Very clear responses...</option>
-                                <option value="marks">5 - Exceptionally clear responses...</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="grid-cell lo-cell">
-                        CPSI (C5)
-                    </div>
-                    <div class="grid-cell mark-cell">
-                        <input type="text" class="form-control marks-input" placeholder="">
-                    </div>
-
-                </div>
-            </div>
-            <div class="feedback-section-wrapper">
-                
-                <div class="feedback-header">
-                    Comment/feedback
-                </div>
-                
-                <div class="feedback-body">
-                    <textarea class="form-control" rows="3" placeholder="Enter your feedback here..."></textarea>
+                <!-- Student details (Dynamic Content) -->
+                <div class="student-details" id="studentDetails">
+                    <!-- Content will be generated here -->
                 </div>
 
-              
-            </div>
-            <div class="submit-container">
+                <!-- Evaluation table (Dynamic Content) -->
+                <div class="report-table-wrapper">
+                    <div class="report-grid-container" id="evaluationTableBody">
+                        <!-- Table content will be generated here -->
+                    </div>
+                </div>
+
+                <div class="feedback-section-wrapper">
+                    <div class="feedback-header">
+                        Comment/feedback
+                    </div>
+                    <div class="feedback-body">
+                        <textarea class="form-control" rows="3" placeholder="Enter your feedback here..."></textarea>
+                    </div>
+                </div>
+                <div class="submit-container">
                     <button type="submit" class="btn btn-success">Submit</button>
                 </div>
+            </div>
+            <!-- END: Dynamic Content Wrapper -->
+
         </div>
     </div>
-    </div>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        // --- Data Model for Dynamic Content ---
+        const studentData = {
+            '214668': {
+                matric: '214668',
+                name: 'Siti Athirah Binti Othman',
+                programme: '42-D BKP',
+                supervisor: 'Dr Azrina Binti Kamaruddin',
+                projectTitle: 'FYPAssess : Development of an Automated Assessment and Evaluation for Bachelor Projects'
+            },
+            '215332': {
+                matric: '215332',
+                name: 'Atiya Aisya Binti Aiman',
+                programme: '42-D BKP',
+                supervisor: 'Dr Azrina Binti Kamaruddin',
+                projectTitle: 'Digital Portfolio System for Art Students'
+            }
+        };
+
+        const rubrics = {
+            'proposal-seminar': [
+                {
+                    title: "1. Content of the proposal",
+                    outcomes: "CPSE (C5)",
+                    criteria: [
+                        "Clearly identifies and articulates the problem, the objectives, or need.",
+                        "Clearly demonstrates adaptability, creativity, originality and flexibility in responding to new knowledge and technology.",
+                        "Clearly demonstrates a deep understanding of the impact on target users/stakeholder and markets.",
+                        "Clearly identifying key competitors, existing research and systems.",
+                        "Clearly articulate strong, compelling unique value propositions with return of value (ROV) / return of investment (ROI)."
+                    ],
+                    marks: [
+                        "0 - Does not present the project proposal.",
+                        "1 - Justify one of the project proposal elements.",
+                        "2 - Justify two of the project proposal elements with basic understanding.",
+                        "3 - Justify more than two project proposal elements with a good explanation.",
+                        "4 - Justify all the project proposal elements with a detail explanation.",
+                        "5 - Justify all project proposal elements with well-justified, in-depth analysis, including potential of value."
+                    ]
+                },
+                {
+                    title: "2. Content of the proposal (Delivery)",
+                    outcomes: "CPSE (C5)",
+                    criteria: [
+                        "Captivate the audience right from the start with strong knowledge.",
+                        "Strong pacing, maintaining audience interest throughout.",
+                        "Handles questions confidently and effectively, demonstrating deep understanding.",
+                        "Strong, clear conclusion with a compelling call to action."
+                    ],
+                    marks: [
+                        "0 - Does not deliver a presentation.",
+                        "1 - Present unclear, weak response and lacks confidence in the conclusion",
+                        "2 - Present somewhat clear presentationclearly,responses are adequate but lack depth, and inconsistent confidence in the conclusion",
+                        "3 - Presents a clear relevant, with good responses to questions and shows confidence in the conclusion",
+                        "4 - Provides very clear responses, shows strong relevance andimpact, effectively handles questions, and exhibits high confidence in their conclusions",
+                        "5 - delivers exceptionally clear responses, demonstrates strongrelevance and impact, expertly addresses all questions, and exhibits excellent confidence in their conclusions"
+                    ]
+                }
+            ],
+            'seminar-demonstration': [
+                {
+                    title: "1. Knowledge",
+                    outcomes: "CPSE1 (C6)",
+                    criteria: [
+                        "The project objectives are clearly met by the functional system.",
+                        "Demonstrates technical proficiency in implementation.",
+                        "System design is robust, scalable, and adheres to best practices.",
+                        "The demonstration is clear, engaging, and professional."
+                    ],
+                    marks: [
+                        "0 - Does not deliver any presentation.",
+                        "1 - Unable to demonstrate the ability to design and develop the project output.",
+                        "2 - Partly demonstrate the ability to design and develop the project output.",
+                        "3 - Adequately demonstrate the ability to design and develop the project output.",
+                        "4 - Satisfactorily demonstrate the ability to design and develop the project output.",
+                        "5 - Effectively demonstrate the ability to design and develop the project output."
+                    ]
+                },
+                {
+                    title: "2. Project Demonstration",
+                    outcomes: "CPSE3 (P6)",
+                    criteria: [
+                        "Report structure and formatting meet academic standards.",
+                        "Clarity and completeness of the literature review and methodology.",
+                        "Accurate presentation and analysis of results.",
+                        "High-quality technical documentation (e.g., user manual, code comments)."
+                    ],
+                    marks: [
+                        "0 - Does not demonstrate any project. ",
+                        "1 - Unable to adapt appropriate skills to complete the project.",
+                        "2 - Partly adapts appropriate skills to complete the project.",
+                        "3 - Adequately adapts appropriate skills to complete the project.",
+                        "4 - Satisfactorily adapts appropriate skills to complete the project.",
+                        "5 - Effectively adapts appropriate skills to complete the project."
+                    ]
+                },
+                {
+                    title: "3. Communication Skills",
+                    outcomes: "CPSE4 (CS)",
+                    criteria: [
+                        "Report structure and formatting meet academic standards.",
+                        "Clarity and completeness of the literature review and methodology.",
+                        "Accurate presentation and analysis of results.",
+                        "High-quality technical documentation (e.g., user manual, code comments)."
+                    ],
+                    marks: [
+                        "0 - Does not deliver any presentation.",
+                        "1 - Unclear presentation, lacks engagement, minimal relevance, weak responses, and lacks confidence.",
+                        "2 - Somewhat clear presentation, with limited engagement, relevance is minimal, responses are adequate but lack depth and shows inconsistent confidence.",
+                        "3 - Clear presentation, engaging, relevant, with good responses to questions, and shows confidence.",
+                        "4 - Very clear presentation, highly engaging, demonstrates strong relevance and impact, handles questions well, and shows high confidence.",
+                        "5 - Exceptionally clear presentation, highly engaging, demonstrates significant relevance and impact, expertly handles all questions, and shows excellent confidence."
+                    ]
+                },
+                {
+                    title: "4. Digital Skills",
+                    outcomes: "CPSE5 (DS)",
+                    criteria: [
+                        "The student demonstrates key components of digital skills, including digital design, digital collaboration, and digital presence (e.g., using analysis and design tools, emulators, infographics, digital portfolios, and video demonstrations).",
+
+                    ],
+                    marks: [
+                        "0 - No attempt to adapt any digital skills.",
+                        "1 - Unable to show the components of digital skills in project development.",
+                        "2 - Partly show the components of digital skills in project development.",
+                        "3 - Adequately demonstrate the components of digital skills in project development.",
+                        "4 - Satisfactorily show the components of digital skills in project development.",
+                        "5 - Effectively show the components of digital skills in project development."
+                    ]
+                }
+            ]
+        };
+
+        // --- State Variables ---
+        let selectedStudentId = null;
+        let selectedAssessmentKey = null;
         // --- JAVASCRIPT LOGIC ---
         function openNav() {
             var fullWidth = "220px";
@@ -278,79 +351,262 @@
             if (menuIcon) menuIcon.style.display = "block";
         }
 
-        // Ensure the collapsed state is set immediately on page load
-        window.onload = function () {
-            closeNav();
+        // --- Dynamic Form Logic ---
+
+        // 1. Update Student Details
+        function updateStudentDetails(matricNumber) {
+            const detailsContainer = document.getElementById('studentDetails');
+            const student = studentData[matricNumber];
+
+            if (!student) {
+                detailsContainer.innerHTML = '<p class="text-red-500">Please select a student.</p>';
+                return;
+            }
+
+            detailsContainer.innerHTML = `
+            <p><strong>Matric Number</strong>: ${student.matric}</p>
+            <p><strong>Name</strong>: ${student.name}</p>
+            <p><strong>Programme Code</strong>: ${student.programme}</p>
+            <p><strong>Supervisor</strong>: ${student.supervisor}</p>
+            <p><strong>Project title</strong>: ${student.projectTitle}</p>
+        `;
+        }
+
+        // 2. Generate Evaluation Table
+        function generateEvaluationTable(assessmentKey) {
+            const tableBody = document.getElementById('evaluationTableBody');
+            const assessmentRubric = rubrics[assessmentKey];
+
+            if (!assessmentRubric || assessmentRubric.length === 0) {
+                tableBody.innerHTML = `<div class="p-4 text-center text-gray-500 col-span-3">No evaluation criteria found for this assessment.</div>`;
+                return;
+            }
+
+            // Generate the fixed header row first
+            let htmlContent = `
+            <div class="grid-cell header-row">Evaluation criteria</div>
+            <div class="grid-cell header-row">Learning outcome</div>
+            <div class="grid-cell header-row">Marks (%)</div>
+        `;
+
+            // Generate rows for each criterion
+            assessmentRubric.forEach((criterion, index) => {
+                const dropdownOptions = criterion.marks.map((mark) => {
+                    // The value is the mark number (e.g., 5 from "5 - Justify...")
+                    const markValue = mark.split(' - ')[0];
+                    return `<option value="${markValue}">${mark}</option>`;
+                }).join('');
+
+                htmlContent += `
+                <div class="grid-cell criteria-cell">
+                    <h4 class="criteria-title">${criterion.title}</h4>
+                    <ul class="criteria-list">
+                        ${criterion.criteria.map(c => `<li>${c}</li>`).join('')}
+                    </ul>
+                    <div class="evaluation-action w-full mt-2">
+                        <select class="form-select action-dropdown mark-selector" data-criterion-index="${index}">
+                            <option value="" disabled selected>Select a descriptive mark...</option>
+                            ${dropdownOptions}
+                        </select>
+                    </div>
+                </div>
+                <div class="grid-cell lo-cell">
+                    ${criterion.outcomes}
+                </div>
+                <div class="grid-cell mark-cell">
+                    <input type="text" class="form-control marks-input" data-criterion-index="${index}" readonly placeholder="">
+                </div>
+            `;
+            });
+
+            tableBody.innerHTML = htmlContent;
+
+            // Attach event listeners to mark dropdowns for percentage calculation
+            attachMarkListeners();
+        }
+
+        // to calculate mark percentage
+        // 3. Attach event listeners to mark dropdowns
+        function attachMarkListeners() {
+            const markSelectors = document.querySelectorAll('.mark-selector');
+            const markInputs = document.querySelectorAll('.marks-input');
+
+            markSelectors.forEach((dropdown, index) => {
+                dropdown.addEventListener('change', (event) => {
+                    const markNumber = parseInt(event.target.value);
+
+                    if (!isNaN(markNumber)) {
+                        // Convert 0-5 scale to 0-100% (each mark = 20%)
+                        const percentage = Math.round((markNumber / 5) * 100);
+
+                        if (markInputs[index]) {
+                            markInputs[index].value = `${percentage}%`;
+                        }
+                    } else {
+                        if (markInputs[index]) {
+                            markInputs[index].value = '';
+                        }
+                    }
+                });
+            });
+        }
+
+        // 3. Handle Descriptive Mark Selection to Populate Marks Input
+        function setupMarksInputListener() {
+            const tableBody = document.getElementById('evaluationTableBody');
+
+            // Use event delegation on the table body
+            tableBody.removeEventListener('change', handleMarksSelection); // Remove existing listener to prevent duplicates
+            tableBody.addEventListener('change', handleMarksSelection);
+        }
+
+        const handleMarksSelection = (event) => {
+            if (event.target.classList.contains('mark-selector')) {
+                const selectedDropdown = event.target;
+                const markValue = selectedDropdown.value;
+                const criterionIndex = selectedDropdown.dataset.criterionIndex;
+
+                // Find the corresponding marks input field using the data attribute
+                const marksInput = document.getElementById('evaluationTableBody').querySelector(`.marks-input[data-criterion-index="${criterionIndex}"]`);
+
+                if (marksInput) {
+                    marksInput.value = markValue;
+                }
+            }
         };
 
 
-        // --- Role Toggle Logic ---
-        document.addEventListener('DOMContentLoaded', () => {
-            const arrowContainers = document.querySelectorAll('.arrow-container');
+        // 4. Function to show content and update data if both selections are made
+        function showFormContent() {
+            const dynamicContent = document.getElementById('dynamicFormContent');
 
-            // Function to handle the role menu toggle
+            if (selectedStudentId && selectedAssessmentKey) {
+                // Update Details and Table
+                updateStudentDetails(selectedStudentId);
+                generateEvaluationTable(selectedAssessmentKey);
+                setupMarksInputListener(); // Re-attach listener after table is regenerated
+
+                // Make the whole section visible
+                dynamicContent.classList.remove('hidden-content');
+            } else {
+                // Keep hidden if one is missing
+                dynamicContent.classList.add('hidden-content');
+            }
+        }
+
+
+        // 5. Initialization and Event Wiring
+        function initForm() {
+            const studentSelect = document.getElementById('studentSelect');
+            const assessmentSelect = document.getElementById('assessmentSelect');
+            const roleHeaders = document.querySelectorAll('.role-header');
+
+            // Initial State: Hide the dynamic content
+            document.getElementById('dynamicFormContent').classList.add('hidden-content');
+
+            // Wire student change event
+            studentSelect.addEventListener('change', (event) => {
+                selectedStudentId = event.target.value;
+                showFormContent();
+            });
+
+            // Wire assessment change event
+            assessmentSelect.addEventListener('change', (event) => {
+                selectedAssessmentKey = event.target.value;
+                showFormContent();
+            });
+
+            // --- Sidebar Toggles ---
+
+            // Always close sidebar on page load
+            closeNav();
+
+            // Function to check if a role has an active menu item
+            const hasActiveMenuItem = (menu) => {
+                return menu.querySelector('.active-menu-item') !== null;
+            };
+
+            // Function to update role header highlighting based on active menu items and expansion state
+            const updateRoleHeaderHighlighting = () => {
+                document.querySelectorAll('.role-header').forEach(header => {
+                    const menuId = header.getAttribute('href');
+                    const targetMenu = document.querySelector(menuId);
+
+                    if (!targetMenu) return;
+
+                    // Check if this specific menu contains the currently active page/link
+                    const hasActiveLink = targetMenu.querySelector('.active-menu-item') !== null;
+
+                    // Check if this menu is currently expanded (open)
+                    const isExpanded = targetMenu.classList.contains('expanded');
+
+                    // LOGIC: 
+                    // Only highlight the Role Header if it holds the active page 
+                    // BUT the menu is currently collapsed (hidden).
+                    if (hasActiveLink && !isExpanded) {
+                        header.classList.add('active-role');
+                    } else {
+                        header.classList.remove('active-role');
+                    }
+                });
+            };
+
+            // Role Toggle Logic
             const handleRoleToggle = (header) => {
                 const menuId = header.getAttribute('href');
                 const targetMenu = document.querySelector(menuId);
                 const arrowIcon = header.querySelector('.arrow-icon');
-
                 if (!targetMenu) return;
 
                 const isExpanded = targetMenu.classList.contains('expanded');
 
-                // Collapse all other menus and reset their arrows
+                // Collapse all other menus
                 document.querySelectorAll('.menu-items').forEach(menu => {
                     if (menu !== targetMenu) {
                         menu.classList.remove('expanded');
                         menu.querySelectorAll('a').forEach(a => a.style.display = 'none');
                     }
                 });
-                document.querySelectorAll('.role-header').forEach(h => {
-                    if (h !== header) h.classList.remove('active-role');
-                });
-                document.querySelectorAll('.arrow-icon').forEach(icon => {
-                    if (icon !== arrowIcon) {
-                        icon.classList.remove('bi-chevron-down');
-                        icon.classList.add('bi-chevron-right');
-                    }
-                });
 
                 // Toggle current menu
                 targetMenu.classList.toggle('expanded', !isExpanded);
-                header.classList.toggle('active-role', !isExpanded);
 
-                // Show/hide child links for the current menu (only when sidebar is expanded)
-                const sidebar = document.getElementById("mySidebar");
-                const isSidebarExpanded = sidebar.style.width === "220px";
-
-                targetMenu.querySelectorAll('a').forEach(a => {
-                    if (isSidebarExpanded) {
-                        a.style.display = targetMenu.classList.contains('expanded') ? 'block' : 'none';
-                    } else {
-                        a.style.display = 'none';
-                    }
-                });
-
-                // Toggle arrow direction
-                if (isExpanded) {
-                    arrowIcon.classList.remove('bi-chevron-down');
-                    arrowIcon.classList.add('bi-chevron-right');
-                } else {
+                if (targetMenu.classList.contains('expanded')) {
                     arrowIcon.classList.remove('bi-chevron-right');
                     arrowIcon.classList.add('bi-chevron-down');
+                    // Only show child links if sidebar is expanded
+                    if (document.getElementById("mySidebar").style.width === "220px") {
+                        targetMenu.querySelectorAll('a').forEach(a => a.style.display = 'block');
+                    }
+                } else {
+                    arrowIcon.classList.remove('bi-chevron-down');
+                    arrowIcon.classList.add('bi-chevron-right');
+                    targetMenu.querySelectorAll('a').forEach(a => a.style.display = 'none');
                 }
-            }
 
+                // Update all role header highlighting based on current state
+                updateRoleHeaderHighlighting();
+            };
 
-            arrowContainers.forEach(container => {
-                // Attach event listener to the role header itself
-                const header = container.closest('.role-header');
+            roleHeaders.forEach(header => {
                 header.addEventListener('click', (event) => {
                     event.preventDefault();
                     handleRoleToggle(header);
                 });
+
+                // Initial arrow state based on 'expanded' class in HTML
+                const menuId = header.getAttribute('href');
+                const targetMenu = document.querySelector(menuId);
+                if (targetMenu && targetMenu.classList.contains('expanded')) {
+                    const arrowIcon = header.querySelector('.arrow-icon');
+                    arrowIcon.classList.remove('bi-chevron-right');
+                    arrowIcon.classList.add('bi-chevron-down');
+                }
             });
-        });
+        }
+
+        // Execute initialization logic
+        document.addEventListener('DOMContentLoaded', initForm);
 
 
     </script>

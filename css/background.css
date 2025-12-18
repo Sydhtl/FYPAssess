@@ -5,7 +5,9 @@ html, body {
 }
 
 body {
+
     font-family: Montserrat;
+
 }
 @font-face {
     font-family: 'Montserrat';
@@ -152,9 +154,12 @@ body .btn:not(.btn-xs):not(.btn-sm) {
     top: 0;
     left: 0;
     background-color: #780000; /* UPM Red */
-    overflow-x: hidden;
+    /* overflow-x: hidden; */
+    overflow-y: auto; /* Hide overflow on sidebar itself */
     padding-top: 0;
     transition: 0.5s; /* Smooth transition for opening/closing */
+    display: flex;
+    flex-direction: column;
 }
 
 .menu-icon {
@@ -197,6 +202,14 @@ body .btn:not(.btn-xs):not(.btn-sm) {
     display: block;
     line-height: 1;
 }
+#sidebarLinks {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow-y: auto; /* Enable scrolling for sidebar content */
+    overflow-x: hidden;
+}
+
 #nameSide {
     /* Initially hidden, though the JS handles this at onload */
     display: none; 
@@ -209,7 +222,7 @@ body .btn:not(.btn-xs):not(.btn-sm) {
     padding: 10px 20px 20px 20px; /* Top, Right, Bottom, Left padding */
   
     word-break: break-word; /* Allows long names to wrap gracefully */
-   
+    flex-shrink: 0; /* Prevent from shrinking */
 }
 #yearChoose{
   padding-right:10px;
@@ -248,8 +261,8 @@ body .btn:not(.btn-xs):not(.btn-sm) {
 /* LOGOUT FIX: Sticks to the bottom of the fixed sidebar */
 #sidebarLinks #logout {
     text-decoration: none;
-    position: absolute; 
-    bottom: 0px; 
+    margin-top: auto; /* Pushes logout to bottom */
+    flex-shrink: 0; /* Prevent from shrinking */
     
     font-size: 15px;
     color: #780000 !important;
@@ -260,9 +273,12 @@ body .btn:not(.btn-xs):not(.btn-sm) {
     background-color: #FDF0D5;
     width: 100%;
     box-sizing: border-box; 
+    position: sticky;
+    bottom: 0;
     z-index: 20; 
 }
 
+/* also in each */
 /* Styling for the role header (Supervisor, Coordinator, Assessor) */
 .role-header {
   display: flex;
@@ -279,6 +295,7 @@ body .btn:not(.btn-xs):not(.btn-sm) {
   /* Your default sidebar color */
 }
 
+/* also in each */
 .arrow-container {
   margin-left: auto;
   cursor: pointer;
@@ -288,6 +305,7 @@ body .btn:not(.btn-xs):not(.btn-sm) {
 /* Coordinator active role styling is handled in coordinator/dashboard.css */
 /* Removed from here to avoid conflicts with menu-expanded state */
 
+/* also in each */
 /* Styling for the nested menu items */
 .menu-items {
   /* Set initial state: Hidden and no height */
@@ -299,12 +317,14 @@ body .btn:not(.btn-xs):not(.btn-sm) {
   flex-direction: column;
 }
 
+/* also in each */
 /* Styling for the menu items when expanded */
 .menu-items.expanded {
   /* Set height to allow content to show (use a value larger than max content height) */
   max-height: 500px;
 }
 
+/* also in each */
 /* Style for links inside the menu (Dashboard, Notification, etc.) */
 .menu-items a {
   padding-left: 30px;
@@ -313,6 +333,32 @@ body .btn:not(.btn-xs):not(.btn-sm) {
   /* Darker background to differentiate */
 }
 
+/* also in each */
+/* NEW: Active Menu Item Styling */
+.menu-items a.active-page {
+background-color: white !important; /* White background */
+  color: #780000 !important; /* Dark text for contrast */
+  font-weight: bold;
+  border-radius: 20px;
+  margin: 0 0.5rem;
+  /* Ensure it stands out and overrides hover */
+}
+
+/* also in each */
+.menu-items a.active-page:hover {
+  background-color: #e5e7eb !important; /* Slight hover to show interactivity, but keep it light */
+  color: #1f2937 !important;
+}
+
+/* Example CSS to make the header pop when active */
+.role-header.active-role {
+     background-color: white !important; /* White background */
+  color: #780000 !important; /* Dark text for contrast */
+  font-weight: bold;
+  border-radius: 20px;
+  margin: 0 0.5rem;
+  transition: max-height 0.3s ease-out;
+}
 
 /* --- Header Area (.containerAtas) FIX --- */
 
