@@ -135,8 +135,33 @@ if ($displayFypSessionId) {
     }
 }
 
+// Fetch assessor data (lecturer to assessor ID mapping) for JavaScript
+$assessorData = [];
+$assessorQuery = "SELECT a.Assessor_ID, l.Lecturer_ID, l.Lecturer_Name
+                  FROM assessor a
+                  INNER JOIN lecturer l ON a.Lecturer_ID = l.Lecturer_ID
+                  WHERE l.Department_ID = (
+                      SELECT Department_ID FROM lecturer WHERE Lecturer_ID = ?
+                  )
+                  ORDER BY l.Lecturer_Name";
+if ($stmt = $conn->prepare($assessorQuery)) {
+    $stmt->bind_param("s", $userId);
+    if ($stmt->execute()) {
+        $result = $stmt->get_result();
+        while ($row = $result->fetch_assoc()) {
+            $assessorData[] = [
+                'assessor_id' => $row['Assessor_ID'],
+                'lecturer_id' => $row['Lecturer_ID'],
+                'name' => $row['Lecturer_Name']
+            ];
+        }
+    }
+    $stmt->close();
+}
+
 // Encode lecturer data as JSON for JavaScript
 $lecturerDataJson = json_encode($lecturerData);
+$assessorDataJson = json_encode($assessorData);
 
 // Fetch students for the selected year/semester across ALL matching FYP_Session_IDs
 // (i.e., across all Course_IDs in the coordinator's department for that year/semester)
@@ -150,6 +175,7 @@ if (!empty($fypSessionIds)) {
                           s.Student_Name,
                           s.Course_ID,
                           c.Course_Code,
+                          s.FYP_Session_ID,
                           lsup.Lecturer_Name AS Supervisor_Name,
                           la1.Lecturer_Name AS Assessor1_Name,
                           la2.Lecturer_Name AS Assessor2_Name
@@ -205,6 +231,7 @@ if (!empty($fypSessionIds)) {
                     'assessor2' => $row['Assessor2_Name'] ?? null,
                     'course_id' => $row['Course_ID'],
                     'course_code' => $row['Course_Code'],
+                    'fyp_session_id' => $row['FYP_Session_ID'],
                     'selected' => false
                 ];
             }
@@ -230,6 +257,7 @@ if ($result = $conn->query($assessmentQuery)) {
 $studentsDataJson = json_encode($studentsData);
 $courseFilterOptionsJson = json_encode($courseFilterOptions);
 $assessmentDataJson = json_encode($assessmentData);
+$assessorDataJson = json_encode($assessorData);
 ?>
 <!DOCTYPE html>
 <html>
@@ -405,6 +433,7 @@ $assessmentDataJson = json_encode($assessmentData);
                                     <i class="bi bi-plus-circle"></i>
                                     <span>Assign Remaining Quota</span>
                                 </button>
+                                <button class="btn btn-outline-dark" onclick="followPastQuota()" style="background-color: white; color: black; border-color: black;" onmouseover="this.style.backgroundColor='white'; this.style.color='black';" onmouseout="this.style.backgroundColor='white'; this.style.color='black';">Follow Past Quota</button>
                                 <div class="download-dropdown">
                                     <button class="btn-download" onclick="toggleDownloadDropdown()">
                                         <i class="bi bi-download"></i>
@@ -676,6 +705,27 @@ $assessmentDataJson = json_encode($assessmentData);
         </div>
     </div>
 
+    <!-- Loading Modal -->
+    <div id="loadingModal" class="custom-modal" style="display: none;">
+        <div class="modal-dialog">
+            <div class="modal-content-custom">
+                <div class="modal-icon" style="color: #007bff;"><i class="bi bi-hourglass-split" style="animation: spin 1s linear infinite; font-size: 48px;"></i></div>
+                <div class="modal-title-custom">Processing...</div>
+                <div class="modal-message" id="loadingModalMessage">Saving data and sending emails. Please wait.</div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        #loadingModal .modal-icon i {
+            font-size: 48px;
+        }
+    </style>
+
     <script>
         // --- FILTER RELOAD FUNCTION ---
         function reloadPageWithFilters() {
@@ -762,6 +812,7 @@ $assessmentDataJson = json_encode($assessmentData);
         // Real student data from backend based on selected sessions and department
         const students = <?php echo $studentsDataJson; ?>;
         const courseFilterOptions = <?php echo $courseFilterOptionsJson ?? '[]'; ?>;
+        const assessorData = <?php echo $assessorDataJson ?? '[]'; ?>;
         // Selected year & semester from PHP (used in exports)
         const selectedYear = <?php echo json_encode($selectedYear); ?>;
         const selectedSemester = <?php echo json_encode($selectedSemester); ?>;
@@ -770,6 +821,61 @@ $assessmentDataJson = json_encode($assessmentData);
         let currentCourseFilter = 'both'; // 'both' or specific Course_ID
         // total students for this year+semester across all courses is taken from the distribution list
         let totalStudents = students.length;
+
+        // Follow past quota: fetch previous session/semester quotas and apply
+        function followPastQuota() {
+            try {
+                const year = document.getElementById('yearFilter')?.value || selectedYear;
+                const semester = document.getElementById('semesterFilter')?.value || selectedSemester;
+
+                const payload = {
+                    year: year,
+                    semester: semester,
+                    lecturer_ids: (lecturers || []).map(l => l.id)
+                };
+
+                // Optional: simple loading state
+                const saveMsg = document.getElementById('remainingStudent');
+                const oldText = saveMsg ? saveMsg.textContent : '';
+                if (saveMsg) saveMsg.textContent = 'Loading past quotas...';
+
+                fetch('../../../php/phpCoordinator/fetch_past_quotas.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (!data || !data.success) {
+                        console.error('Failed to fetch past quotas:', data && data.message);
+                        return;
+                    }
+                    const map = new Map();
+                    (data.quotas || []).forEach(q => map.set(String(q.supervisor_id), Number(q.quota)));
+
+                    // Apply to current lecturers
+                    (lecturers || []).forEach(l => {
+                        const q = map.get(String(l.id));
+                        if (typeof q === 'number' && !Number.isNaN(q)) {
+                            l.quota = q;
+                        }
+                    });
+
+                    // Refresh UI and remaining counts
+                    updateAllRemainingQuotas();
+                    renderLecturerTable();
+                    updateRemainingStudent();
+                })
+                .catch(err => {
+                    console.error('Error fetching past quotas:', err);
+                })
+                .finally(() => {
+                    if (saveMsg) saveMsg.textContent = oldText || saveMsg.textContent;
+                });
+            } catch (e) {
+                console.error('followPastQuota() error:', e);
+            }
+        }
         let openDropdown = null; // Track which dropdown is currently open
 
         // --- ASSESSMENT SESSION ---
@@ -807,6 +913,7 @@ $assessmentDataJson = json_encode($assessmentData);
             name: student.name,
             course_id: student.course_id,
             course_code: student.course_code,
+            fyp_session_id: student.fyp_session_id,
             supervisor: student.supervisor,
             assessor1: student.assessor1,
             assessor2: student.assessor2,
@@ -845,6 +952,25 @@ $assessmentDataJson = json_encode($assessmentData);
         let filteredAssessmentStudents = [...assessmentSessionData];
         let currentAssessmentCourseFilter = 'both'; // 'both' or specific Course_ID
 
+        // Loading modal functions
+        function showLoadingModal(message) {
+            const modal = document.getElementById('loadingModal');
+            const messageElement = document.getElementById('loadingModalMessage');
+            if (modal) {
+                if (message && messageElement) {
+                    messageElement.textContent = message;
+                }
+                modal.style.display = 'flex';
+            }
+        }
+        
+        function hideLoadingModal() {
+            const modal = document.getElementById('loadingModal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+        }
+
         // Initialize page
         document.addEventListener('DOMContentLoaded', function() {
             renderLecturerTable();
@@ -867,7 +993,7 @@ $assessmentDataJson = json_encode($assessmentData);
                 const row = document.createElement('tr');
                 // Calculate remaining quota based on actual student assignments
                 const assignedCount = students.filter(s => s.supervisor === lecturer.name).length;
-                lecturer.remaining_quota = Math.max(0, lecturer.quota - assignedCount);
+                lecturer.remaining_quota = lecturer.quota - assignedCount;
                 
                 row.innerHTML = `
                     <td>${index + 1}</td>
@@ -896,7 +1022,7 @@ $assessmentDataJson = json_encode($assessmentData);
                 // Initialize remaining quota to quota when quota is set
                 // Then update based on actual student assignments
                 const assignedCount = students.filter(s => s.supervisor === lecturer.name).length;
-                lecturer.remaining_quota = Math.max(0, quotaValue - assignedCount);
+                lecturer.remaining_quota = quotaValue - assignedCount;
                 updateRemainingQuota(lecturerId);
                 updateRemainingStudent();
                 // Re-render student table to update supervisor dropdowns
@@ -912,7 +1038,7 @@ $assessmentDataJson = json_encode($assessmentData);
             if (lecturer) {
                 // Count how many students have this lecturer as supervisor
                 const assignedCount = students.filter(s => s.supervisor === lecturer.name).length;
-                lecturer.remaining_quota = Math.max(0, lecturer.quota - assignedCount);
+                lecturer.remaining_quota = lecturer.quota - assignedCount;
                 
                 const element = document.getElementById(`remaining-${lecturerId}`);
                 if (element) {
@@ -927,7 +1053,7 @@ $assessmentDataJson = json_encode($assessmentData);
                 // Count how many students have this lecturer as supervisor
                 const assignedCount = students.filter(s => s.supervisor === lecturer.name).length;
                 // Calculate remaining quota
-                lecturer.remaining_quota = Math.max(0, lecturer.quota - assignedCount);
+                lecturer.remaining_quota = lecturer.quota - assignedCount;
                 
                 // Update display in lecturer quota table (if visible)
                 const element = document.getElementById(`remaining-${lecturer.id}`);
@@ -2245,7 +2371,7 @@ $assessmentDataJson = json_encode($assessmentData);
                 let supervisorsWithRemaining = lecturersWithQuota
                     .map(l => ({
                         ref: l,
-                        remaining: Math.max(0, l.remaining_quota || 0)
+                        remaining: l.remaining_quota || 0
                     }))
                     .filter(x => x.remaining > 0);
 
@@ -2515,13 +2641,21 @@ $assessmentDataJson = json_encode($assessmentData);
             return match ? match.id : null;
         }
 
+        // Helper: get assessor ID by lecturer name from assessor data
+        function getAssessorIdByName(lecturerName) {
+            if (!lecturerName || !assessorData || assessorData.length === 0) return null;
+            const match = assessorData.find(a => a && a.name === lecturerName);
+            return match ? match.assessor_id : null;
+        }
+
         // Save assignments
         function saveAssignments() {
             // Build payload with both names and IDs for supervisor/assessors
             const assignmentData = students.map(student => {
                 const supervisorId = getSupervisorIdByName(student.supervisor);
-                const assessor1Id = getSupervisorIdByName(student.assessor1);
-                const assessor2Id = getSupervisorIdByName(student.assessor2);
+                // Use getAssessorIdByName for assessors (not getSupervisorIdByName)
+                const assessor1Id = getAssessorIdByName(student.assessor1);
+                const assessor2Id = getAssessorIdByName(student.assessor2);
 
                 return {
                     id: student.id,
@@ -2537,7 +2671,7 @@ $assessmentDataJson = json_encode($assessmentData);
 
             // Show loading modal
             showLoadingModal('Saving assignments and sending emails. Please wait.');
-            
+
             // Make AJAX call to save assignments to backend
             fetch('../../../php/phpCoordinator/save_assignments.php', {
                 method: 'POST',
@@ -4040,8 +4174,12 @@ $assessmentDataJson = json_encode($assessmentData);
                 time: student.time || null,
                 venue: student.venue || null,
                 course_id: student.course_id,
-                course_code: student.course_code
+                course_code: student.course_code,
+                fyp_session_id: student.fyp_session_id
             }));
+
+            // Show loading modal
+            showLoadingModal('Saving assessment sessions and sending emails. Please wait.');
 
             // Make AJAX call to save assessment sessions
             fetch('../../../php/phpCoordinator/save_assessment_sessions.php', {
@@ -4088,11 +4226,6 @@ $assessmentDataJson = json_encode($assessmentData);
             })
             .finally(() => {
                 hideLoadingModal();
-            });
-        }
-            .catch(error => {
-                console.error('Error saving assessment sessions:', error);
-                showSaveError('An error occurred while saving assessment sessions. Please try again.');
             });
         }
 

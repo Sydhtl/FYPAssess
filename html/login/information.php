@@ -17,6 +17,86 @@ $student_supervisor  = $_SESSION['temp_supervisor'] ?? '';
 $student_title1   = $_SESSION['temp_title1'] ?? '';
 $student_title2   = $_SESSION['temp_title2'] ?? '';
 $student_title3   = $_SESSION['temp_title3'] ?? '';
+$existingStudent  = $_SESSION['existing_student'] ?? false;
+$previousSupervisorId = null;
+$previousAssessor1 = null;
+$previousAssessor2 = null;
+$lockedProjectTitle = '';
+$lockedTitleStatus = '';
+$titleLabel = 'Suggestion FYP Title';
+$previousSessionEnrollments = [];
+
+// If existing student, fetch latest enrollment and project title
+if ($existingStudent && isset($_SESSION['signup_upmId'])) {
+    $currentUpmId = $_SESSION['signup_upmId'];
+
+    // Latest enrollment (by highest FYP_Session_ID)
+    $enrollSql = "
+        SELECT se.Supervisor_ID, se.Assessor_ID_1, se.Assessor_ID_2
+        FROM student_enrollment se
+        JOIN fyp_session fs ON se.Fyp_Session_ID = fs.FYP_Session_ID
+        WHERE se.Student_ID = ?
+        ORDER BY fs.FYP_Session_ID DESC
+        LIMIT 1
+    ";
+    if ($stmtEnroll = $conn->prepare($enrollSql)) {
+        $stmtEnroll->bind_param('s', $currentUpmId);
+        if ($stmtEnroll->execute()) {
+            $resEnroll = $stmtEnroll->get_result();
+            if ($rowEnroll = $resEnroll->fetch_assoc()) {
+                $previousSupervisorId = $rowEnroll['Supervisor_ID'];
+                $previousAssessor1 = $rowEnroll['Assessor_ID_1'];
+                $previousAssessor2 = $rowEnroll['Assessor_ID_2'];
+                $_SESSION['existing_assessor1'] = $previousAssessor1;
+                $_SESSION['existing_assessor2'] = $previousAssessor2;
+            }
+        }
+        $stmtEnroll->close();
+    }
+
+    // Latest project title
+    $projectSql = "
+        SELECT Project_Title, Proposed_Title, Title_Status
+        FROM fyp_project
+        WHERE Student_ID = ?
+        ORDER BY Project_ID DESC
+        LIMIT 1
+    ";
+    if ($stmtProj = $conn->prepare($projectSql)) {
+        $stmtProj->bind_param('s', $currentUpmId);
+        if ($stmtProj->execute()) {
+            $resProj = $stmtProj->get_result();
+            if ($rowProj = $resProj->fetch_assoc()) {
+                // Prefer the approved/official Project_Title for existing students
+                $lockedProjectTitle = $rowProj['Project_Title'] ?: $rowProj['Proposed_Title'];
+                $lockedTitleStatus = $rowProj['Title_Status'];
+                $student_title1 = $lockedProjectTitle; // prefill
+            }
+        }
+        $stmtProj->close();
+    }
+
+    // Adjust label for existing students
+    $titleLabel = 'FYP Title';
+
+    // All prior course/semester/session combinations for duplicate check
+    $sessionSql = "
+        SELECT fs.Course_ID, fs.Semester, fs.FYP_Session
+        FROM student_enrollment se
+        JOIN fyp_session fs ON se.Fyp_Session_ID = fs.FYP_Session_ID
+        WHERE se.Student_ID = ?
+    ";
+    if ($stmtSession = $conn->prepare($sessionSql)) {
+        $stmtSession->bind_param('s', $currentUpmId);
+        if ($stmtSession->execute()) {
+            $resSession = $stmtSession->get_result();
+            while ($rowSession = $resSession->fetch_assoc()) {
+                $previousSessionEnrollments[] = $rowSession;
+            }
+        }
+        $stmtSession->close();
+    }
+}
 $isOther = !empty($student_race) && $student_race != 'Malay' && $student_race != 'Chinese' && $student_race != 'Indian';
 // 2. FETCH DEPARTMENTS (For Programme Dropdown)
 $deptQuery = "SELECT * FROM department";
@@ -78,6 +158,9 @@ if ($lecturerResult->num_rows > 0) {
   
             <form action="../../php/phpStudent/save_information.php" method="post">
             <input type="hidden" name="upmId" value="<?php echo $_SESSION['signup_upmId'] ?? ($_SESSION['upmId'] ?? ''); ?>">
+            <input type="hidden" name="existingStudent" value="<?php echo $existingStudent ? '1' : '0'; ?>">
+            <input type="hidden" name="assessor1" value="<?php echo htmlspecialchars($previousAssessor1 ?? '', ENT_QUOTES); ?>">
+            <input type="hidden" name="assessor2" value="<?php echo htmlspecialchars($previousAssessor2 ?? '', ENT_QUOTES); ?>">
 
             <?php if (isset($_SESSION['error'])): ?>
                 <div style="background-color: #ffebee; color: #c62828; padding: 15px; margin-bottom: 20px; border-radius: 5px; border: 1px solid #ef5350;">
@@ -133,6 +216,8 @@ if ($lecturerResult->num_rows > 0) {
                 <p id="UsernamePassword">Session <span class="info-tooltip">ⓘ<span class="tooltip-text">Format: YYYY/YYYY.</span></span></p>
                 <input type="text" id="session" name="session" placeholder="Session" value="<?php echo $student_session; ?>" required>
 
+                <p id="duplicateWarning" style="display:none;color:#c62828;font-size:12px;margin-top:8px;">You are already registered for this course, semester, and session. Please choose a different combination.</p>
+
                 <a href="signup.php" id="previous" style="text-decoration: none; display: inline-block; margin-right: 20px;">Previous</a>
                 <a href="#Studinfo" id="continue1" class="disabled-link" style="text-decoration:none; display: inline-block;">Continue</a>    
             </div>
@@ -172,12 +257,18 @@ if ($lecturerResult->num_rows > 0) {
                 <p id="desc">Enter the details</p>
                 
                 <p id="UsernamePassword">Supervisor Name <span class="info-tooltip">ⓘ<span class="tooltip-text">Select a supervisor.</span></span></p>
-                <select class="input-field" id="supervisor" name="supervisor" required>
-                    <option value="" disabled selected>Select your supervisor</option>
+                <select class="input-field" id="supervisor" name="supervisor" required <?php echo ($existingStudent && $previousSupervisorId) ? 'disabled' : ''; ?>>
+                    <option value="" disabled <?php echo ($existingStudent && $previousSupervisorId) ? '' : 'selected'; ?>>Select your supervisor</option>
                 </select>
+                <?php if ($existingStudent && $previousSupervisorId): ?>
+                    <input type="hidden" name="supervisor_locked" value="<?php echo htmlspecialchars($previousSupervisorId, ENT_QUOTES); ?>">
+                <?php endif; ?>
                 
-                <p id="UsernamePassword">Suggestion FYP Title  <span class="info-tooltip">ⓘ<span class="tooltip-text">Required.</span></span></p>
-                <textarea id="fypTitle1" name="title1" placeholder="Title 1" class="input-field" style="height: 60px; resize: none;" required><?php echo $student_title1; ?></textarea>
+                <p id="UsernamePassword"><?php echo htmlspecialchars($titleLabel); ?>  <span class="info-tooltip">ⓘ<span class="tooltip-text">Required.</span></span></p>
+                <textarea id="fypTitle1" name="title1" placeholder="<?php echo $existingStudent ? 'FYP Title' : 'Title 1'; ?>" class="input-field" style="height: 60px; resize: none;" required <?php echo $lockedProjectTitle ? 'readonly' : ''; ?>><?php echo $student_title1; ?></textarea>
+                <?php if ($lockedProjectTitle): ?>
+                    <p style="font-size:12px;color:#555;margin-top:4px;">Title locked from previous session (<?php echo htmlspecialchars($lockedTitleStatus, ENT_QUOTES); ?>).</p>
+                <?php endif; ?>
                 
                 <!-- Only one suggested FYP title is allowed; remove extra fields -->
                 
@@ -209,7 +300,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const allCourses = <?php echo json_encode($courseData); ?>;
     const allLecturers = <?php echo json_encode($lecturerData); ?>;
     const savedCourseID = "<?php echo $student_course; ?>";
-    const savedSupervisorID = "<?php echo $student_supervisor; ?>";
+    const savedSupervisorID = "<?php echo ($previousSupervisorId ?? $student_supervisor); ?>";
+    const existingStudent = <?php echo $existingStudent ? 'true' : 'false'; ?>;
+    const previousEnrollments = <?php echo json_encode($previousSessionEnrollments); ?>;
 
     // --- 1. CONFIGURATION ---
     const courseInfo = {
@@ -299,6 +392,12 @@ function populateSupervisors(progValue) {
         supervisorSelect.appendChild(opt);
     });
 
+    if (existingStudent && savedSupervisorID) {
+        supervisorSelect.setAttribute('disabled', 'disabled');
+    } else {
+        supervisorSelect.removeAttribute('disabled');
+    }
+
     const isValid = validateFields(fypInfo);
     updateSubmitButton(fypInfo.submit, isValid);
 }
@@ -323,14 +422,36 @@ function populateSupervisors(progValue) {
     function isSessionValid(sess) { return /^(\d{4}\/\d{4}|\d{2}\/\d{2})$/.test(sess); }
     function isCGPA(str) { return /^([0-3](\.\d{1,3})?|4(\.0{1,3})?)$/.test(str); }
 
+    function isDuplicateSelection() {
+        if (!existingStudent || !previousEnrollments || previousEnrollments.length === 0) return false;
+        const courseVal = courseInfo.fields.coursecode.value;
+        const semesterVal = courseInfo.fields.semester.value;
+        const sessionVal = courseInfo.fields.session.value.trim();
+        if (!courseVal || !semesterVal || !sessionVal) return false;
+        return previousEnrollments.some(enrollment =>
+            String(enrollment.Course_ID) === String(courseVal) &&
+            String(enrollment.Semester) === String(semesterVal) &&
+            String(enrollment.FYP_Session).trim() === sessionVal
+        );
+    }
+
+    function renderDuplicateWarning(isDup) {
+        const warning = document.getElementById('duplicateWarning');
+        if (!warning) return;
+        warning.style.display = isDup ? 'block' : 'none';
+    }
+
     function validateFields(sectionObject) {
         const fields = sectionObject.fields;
 
         if (sectionObject === courseInfo) {
-            return isStringValid(fields.programme.value) &&
-                   isStringValid(fields.coursecode.value) &&
-                   isStringValid(fields.semester.value) &&
-                   isSessionValid(fields.session.value);
+            const baseValid = isStringValid(fields.programme.value) &&
+                             isStringValid(fields.coursecode.value) &&
+                             isStringValid(fields.semester.value) &&
+                             isSessionValid(fields.session.value);
+            const duplicate = isDuplicateSelection();
+            renderDuplicateWarning(duplicate);
+            return baseValid && !duplicate;
         }
         if (sectionObject === studentInfo) {
             const isRaceValid = isStringValid(fields.race.value) && 
@@ -341,8 +462,9 @@ function populateSupervisors(progValue) {
                    isCGPA(fields.cgpa.value);
         }
         if (sectionObject === fypInfo) {
-            return isStringValid(fields.supervisor.value) &&
-                   isStringValid(fields.fypTitle1.value);
+             const hasSupervisor = isStringValid(fields.supervisor.value) || document.querySelector('input[name="supervisor_locked"]');
+             return hasSupervisor &&
+                 isStringValid(fields.fypTitle1.value);
         }
         return false;
     }
@@ -388,6 +510,13 @@ function populateSupervisors(progValue) {
     links.forEach(link => {
         link.addEventListener('click', function(e) {
             if (this.classList.contains('disabled-link')) { e.preventDefault(); return; }
+
+            if (this.closest('#courseInfo') && isDuplicateSelection()) {
+                e.preventDefault();
+                renderDuplicateWarning(true);
+                alert('You are already registered for this course, semester, and session. Please choose a different combination.');
+                return;
+            }
             
             const href = this.getAttribute('href');
             if (href && href.startsWith('#')) {

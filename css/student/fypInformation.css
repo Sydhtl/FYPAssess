@@ -1,10 +1,17 @@
 /* Page-specific styles for FYP Information */
 
+* {
+    box-sizing: border-box;
+}
+
 /* Task Tab Styles - Matching Assessor Dashboard */
 .tab-buttons {
     display: flex;
     border-bottom: 2px solid #e0e0e0;
     margin-bottom: 15px;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
 }
 
 .task-tab {
@@ -176,8 +183,11 @@ textarea.form-control.readonly-field[readonly]:active,
 	margin-bottom: 8px;
 	border: 1px solid #ddd;
 	border-radius: 4px;
-	overflow: hidden;
+	overflow-x: hidden;
 	background: white;
+	width: 100%;
+	max-width: 100%;
+	box-sizing: border-box;
 }
 
 .supervisor-btn{
@@ -327,6 +337,10 @@ textarea.form-control.readonly-field[readonly]:active,
 	padding: 16px;
 	box-shadow: 10px 10px 10px rgba(0,0,0,0.245);
 	border-radius: 4px;
+	width: 100%;
+	max-width: 100%;
+	box-sizing: border-box;
+	overflow-x: hidden;
 }
 
 #changeTitleBtn{

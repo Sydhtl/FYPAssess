@@ -16,6 +16,7 @@ if ($stmt = $conn->prepare($deptQuery)) {
 }
 
 // Fetch courses with department information
+// Fetch ALL courses from the department, regardless of student enrollment or FYP sessions
 $courseData = [];
 if ($coordinatorDepartmentId) {
     $courseQuery = "SELECT c.Course_ID, c.Course_Code, d.Department_Name, d.Programme_Name 
@@ -35,9 +36,147 @@ if ($coordinatorDepartmentId) {
     }
 }
 
+// Function to copy learning objectives from previous session
+function copyLearningObjectivesFromPreviousSession($conn, $courseId, $selectedYear, $selectedSemester) {
+    // Resolve FYP_Session_ID for the selected course/year/semester (target session)
+    $targetFypSessionId = null;
+    $sessionQuery = "SELECT FYP_Session_ID FROM fyp_session WHERE Course_ID = ? AND FYP_Session = ? AND Semester = ? LIMIT 1";
+    if ($stmt = $conn->prepare($sessionQuery)) {
+        $stmt->bind_param("isi", $courseId, $selectedYear, $selectedSemester);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        if ($row = $result->fetch_assoc()) {
+            $targetFypSessionId = (int)$row['FYP_Session_ID'];
+        }
+        $stmt->close();
+    }
+
+    if (!$targetFypSessionId) {
+        return false;
+    }
+
+    // Check if target session already has learning objectives
+    $checkQuery = "SELECT COUNT(*) as count FROM learning_objective_allocation 
+                   WHERE Course_ID = ? AND FYP_Session_ID = ?";
+    $hasExistingData = false;
+    if ($stmt = $conn->prepare($checkQuery)) {
+        $stmt->bind_param("ii", $courseId, $targetFypSessionId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        if ($row = $result->fetch_assoc()) {
+            $hasExistingData = (int)$row['count'] > 0;
+        }
+        $stmt->close();
+    }
+
+    if ($hasExistingData) {
+        return true; // Already has data, no need to copy
+    }
+
+    // Determine previous session (previous semester of same year, or semester 2 of previous year)
+    $previousYear = $selectedYear;
+    $previousSemester = (int)$selectedSemester - 1;
+    
+    if ($previousSemester < 1) {
+        // Need to go to previous year, semester 2
+        // Parse year string like "2024/2025" to get previous year
+        if (preg_match('/(\d{4})\/(\d{4})/', $selectedYear, $matches)) {
+            $startYear = (int)$matches[1];
+            $endYear = (int)$matches[2];
+            $previousYear = ($startYear - 1) . '/' . ($endYear - 1);
+            $previousSemester = 2;
+        } else {
+            return false; // Invalid year format
+        }
+    }
+
+    // Resolve FYP_Session_ID for the previous session (source session)
+    $sourceFypSessionId = null;
+    $sourceSessionQuery = "SELECT FYP_Session_ID FROM fyp_session WHERE Course_ID = ? AND FYP_Session = ? AND Semester = ? LIMIT 1";
+    if ($stmt = $conn->prepare($sourceSessionQuery)) {
+        $stmt->bind_param("isi", $courseId, $previousYear, $previousSemester);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        if ($row = $result->fetch_assoc()) {
+            $sourceFypSessionId = (int)$row['FYP_Session_ID'];
+        }
+        $stmt->close();
+    }
+
+    if (!$sourceFypSessionId) {
+        return false; // No previous session found
+    }
+
+    // Fetch learning objectives from source session
+    $sourceQuery = "SELECT Assessment_ID, Criteria_ID, LearningObjective_Code, Percentage
+                    FROM learning_objective_allocation
+                    WHERE Course_ID = ? AND FYP_Session_ID = ?";
+    
+    $sourceData = [];
+    if ($stmt = $conn->prepare($sourceQuery)) {
+        $stmt->bind_param("ii", $courseId, $sourceFypSessionId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        while ($row = $result->fetch_assoc()) {
+            $sourceData[] = [
+                'assessment_id' => $row['Assessment_ID'],
+                'criteria_id' => $row['Criteria_ID'],
+                'learning_objective_code' => $row['LearningObjective_Code'],
+                'percentage' => $row['Percentage']
+            ];
+        }
+        $stmt->close();
+    }
+
+    if (empty($sourceData)) {
+        return false; // No data to copy
+    }
+
+    // Begin transaction
+    $conn->begin_transaction();
+
+    try {
+        // Insert learning objectives into target session
+        $insertQuery = "INSERT INTO learning_objective_allocation 
+                        (Course_ID, Assessment_ID, Criteria_ID, LearningObjective_Code, Percentage, FYP_Session_ID) 
+                        VALUES (?, ?, ?, ?, ?, ?)";
+        
+        if ($stmt = $conn->prepare($insertQuery)) {
+            foreach ($sourceData as $item) {
+                $stmt->bind_param("iiisdi", 
+                    $courseId, 
+                    $item['assessment_id'], 
+                    $item['criteria_id'], 
+                    $item['learning_objective_code'], 
+                    $item['percentage'], 
+                    $targetFypSessionId
+                );
+                $stmt->execute();
+            }
+            $stmt->close();
+        }
+        
+        // Commit transaction
+        $conn->commit();
+        return true;
+    } catch (Exception $e) {
+        // Rollback transaction on error
+        $conn->rollback();
+        return false;
+    }
+}
+
 // Fetch learning objective allocation data with all related information
 $learningObjectiveData = [];
 if ($coordinatorDepartmentId) {
+    // First, for each course, check if learning objectives exist, if not, copy from previous session
+    // Note: This will silently fail (return false) for courses without FYP sessions, which is fine
+    // Courses will still be displayed even if they don't have sessions or students
+    foreach ($courseData as $courseId => $course) {
+        copyLearningObjectivesFromPreviousSession($conn, $courseId, $selectedYear, $selectedSemester);
+    }
+
+    // Now fetch the learning objectives (which may have just been copied)
     $loQuery = "SELECT 
                     loa.LO_Allocation_ID,
                     loa.Course_ID,

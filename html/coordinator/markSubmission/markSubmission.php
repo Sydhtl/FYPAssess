@@ -286,6 +286,9 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
                                     <option value="student-overview">Student's marks overview</option>
                                     <option value="lecturer-progress">Lecturer progress</option>
                                 </select>
+                                <select class="view-dropdown" id="assessmentFilterA" style="display:none; min-width: 250px;" onchange="filterAssessment('swe4949a', this.value)">
+                                    <option value="all">All Assessments</option>
+                                </select>
                             </div>
                             <div class="download-actions">
                                 <div class="download-dropdown">
@@ -363,6 +366,9 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
                                 <select class="view-dropdown" id="viewDropdownB" onchange="changeView('swe4949b', this.value)">
                                     <option value="student-overview">Student's marks overview</option>
                                     <option value="lecturer-progress">Lecturer progress</option>
+                                </select>
+                                <select class="view-dropdown" id="assessmentFilterB" style="display:none; min-width: 250px;" onchange="filterAssessment('swe4949b', this.value)">
+                                    <option value="all">All Assessments</option>
                                 </select>
                             </div>
                             <div class="download-actions">
@@ -950,20 +956,130 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
 
         // Initialize currentView for all course tabs dynamically
         const currentView = {};
+        const currentAssessmentFilter = {};
         
         // Initialize views for dynamic course tabs
         Object.keys(courseMapping).forEach(tabName => {
             currentView[tabName] = 'student-overview';
+            currentAssessmentFilter[tabName] = 'all';
         });
         
         // Keep backward compatibility with hardcoded tabs
         if (!currentView['swe4949a']) currentView['swe4949a'] = 'student-overview';
         if (!currentView['swe4949b']) currentView['swe4949b'] = 'student-overview';
+        if (!currentAssessmentFilter['swe4949a']) currentAssessmentFilter['swe4949a'] = 'all';
+        if (!currentAssessmentFilter['swe4949b']) currentAssessmentFilter['swe4949b'] = 'all';
 
         document.addEventListener('DOMContentLoaded', async function() {
             initializeTabs();
             populateCourseFilter();
             initializeFYPSearch();
+            
+            // Check for URL parameters and apply filters
+            const urlParams = new URLSearchParams(window.location.search);
+            const tabParam = urlParams.get('tab');
+            const viewParam = urlParams.get('view');
+            const statusParam = urlParams.get('status');
+            const assessmentParam = urlParams.get('assessment');
+            const assessmentFilterParam = urlParams.get('assessmentFilter');
+            
+            // Apply tab selection if provided
+            if (tabParam) {
+                const tabButton = document.querySelector(`[data-tab="${tabParam}"]`);
+                if (tabButton) {
+                    // Switch tab immediately by directly manipulating DOM
+                    const tabs = document.querySelectorAll('.task-tab');
+                    const taskGroups = document.querySelectorAll('.task-group');
+                    tabs.forEach(t => t.classList.remove('active-tab'));
+                    tabButton.classList.add('active-tab');
+                    taskGroups.forEach(group => {
+                        if (group.getAttribute('data-group') === tabParam) {
+                            group.classList.add('active');
+                        } else {
+                            group.classList.remove('active');
+                        }
+                    });
+                    
+                    // If view parameter is provided, switch to that view (for course tabs)
+                    if (viewParam && tabParam !== 'fyp-title-submission') {
+                        // Proceed immediately - DOM is already ready
+                        (async () => {
+                            // Determine tab suffix based on tab name
+                            let tabSuffix = 'A';
+                            if (tabParam === 'swe4949a') {
+                                tabSuffix = 'A';
+                            } else if (tabParam === 'swe4949b') {
+                                tabSuffix = 'B';
+                            } else {
+                                // For dynamic course tabs, find the index
+                                const courseTabs = Object.keys(courseMapping);
+                                const tabIndex = courseTabs.indexOf(tabParam);
+                                if (tabIndex === 0) {
+                                    tabSuffix = 'A';
+                                } else if (tabIndex === 1) {
+                                    tabSuffix = 'B';
+                                }
+                            }
+                            
+                            const viewDropdown = document.getElementById(`viewDropdown${tabSuffix}`);
+                            if (viewDropdown) {
+                                viewDropdown.value = viewParam;
+                                await changeView(tabParam, viewParam);
+                                
+                                // Apply assessment filter if provided
+                                // changeView already awaits populateAssessmentFilter, so dropdown should be ready
+                                if (assessmentFilterParam) {
+                                    const filterDropdown = document.getElementById(`assessmentFilter${tabSuffix}`);
+                                    if (filterDropdown) {
+                                        // Since changeView already awaited populateAssessmentFilter, 
+                                        // the dropdown should be populated. Apply filter immediately.
+                                        if (filterDropdown.options.length > 1) {
+                                            // Dropdown is populated, apply filter immediately
+                                            filterDropdown.value = assessmentFilterParam;
+                                            await filterAssessment(tabParam, assessmentFilterParam);
+                                        } else {
+                                            // Fallback: if somehow not populated, wait briefly and retry
+                                            setTimeout(async () => {
+                                                if (filterDropdown.options.length > 1) {
+                                                    filterDropdown.value = assessmentFilterParam;
+                                                    await filterAssessment(tabParam, assessmentFilterParam);
+                                                }
+                                            }, 100);
+                                        }
+                                    }
+                                }
+                            }
+                        })();
+                    }
+                }
+            }
+            
+            // Apply FYP title submission status filter if provided
+            if (statusParam && tabParam === 'fyp-title-submission') {
+                // Use requestAnimationFrame for immediate execution
+                requestAnimationFrame(() => {
+                    const statusFilter = document.getElementById('fypStatusFilter');
+                    if (statusFilter) {
+                        // Map status values
+                        let statusValue = statusParam.toLowerCase();
+                        if (statusValue === 'waiting') {
+                            statusValue = 'waiting';
+                        } else if (statusValue === 'approved') {
+                            statusValue = 'approved';
+                        } else if (statusValue === 'rejected') {
+                            statusValue = 'rejected';
+                        } else if (statusValue === 'not submitted' || statusValue === 'notsubmitted') {
+                            statusValue = 'not submitted';
+                        }
+                        
+                        if (statusValue === 'approved' || statusValue === 'waiting' || statusValue === 'rejected' || statusValue === 'not submitted') {
+                            statusFilter.value = statusValue;
+                            filterFYPTable();
+                        }
+                    }
+                });
+            }
+            
             renderFYPTable();
             
             // Render tables for all course tabs dynamically
@@ -1200,6 +1316,28 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
 
         async function changeView(tabName, viewType) {
             currentView[tabName] = viewType;
+            currentAssessmentFilter[tabName] = 'all'; // Reset filter when changing views
+            
+            // Get the table suffix for finding the correct dropdown
+            let tableIdSuffix = '';
+            if (tabName === 'swe4949a') {
+                tableIdSuffix = 'A';
+            } else if (tabName === 'swe4949b') {
+                tableIdSuffix = 'B';
+            }
+            
+            // Show/hide assessment filter dropdown
+            const filterDropdown = document.getElementById(`assessmentFilter${tableIdSuffix}`);
+            if (filterDropdown) {
+                if (viewType === 'lecturer-progress') {
+                    filterDropdown.style.display = 'inline-block';
+                    // Populate the dropdown with assessment options - ensure this completes
+                    await populateAssessmentFilter(tabName, tableIdSuffix);
+                } else {
+                    filterDropdown.style.display = 'none';
+                }
+            }
+            
             await renderTable(tabName);
             closeAllDropdowns();
             
@@ -1231,6 +1369,81 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
                     notifyButton.style.display = 'flex';
                 }
             }
+        }
+
+        async function populateAssessmentFilter(tabName, tableIdSuffix) {
+            const filterDropdown = document.getElementById(`assessmentFilter${tableIdSuffix}`);
+            if (!filterDropdown) return;
+            
+            const progressData = await fetchLecturerProgress(tabName);
+            const supAssess = progressData.assessments?.Supervisor || [];
+            const assAssess = progressData.assessments?.Assessor || [];
+            const lecturers = progressData.lecturers || [];
+            
+            // Clear existing options except the first "All Assessments"
+            while (filterDropdown.options.length > 1) {
+                filterDropdown.remove(1);
+            }
+            
+            // Collect all unique statuses for each assessment
+            const supervisorStatuses = {};
+            const assessorStatuses = {};
+            
+            // Track which statuses exist for supervisor assessments
+            supAssess.forEach(assessment => {
+                supervisorStatuses[assessment.assessment_id] = new Set();
+            });
+            
+            // Track which statuses exist for assessor assessments
+            assAssess.forEach(assessment => {
+                assessorStatuses[assessment.assessment_id] = new Set();
+            });
+            
+            // Iterate through lecturers to find actual statuses
+            lecturers.forEach(lec => {
+                // Check supervisor assessments
+                Object.entries(lec.status?.Supervisor || {}).forEach(([assessmentId, status]) => {
+                    if (supervisorStatuses[assessmentId] && status.toLowerCase() !== 'n/a') {
+                        supervisorStatuses[assessmentId].add(status.toLowerCase());
+                    }
+                });
+                
+                // Check assessor assessments
+                Object.entries(lec.status?.Assessor || {}).forEach(([assessmentId, status]) => {
+                    if (assessorStatuses[assessmentId] && status.toLowerCase() !== 'n/a') {
+                        assessorStatuses[assessmentId].add(status.toLowerCase());
+                    }
+                });
+            });
+            
+            // Add Supervisor assessments with their statuses
+            supAssess.forEach(assessment => {
+                const statuses = Array.from(supervisorStatuses[assessment.assessment_id] || []).sort();
+                statuses.forEach(status => {
+                    const option = document.createElement('option');
+                    const statusText = status === 'completed' ? 'Complete' : 'Incomplete';
+                    option.value = `supervisor_${assessment.assessment_id}_${status}`;
+                    option.textContent = `${statusText} - ${assessment.assessment_name} (Supervisor)`;
+                    filterDropdown.appendChild(option);
+                });
+            });
+            
+            // Add Assessor assessments with their statuses
+            assAssess.forEach(assessment => {
+                const statuses = Array.from(assessorStatuses[assessment.assessment_id] || []).sort();
+                statuses.forEach(status => {
+                    const option = document.createElement('option');
+                    const statusText = status === 'completed' ? 'Complete' : 'Incomplete';
+                    option.value = `assessor_${assessment.assessment_id}_${status}`;
+                    option.textContent = `${statusText} - ${assessment.assessment_name} (Assessor)`;
+                    filterDropdown.appendChild(option);
+                });
+            });
+        }
+
+        async function filterAssessment(tabName, filterValue) {
+            currentAssessmentFilter[tabName] = filterValue;
+            await renderTable(tabName);
         }
 
         function formatStatus(status) {
@@ -1284,14 +1497,35 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
                 const assAssess = progressData.assessments?.Assessor || [];
                 const lecturers = progressData.lecturers || [];
 
+                // Apply assessment filter
+                const filterValue = currentAssessmentFilter[tabName] || 'all';
+                let filteredSupAssess = supAssess;
+                let filteredAssAssess = assAssess;
+                let filterStatus = null; // Track the filter status
+                
+                if (filterValue !== 'all') {
+                    const parts = filterValue.split('_');
+                    const role = parts[0]; // 'supervisor' or 'assessor'
+                    const assessmentId = parts[1];
+                    filterStatus = parts[2]; // 'completed' or 'incomplete'
+                    
+                    if (role === 'supervisor') {
+                        filteredSupAssess = supAssess.filter(a => a.assessment_id == assessmentId);
+                        filteredAssAssess = [];
+                    } else if (role === 'assessor') {
+                        filteredAssAssess = assAssess.filter(a => a.assessment_id == assessmentId);
+                        filteredSupAssess = [];
+                    }
+                }
+
                 if (!lecturers.length) {
-                    const totalCols = 2 + (supAssess.length || 0) + (assAssess.length || 0) + 1; // No., Name, Supervisor cols, Assessor cols, Notify
+                    const totalCols = 2 + (filteredSupAssess.length || 0) + (filteredAssAssess.length || 0) + 1; // No., Name, Supervisor cols, Assessor cols, Notify
                     thead.innerHTML = `
                         <tr>
                             <th>No.</th>
                             <th>Name</th>
-                            <th colspan="${supAssess.length || 1}">Supervisor</th>
-                            <th colspan="${assAssess.length || 1}">Assessor</th>
+                            ${filteredSupAssess.length ? `<th colspan="${filteredSupAssess.length}">Supervisor</th>` : ''}
+                            ${filteredAssAssess.length ? `<th colspan="${filteredAssAssess.length}">Assessor</th>` : ''}
                             <th>Notify</th>
                         </tr>
                         <tr><th colspan="${totalCols}">No lecturer data available</th></tr>
@@ -1304,28 +1538,47 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
                 let headerRow1 = '<tr>';
                 headerRow1 += '<th rowspan="2">No.</th>';
                 headerRow1 += '<th rowspan="2">Name</th>';
-                if (supAssess.length) {
-                    headerRow1 += `<th colspan="${supAssess.length}">Supervisor</th>`;
+                if (filteredSupAssess.length) {
+                    headerRow1 += `<th colspan="${filteredSupAssess.length}">Supervisor</th>`;
                 }
-                if (assAssess.length) {
-                    headerRow1 += `<th colspan="${assAssess.length}">Assessor</th>`;
+                if (filteredAssAssess.length) {
+                    headerRow1 += `<th colspan="${filteredAssAssess.length}">Assessor</th>`;
                 }
                 headerRow1 += '<th rowspan="2">Notify</th>';
                 headerRow1 += '</tr>';
 
                 let headerRow2 = '<tr>';
-                supAssess.forEach(a => { headerRow2 += `<th>${a.assessment_name}</th>`; });
-                assAssess.forEach(a => { headerRow2 += `<th>${a.assessment_name}</th>`; });
+                filteredSupAssess.forEach(a => { headerRow2 += `<th>${a.assessment_name}</th>`; });
+                filteredAssAssess.forEach(a => { headerRow2 += `<th>${a.assessment_name}</th>`; });
                 headerRow2 += '</tr>';
 
                 thead.innerHTML = headerRow1 + headerRow2;
 
+                // Filter lecturers based on status if a specific assessment/status is selected
+                let filteredLecturers = lecturers;
+                if (filterValue !== 'all' && filterStatus) {
+                    const parts = filterValue.split('_');
+                    const role = parts[0];
+                    const assessmentId = parts[1];
+                    
+                    filteredLecturers = lecturers.filter(lec => {
+                        if (role === 'supervisor') {
+                            const status = lec.status?.Supervisor?.[assessmentId];
+                            return status && status.toLowerCase() === filterStatus;
+                        } else if (role === 'assessor') {
+                            const status = lec.status?.Assessor?.[assessmentId];
+                            return status && status.toLowerCase() === filterStatus;
+                        }
+                        return false;
+                    });
+                }
+
                 // Render rows
-                lecturers.forEach((lec, idx) => {
+                filteredLecturers.forEach((lec, idx) => {
                     const row = document.createElement('tr');
                     let rowHTML = `<td>${idx + 1}.</td><td>${lec.name}</td>`;
 
-                    supAssess.forEach(a => {
+                    filteredSupAssess.forEach(a => {
                         const status = lec.status?.Supervisor?.[a.assessment_id] || 'N/A';
                         const statusInfo = formatStatus(status.toLowerCase() === 'completed' ? 'completed' : status.toLowerCase() === 'incomplete' ? 'incomplete' : 'incomplete');
                         const text = status === 'N/A' ? 'N/A' : statusInfo.text;
@@ -1347,7 +1600,7 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
                         rowHTML += `<td${tooltipAttr}>${status === 'N/A' ? 'N/A' : `<span class="status-badge ${cls}">${text}</span>`}</td>`;
                     });
 
-                    assAssess.forEach(a => {
+                    filteredAssAssess.forEach(a => {
                         const status = lec.status?.Assessor?.[a.assessment_id] || 'N/A';
                         const statusInfo = formatStatus(status.toLowerCase() === 'completed' ? 'completed' : status.toLowerCase() === 'incomplete' ? 'incomplete' : 'incomplete');
                         const text = status === 'N/A' ? 'N/A' : statusInfo.text;
@@ -1652,7 +1905,7 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
                 };
             });
         }
-        
+
         // Hash function for FYP title data
         function hashFYPTitleData(data) {
             return JSON.stringify(data.map(item => ({
@@ -1923,7 +2176,7 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
                         tooltipElement.style.visibility = 'hidden';
                         tooltipElement.style.display = 'none';
                         tooltipElement.style.opacity = '0';
-                    }
+            }
                 }, 100); // Match transition duration
             }
         }
@@ -2349,7 +2602,7 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
             `;
             document.head.appendChild(style);
         }
-        
+
         function openModal(title, message) {
             const modal = document.getElementById('notifyModal');
             if (!modal) return;

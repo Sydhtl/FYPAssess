@@ -9,20 +9,37 @@ if (!isset($_SESSION['upmId']) || $_SESSION['role'] !== 'Student') {
 
 $studentId = $_SESSION['upmId'];
 
+// Check if a specific FYP session is passed in the URL (from dashboard graph click)
+$urlFypSessionId = isset($_GET['fyp_session_id']) ? (int)$_GET['fyp_session_id'] : null;
+
 $query = "SELECT 
     s.Student_ID,
     s.Student_Name,
     s.Semester,
     s.Department_ID,
     fs.FYP_Session,
+    fs.FYP_Session_ID,
     c.Course_Code
 FROM student s
 LEFT JOIN fyp_session fs ON s.FYP_Session_ID = fs.FYP_Session_ID
 LEFT JOIN course c ON fs.Course_ID = c.Course_ID
 WHERE s.Student_ID = ?";
 
+// If a specific session is passed from the dashboard, use it; otherwise get the latest
+if ($urlFypSessionId) {
+    $query .= " AND s.FYP_Session_ID = ?";
+} else {
+    $query .= " ORDER BY fs.FYP_Session_ID DESC LIMIT 1";
+}
+
 $stmt = $conn->prepare($query);
-$stmt->bind_param("s", $studentId);
+
+if ($urlFypSessionId) {
+    $stmt->bind_param("si", $studentId, $urlFypSessionId);
+} else {
+    $stmt->bind_param("s", $studentId);
+}
+
 $stmt->execute();
 $result = $stmt->get_result();
 $student = $result->fetch_assoc();
@@ -357,6 +374,34 @@ if ($tableExists && $tableExists->num_rows > 0) {
         var filterElement = section === 'A' ? document.getElementById('statusFilterA') : document.getElementById('statusFilterB');
         var selectedStatus = filterElement.value;
         renderTable(section, selectedStatus);
+    }
+    
+    // Check for status filter from URL parameter and apply it on page load
+    function applyStatusFilterFromURL() {
+        var urlParams = new URLSearchParams(window.location.search);
+        var statusFilter = urlParams.get('status');
+        
+        if (statusFilter) {
+            // Apply filter to both sections
+            var filterElementA = document.getElementById('statusFilterA');
+            var filterElementB = document.getElementById('statusFilterB');
+            
+            // Map status values (normalize to lowercase)
+            var statusValue = statusFilter.toLowerCase();
+            
+            // Validate status value
+            if (statusValue === 'approved' || statusValue === 'rejected' || statusValue === 'pending') {
+                if (filterElementA) {
+                    filterElementA.value = statusValue;
+                    renderTable('A', statusValue);
+                }
+                
+                if (filterElementB) {
+                    filterElementB.value = statusValue;
+                    renderTable('B', statusValue);
+                }
+            }
+        }
     }
 
     function getStatusClass(status) {
@@ -713,8 +758,19 @@ if ($tableExists && $tableExists->num_rows > 0) {
         document.getElementById("nameSide").style.display = "none";
         closeNav();
         loadExtraEntries();
-        renderTable('A', 'all');
-        renderTable('B', 'all');
+        
+        // Check for status filter from URL parameter
+        var urlParams = new URLSearchParams(window.location.search);
+        var statusFilter = urlParams.get('status');
+        
+        if (statusFilter) {
+            // Apply status filter from URL parameter
+            applyStatusFilterFromURL();
+        } else {
+            // No filter, show all
+            renderTable('A', 'all');
+            renderTable('B', 'all');
+        }
     };
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>

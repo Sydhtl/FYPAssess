@@ -14,11 +14,14 @@ $query = "SELECT
     s.Student_Name,
     s.Semester,
     fs.FYP_Session,
+    fs.FYP_Session_ID,
     c.Course_Code
 FROM student s
 LEFT JOIN fyp_session fs ON s.FYP_Session_ID = fs.FYP_Session_ID
 LEFT JOIN course c ON fs.Course_ID = c.Course_ID
-WHERE s.Student_ID = ?";
+WHERE s.Student_ID = ?
+ORDER BY fs.FYP_Session_ID DESC
+LIMIT 1";
 
 $stmt = $conn->prepare($query);
 $stmt->bind_param("s", $studentId);

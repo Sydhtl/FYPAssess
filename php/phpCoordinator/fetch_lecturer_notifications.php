@@ -10,6 +10,10 @@ if (!isset($_SESSION['upmId']) || !isset($_SESSION['role']) || $_SESSION['role']
 
 $userId = $_SESSION['upmId'];
 
+// Get year and semester from query parameters
+$selectedYear = $_GET['year'] ?? null;
+$selectedSemester = $_GET['semester'] ?? null;
+
 try {
     // Get coordinator's department ID
     $deptStmt = $conn->prepare("SELECT Department_ID FROM lecturer WHERE Lecturer_ID = ? LIMIT 1");
@@ -25,16 +29,31 @@ try {
     $departmentId = $deptRow['Department_ID'];
     $deptStmt->close();
 
-    // Get all FYP sessions for this department to get all assessments
-    $sessionsQuery = "SELECT DISTINCT fs.FYP_Session_ID 
-                     FROM fyp_session fs
-                     INNER JOIN student s ON fs.FYP_Session_ID = s.FYP_Session_ID
-                     WHERE s.Department_ID = ?";
-    $sessionsStmt = $conn->prepare($sessionsQuery);
-    if (!$sessionsStmt) {
-        throw new Exception('Prepare failed: ' . $conn->error);
+    // Get FYP sessions for this department filtered by year and semester
+    if ($selectedYear && $selectedSemester) {
+        $sessionsQuery = "SELECT DISTINCT fs.FYP_Session_ID 
+                         FROM fyp_session fs
+                         INNER JOIN course c ON fs.Course_ID = c.Course_ID
+                         WHERE c.Department_ID = ? 
+                         AND fs.FYP_Session = ? 
+                         AND fs.Semester = ?";
+        $sessionsStmt = $conn->prepare($sessionsQuery);
+        if (!$sessionsStmt) {
+            throw new Exception('Prepare failed: ' . $conn->error);
+        }
+        $sessionsStmt->bind_param('isi', $departmentId, $selectedYear, $selectedSemester);
+    } else {
+        // Fallback: get all sessions if no filter provided
+        $sessionsQuery = "SELECT DISTINCT fs.FYP_Session_ID 
+                         FROM fyp_session fs
+                         INNER JOIN student s ON fs.FYP_Session_ID = s.FYP_Session_ID
+                         WHERE s.Department_ID = ?";
+        $sessionsStmt = $conn->prepare($sessionsQuery);
+        if (!$sessionsStmt) {
+            throw new Exception('Prepare failed: ' . $conn->error);
+        }
+        $sessionsStmt->bind_param('i', $departmentId);
     }
-    $sessionsStmt->bind_param('i', $departmentId);
     $sessionsStmt->execute();
     $sessionsResult = $sessionsStmt->get_result();
     $fypSessionIds = [];
@@ -48,13 +67,15 @@ try {
         exit();
     }
 
-    // Get all courses in the department
-    $coursesQuery = "SELECT Course_ID FROM course WHERE Department_ID = ?";
+    // Get course IDs that exist in the current session/semester (from fyp_session)
+    $placeholders = implode(',', array_fill(0, count($fypSessionIds), '?'));
+    $coursesQuery = "SELECT DISTINCT Course_ID FROM fyp_session WHERE FYP_Session_ID IN ($placeholders)";
     $coursesStmt = $conn->prepare($coursesQuery);
     if (!$coursesStmt) {
         throw new Exception('Prepare failed: ' . $conn->error);
     }
-    $coursesStmt->bind_param('i', $departmentId);
+    $types = str_repeat('i', count($fypSessionIds));
+    $coursesStmt->bind_param($types, ...$fypSessionIds);
     $coursesStmt->execute();
     $coursesResult = $coursesStmt->get_result();
     $courseIds = [];
@@ -141,7 +162,7 @@ try {
     $assessmentsStmt->execute();
     $assessmentsResult = $assessmentsStmt->get_result();
     
-    // Organize assessments by role
+    // Organize assessments by role and include Course_ID
     $assessmentsByRole = [];
     while ($row = $assessmentsResult->fetch_assoc()) {
         $assessmentId = $row['Assessment_ID'];
@@ -151,6 +172,7 @@ try {
             $assessmentsByRole[$role][$assessmentId] = [
                 'assessment_id' => $assessmentId,
                 'assessment_name' => $row['Assessment_Name'],
+                'course_id' => $row['Course_ID'], // Store Course_ID for filtering
                 'criteria' => []
             ];
         }
@@ -163,6 +185,22 @@ try {
         }
     }
     $assessmentsStmt->close();
+    
+    // Map FYP_Session_ID to Course_ID for filtering
+    $sessionToCourseMap = [];
+    $placeholders = implode(',', array_fill(0, count($fypSessionIds), '?'));
+    $sessionCourseQuery = "SELECT FYP_Session_ID, Course_ID FROM fyp_session WHERE FYP_Session_ID IN ($placeholders)";
+    $sessionCourseStmt = $conn->prepare($sessionCourseQuery);
+    if ($sessionCourseStmt) {
+        $types = str_repeat('i', count($fypSessionIds));
+        $sessionCourseStmt->bind_param($types, ...$fypSessionIds);
+        $sessionCourseStmt->execute();
+        $sessionCourseResult = $sessionCourseStmt->get_result();
+        while ($row = $sessionCourseResult->fetch_assoc()) {
+            $sessionToCourseMap[$row['FYP_Session_ID']] = $row['Course_ID'];
+        }
+        $sessionCourseStmt->close();
+    }
     
     // Get due dates for assessments by role and session
     $placeholders = implode(',', array_fill(0, count($fypSessionIds), '?'));
@@ -207,11 +245,13 @@ try {
     $enrollmentStmt->execute();
     $enrollmentResult = $enrollmentStmt->get_result();
     
-    // Map lecturers to their students by role and session
+    // Map lecturers to their students by role and session, and track course IDs
     $lecturerStudents = [];
+    $lecturerCourses = []; // Track which courses each lecturer has students in
     while ($row = $enrollmentResult->fetch_assoc()) {
         $fypSessionId = $row['Fyp_Session_ID'];
         $studentId = $row['Student_ID'];
+        $courseId = isset($sessionToCourseMap[$fypSessionId]) ? $sessionToCourseMap[$fypSessionId] : null;
         
         // Supervisor - map Supervisor_ID to Lecturer_ID
         if ($row['Supervisor_ID'] && isset($lecturerToSupervisorMap[$row['Supervisor_ID']])) {
@@ -220,6 +260,16 @@ try {
                 $lecturerStudents[$lecturerId]['Supervisor'][$fypSessionId] = [];
             }
             $lecturerStudents[$lecturerId]['Supervisor'][$fypSessionId][] = $studentId;
+            // Track course for this lecturer
+            if ($courseId) {
+                if (!isset($lecturerCourses[$lecturerId])) {
+                    $lecturerCourses[$lecturerId] = [];
+                }
+                if (!isset($lecturerCourses[$lecturerId]['Supervisor'])) {
+                    $lecturerCourses[$lecturerId]['Supervisor'] = [];
+                }
+                $lecturerCourses[$lecturerId]['Supervisor'][$courseId] = true;
+            }
         }
         
         // Assessor 1 - map Assessor_ID to Lecturer_ID
@@ -229,6 +279,16 @@ try {
                 $lecturerStudents[$lecturerId]['Assessor'][$fypSessionId] = [];
             }
             $lecturerStudents[$lecturerId]['Assessor'][$fypSessionId][] = $studentId;
+            // Track course for this lecturer
+            if ($courseId) {
+                if (!isset($lecturerCourses[$lecturerId])) {
+                    $lecturerCourses[$lecturerId] = [];
+                }
+                if (!isset($lecturerCourses[$lecturerId]['Assessor'])) {
+                    $lecturerCourses[$lecturerId]['Assessor'] = [];
+                }
+                $lecturerCourses[$lecturerId]['Assessor'][$courseId] = true;
+            }
         }
         
         // Assessor 2 - map Assessor_ID to Lecturer_ID
@@ -238,6 +298,16 @@ try {
                 $lecturerStudents[$lecturerId]['Assessor'][$fypSessionId] = [];
             }
             $lecturerStudents[$lecturerId]['Assessor'][$fypSessionId][] = $studentId;
+            // Track course for this lecturer
+            if ($courseId) {
+                if (!isset($lecturerCourses[$lecturerId])) {
+                    $lecturerCourses[$lecturerId] = [];
+                }
+                if (!isset($lecturerCourses[$lecturerId]['Assessor'])) {
+                    $lecturerCourses[$lecturerId]['Assessor'] = [];
+                }
+                $lecturerCourses[$lecturerId]['Assessor'][$courseId] = true;
+            }
         }
     }
     $enrollmentStmt->close();
@@ -312,15 +382,18 @@ try {
         
         // Check Supervisor role - iterate through assessments first to check all students across all sessions
         if (isset($lecturerStudents[$lecturerId]['Supervisor']) && isset($assessmentsByRole['Supervisor'])) {
-            // Get all students for this lecturer across all sessions
-            $allSupervisorStudents = [];
-            foreach ($lecturerStudents[$lecturerId]['Supervisor'] as $fypSessionId => $studentIds) {
-                $allSupervisorStudents = array_merge($allSupervisorStudents, $studentIds);
-            }
-            $allSupervisorStudents = array_unique($allSupervisorStudents);
+            // Get courses where this lecturer has supervisor students
+            $lecturerCourseIds = isset($lecturerCourses[$lecturerId]['Supervisor']) 
+                ? array_keys($lecturerCourses[$lecturerId]['Supervisor']) 
+                : [];
             
-            // Check each assessment once
+            // Check each assessment once, but only for courses where lecturer has students
             foreach ($assessmentsByRole['Supervisor'] as $assessmentId => $assessmentInfo) {
+                // Only check assessments from courses where this lecturer has students
+                if (!in_array($assessmentInfo['course_id'], $lecturerCourseIds)) {
+                    continue;
+                }
+                
                 $taskKey = 'Supervisor_' . $assessmentId;
                 
                 // Skip if already added
@@ -328,14 +401,25 @@ try {
                     continue;
                 }
                 
-                // Check if assessment is incomplete - need all criteria evaluated for all students
+                // Get students from sessions that belong to this assessment's course
+                $relevantStudents = [];
+                foreach ($lecturerStudents[$lecturerId]['Supervisor'] as $fypSessionId => $studentIds) {
+                    $sessionCourseId = isset($sessionToCourseMap[$fypSessionId]) ? $sessionToCourseMap[$fypSessionId] : null;
+                    if ($sessionCourseId === $assessmentInfo['course_id']) {
+                        $relevantStudents = array_merge($relevantStudents, $studentIds);
+                    }
+                }
+                $relevantStudents = array_unique($relevantStudents);
+                
+                // Check if assessment is incomplete - need all criteria evaluated for all relevant students
                 $isIncomplete = false;
                 $criteria = $assessmentInfo['criteria'];
                 
                 if (empty($criteria)) continue; // Skip if no criteria
+                if (empty($relevantStudents)) continue; // Skip if no students in this course
                 
-                // Check all students across all sessions
-                foreach ($allSupervisorStudents as $studentId) {
+                // Check only students from the same course as the assessment
+                foreach ($relevantStudents as $studentId) {
                     foreach ($criteria as $criteriaId => $criteriaInfo) {
                         if (!isset($evaluationStatus['Supervisor'][$lecturerId][$studentId][$assessmentId][$criteriaId])) {
                             $isIncomplete = true;
@@ -373,15 +457,18 @@ try {
         
         // Check Assessor role - iterate through assessments first to check all students across all sessions
         if (isset($lecturerStudents[$lecturerId]['Assessor']) && isset($assessmentsByRole['Assessor'])) {
-            // Get all students for this lecturer across all sessions
-            $allAssessorStudents = [];
-            foreach ($lecturerStudents[$lecturerId]['Assessor'] as $fypSessionId => $studentIds) {
-                $allAssessorStudents = array_merge($allAssessorStudents, $studentIds);
-            }
-            $allAssessorStudents = array_unique($allAssessorStudents);
+            // Get courses where this lecturer has assessor students
+            $lecturerCourseIds = isset($lecturerCourses[$lecturerId]['Assessor']) 
+                ? array_keys($lecturerCourses[$lecturerId]['Assessor']) 
+                : [];
             
-            // Check each assessment once
+            // Check each assessment once, but only for courses where lecturer has students
             foreach ($assessmentsByRole['Assessor'] as $assessmentId => $assessmentInfo) {
+                // Only check assessments from courses where this lecturer has students
+                if (!in_array($assessmentInfo['course_id'], $lecturerCourseIds)) {
+                    continue;
+                }
+                
                 $taskKey = 'Assessor_' . $assessmentId;
                 
                 // Skip if already added
@@ -389,14 +476,25 @@ try {
                     continue;
                 }
                 
+                // Get students from sessions that belong to this assessment's course
+                $relevantStudents = [];
+                foreach ($lecturerStudents[$lecturerId]['Assessor'] as $fypSessionId => $studentIds) {
+                    $sessionCourseId = isset($sessionToCourseMap[$fypSessionId]) ? $sessionToCourseMap[$fypSessionId] : null;
+                    if ($sessionCourseId === $assessmentInfo['course_id']) {
+                        $relevantStudents = array_merge($relevantStudents, $studentIds);
+                    }
+                }
+                $relevantStudents = array_unique($relevantStudents);
+                
                 // Check if assessment is incomplete
                 $isIncomplete = false;
                 $criteria = $assessmentInfo['criteria'];
                 
                 if (empty($criteria)) continue; // Skip if no criteria
+                if (empty($relevantStudents)) continue; // Skip if no students in this course
                 
-                // Check all students across all sessions
-                foreach ($allAssessorStudents as $studentId) {
+                // Check only students from the same course as the assessment
+                foreach ($relevantStudents as $studentId) {
                     foreach ($criteria as $criteriaId => $criteriaInfo) {
                         if (!isset($evaluationStatus['Assessor'][$lecturerId][$studentId][$assessmentId][$criteriaId])) {
                             $isIncomplete = true;

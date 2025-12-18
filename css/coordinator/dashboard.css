@@ -2,6 +2,11 @@ body {
   font-family: "Montserrat";
   transition: margin-left 0.5s;
   /* Smooth transition for the main content shift */
+  overflow-x: hidden; /* Prevent horizontal scroll */
+}
+
+html {
+  overflow-x: hidden; /* Ensure no horizontal scroll at root */
 }
 
 #courseCode,
@@ -24,7 +29,8 @@ body {
 /* --- DASHBOARD GRID STYLES --- */
 .main-grid {
   padding: 20px;
-  margin-left: 60px;
+  /* Rely on #main margin from background.css to avoid double shifts */
+  margin-left: 0;
   transition: margin-left 0.5s;
 }
 
@@ -96,6 +102,10 @@ body {
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
   padding: 10px;
   margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
 }
 
 /* Task Tab Styles */
@@ -159,6 +169,17 @@ body {
   overflow-x: auto;
 }
 
+/* Align header in dashboard to match other pages and reduce inner left spacing */
+.containerAtas {
+  padding-left: 10px; /* reduce space before logo */
+  margin-top: 0; /* Ensure no top margin */
+  padding-top: 0; /* Ensure no top padding */
+}
+
+.header-text-group {
+  margin-left: 10px; /* tighten gap between logo and titles */
+}
+
 .chart-container canvas {
   max-height: 100%;
   max-width: 100%;
@@ -176,6 +197,10 @@ body {
   border-radius: 8px;
   font-size: 14px;
   line-height: 1.5;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .reminder-date {
@@ -226,6 +251,7 @@ body {
 .reminder-area {
   display: flex;
   flex-direction: column;
+  height: 100%;
 }
 
 /* Sidebar styles for role headers */

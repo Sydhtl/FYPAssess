@@ -1,4 +1,55 @@
-<?php include '../../../php/coordinator_bootstrap.php'; ?>
+<?php 
+include '../../../php/coordinator_bootstrap.php'; 
+
+// Get the latest session from database for this department
+$userId = $_SESSION['upmId'] ?? null;
+$departmentId = null;
+$currentYear = null;
+$currentSemester = null;
+
+if ($userId) {
+    $deptStmt = $conn->prepare("SELECT Department_ID FROM lecturer WHERE Lecturer_ID = ? LIMIT 1");
+    if ($deptStmt) {
+        $deptStmt->bind_param('s', $userId);
+        if ($deptStmt->execute()) {
+            $deptRes = $deptStmt->get_result();
+            if ($deptRow = $deptRes->fetch_assoc()) {
+                $departmentId = (int)$deptRow['Department_ID'];
+            }
+        }
+        $deptStmt->close();
+    }
+}
+
+// Get the latest session from database for this department
+if ($departmentId !== null) {
+    $latestSessionStmt = $conn->prepare("
+        SELECT fs.FYP_Session, fs.Semester
+        FROM fyp_session fs
+        INNER JOIN course c ON fs.Course_ID = c.Course_ID
+        WHERE c.Department_ID = ?
+        ORDER BY fs.FYP_Session DESC, fs.Semester DESC
+        LIMIT 1
+    ");
+    if ($latestSessionStmt) {
+        $latestSessionStmt->bind_param('i', $departmentId);
+        if ($latestSessionStmt->execute()) {
+            $latestRes = $latestSessionStmt->get_result();
+            if ($latestRow = $latestRes->fetch_assoc()) {
+                $currentYear = $latestRow['FYP_Session'];
+                $currentSemester = (int)$latestRow['Semester'];
+            }
+        }
+        $latestSessionStmt->close();
+    }
+}
+
+// Fallback to default if no session found
+if ($currentYear === null) {
+    $currentYear = '2024/2025';
+    $currentSemester = 2;
+}
+?>
 <!DOCTYPE html>
 <html>
 <head>
@@ -394,7 +445,13 @@
         
         // Function to fetch notifications from server
         function fetchNotifications() {
-            fetch('../../../php/phpCoordinator/fetch_lecturer_notifications.php')
+            const year = <?php echo json_encode($currentYear); ?>;
+            const semester = <?php echo json_encode($currentSemester); ?>;
+            const params = new URLSearchParams({
+                year: year,
+                semester: semester
+            });
+            fetch('../../../php/phpCoordinator/fetch_lecturer_notifications.php?' + params.toString())
                 .then(response => response.json())
                 .then(data => {
                     if (data.success && data.notifications) {

@@ -31,7 +31,9 @@ LEFT JOIN course c ON fs.Course_ID = c.Course_ID
 LEFT JOIN supervisor sup ON s.Supervisor_ID = sup.Supervisor_ID
 LEFT JOIN lecturer l ON sup.Lecturer_ID = l.Lecturer_ID
 LEFT JOIN fyp_project fp ON s.Student_ID = fp.Student_ID
-WHERE s.Student_ID = ?";
+WHERE s.Student_ID = ?
+ORDER BY fs.FYP_Session_ID DESC
+LIMIT 1";
 
 $stmt = $conn->prepare($query);
 $stmt->bind_param("s", $studentId);
@@ -226,7 +228,7 @@ if ($commentStmt) {
         </div>
     </div>
 
-<div id="main">
+<div id="main" style="overflow-x: hidden; max-width: 100%; box-sizing: border-box;">
     <div class="info-card">
         <div class="tab-buttons">
             <button id="tabInfo" class="task-tab active-tab">FYP Information</button>
@@ -464,6 +466,7 @@ if ($commentStmt) {
                 })
                 .then(response => response.json())
                 .then(data => {
+                    hideLoadingModal();
                     if (data.success) {
                         // UPDATE UI: Show Pending Box
                         pendingText.innerText = newTitleVal;
@@ -484,15 +487,12 @@ if ($commentStmt) {
                             </div>`;
 
                         editModal.innerHTML = contentHtml;
-                        editModal.querySelector('#okSubmitted').onclick = function(){
-                            closeModal(editModal);
-                            // Reload the page to show updated data
-                            window.location.reload();
-                        };
-                    } else {
-                        hideLoadingModal();
                         editModal.querySelector('#closeEditModalAfter').onclick = function(){
                             closeModal(editModal);
+                        };
+                        editModal.querySelector('#okSubmitted').onclick = function(){
+                            closeModal(editModal);
+                            hideLoadingModal();
                             // Reload the page to show updated data
                             window.location.reload();
                         };
@@ -500,10 +500,12 @@ if ($commentStmt) {
                         alert("Error: " + (data.message || "Failed to submit."));
                         saveBtn.innerHTML = "Save & Send to Supervisor";
                         saveBtn.disabled = false;
+                        closeModal(editModal);
                     }
                 })
                 .catch(error => {
                     console.error('Error:', error);
+                    hideLoadingModal();
                     alert("An error occurred connecting to the server.");
                     saveBtn.innerHTML = "Save & Send to Supervisor";
                     saveBtn.disabled = false;

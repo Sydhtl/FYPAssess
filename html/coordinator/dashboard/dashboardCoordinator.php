@@ -1,4 +1,596 @@
-<?php include '../../../php/coordinator_bootstrap.php'; ?>
+<?php
+include '../../../php/coordinator_bootstrap.php';
+
+// -------------------------
+// Coordinator context & session
+// -------------------------
+$userId = $_SESSION['upmId'] ?? null;
+$departmentId = null;
+$currentYear = null;
+$currentSemester = null;
+
+if ($userId) {
+    $deptStmt = $conn->prepare("SELECT Department_ID FROM lecturer WHERE Lecturer_ID = ? LIMIT 1");
+    if ($deptStmt) {
+        $deptStmt->bind_param('s', $userId);
+        if ($deptStmt->execute()) {
+            $deptRes = $deptStmt->get_result();
+            if ($deptRow = $deptRes->fetch_assoc()) {
+                $departmentId = (int)$deptRow['Department_ID'];
+            }
+        }
+        $deptStmt->close();
+    }
+}
+
+// Get the latest session from database for this department
+if ($departmentId !== null) {
+    $latestSessionStmt = $conn->prepare("
+        SELECT fs.FYP_Session, fs.Semester
+        FROM fyp_session fs
+        INNER JOIN course c ON fs.Course_ID = c.Course_ID
+        WHERE c.Department_ID = ?
+        ORDER BY fs.FYP_Session DESC, fs.Semester DESC
+        LIMIT 1
+    ");
+    if ($latestSessionStmt) {
+        $latestSessionStmt->bind_param('i', $departmentId);
+        if ($latestSessionStmt->execute()) {
+            $latestRes = $latestSessionStmt->get_result();
+            if ($latestRow = $latestRes->fetch_assoc()) {
+                $currentYear = $latestRow['FYP_Session'];
+                $currentSemester = (int)$latestRow['Semester'];
+            }
+        }
+        $latestSessionStmt->close();
+    }
+}
+
+// Fallback to default if no session found
+if ($currentYear === null) {
+    $currentYear = '2024/2025';
+    $currentSemester = 2;
+}
+
+// -------------------------
+// FYP Title status counts (current session only)
+// -------------------------
+$titleStatusCounts = [
+    'Approved' => 0,
+    'Waiting For Approval' => 0,
+    'Rejected' => 0
+];
+
+if ($userId && $departmentId !== null) {
+    $statusQuery = "
+        SELECT fp.Title_Status, COUNT(*) AS cnt
+        FROM fyp_project fp
+        INNER JOIN student s ON fp.Student_ID = s.Student_ID
+        INNER JOIN fyp_session fs ON s.FYP_Session_ID = fs.FYP_Session_ID
+        WHERE s.Department_ID = ?
+          AND fs.FYP_Session = ?
+          AND fs.Semester = ?
+        GROUP BY fp.Title_Status
+    ";
+
+    if ($stmt = $conn->prepare($statusQuery)) {
+        $stmt->bind_param('isi', $departmentId, $currentYear, $currentSemester);
+        if ($stmt->execute()) {
+            $res = $stmt->get_result();
+            while ($row = $res->fetch_assoc()) {
+                $status = trim($row['Title_Status']);
+                $count = (int)$row['cnt'];
+                if (strcasecmp($status, 'Approved') === 0) {
+                    $titleStatusCounts['Approved'] = $count;
+                } elseif (strcasecmp($status, 'Rejected') === 0) {
+                    $titleStatusCounts['Rejected'] = $count;
+                } else {
+                    // Treat any other status as Waiting For Approval
+                    $titleStatusCounts['Waiting For Approval'] += $count;
+                }
+            }
+        }
+        $stmt->close();
+    }
+}
+
+$titleChartData = [
+    'labels' => ['Approved', 'Waiting for approval', 'Rejected'],
+    'data'   => [
+        $titleStatusCounts['Approved'],
+        $titleStatusCounts['Waiting For Approval'],
+        $titleStatusCounts['Rejected']
+    ]
+];
+
+// -------------------------
+// Widget data: Student counts per course and total lecturers
+// -------------------------
+$firstCourseStudentCount = 0;
+$secondCourseStudentCount = 0;
+$firstCourseCode = '';
+$secondCourseCode = '';
+$totalLecturers = 0;
+
+// -------------------------
+// Course & assessment completion data for current session
+// -------------------------
+$courseCharts = [];
+
+if ($departmentId !== null) {
+    // 1) Get courses under this department
+    $courses = [];
+    $courseStmt = $conn->prepare("SELECT Course_ID, Course_Code FROM course WHERE Department_ID = ? ORDER BY Course_Code");
+    if ($courseStmt) {
+        $courseStmt->bind_param('i', $departmentId);
+        if ($courseStmt->execute()) {
+            $courseRes = $courseStmt->get_result();
+            while ($cRow = $courseRes->fetch_assoc()) {
+                $courses[] = [
+                    'id' => (int)$cRow['Course_ID'],
+                    'code' => $cRow['Course_Code']
+                ];
+            }
+        }
+        $courseStmt->close();
+    }
+    
+    // Get student counts for first and second courses
+    if (!empty($courses)) {
+        // First course
+        $firstCourse = $courses[0];
+        $firstCourseCode = $firstCourse['code'];
+        $firstSessionIds = [];
+        $firstFsStmt = $conn->prepare("
+            SELECT FYP_Session_ID 
+            FROM fyp_session 
+            WHERE Course_ID = ? AND FYP_Session = ? AND Semester = ?
+        ");
+        if ($firstFsStmt) {
+            $firstFsStmt->bind_param('isi', $firstCourse['id'], $currentYear, $currentSemester);
+            if ($firstFsStmt->execute()) {
+                $firstFsRes = $firstFsStmt->get_result();
+                while ($fsRow = $firstFsRes->fetch_assoc()) {
+                    $firstSessionIds[] = (int)$fsRow['FYP_Session_ID'];
+                }
+            }
+            $firstFsStmt->close();
+        }
+        if (!empty($firstSessionIds)) {
+            $placeholders = implode(',', array_fill(0, count($firstSessionIds), '?'));
+            $firstStudentStmt = $conn->prepare("
+                SELECT COUNT(*) AS cnt
+                FROM student 
+                WHERE Course_ID = ? AND FYP_Session_ID IN ($placeholders)
+            ");
+            if ($firstStudentStmt) {
+                $params = array_merge([$firstCourse['id']], $firstSessionIds);
+                $types = 'i' . str_repeat('i', count($firstSessionIds));
+                $firstStudentStmt->bind_param($types, ...$params);
+                if ($firstStudentStmt->execute()) {
+                    $firstStudentRes = $firstStudentStmt->get_result();
+                    if ($row = $firstStudentRes->fetch_assoc()) {
+                        $firstCourseStudentCount = (int)$row['cnt'];
+                    }
+                }
+                $firstStudentStmt->close();
+            }
+        }
+        
+        // Second course (if exists)
+        if (count($courses) > 1) {
+            $secondCourse = $courses[1];
+            $secondCourseCode = $secondCourse['code'];
+            $secondSessionIds = [];
+            $secondFsStmt = $conn->prepare("
+                SELECT FYP_Session_ID 
+                FROM fyp_session 
+                WHERE Course_ID = ? AND FYP_Session = ? AND Semester = ?
+            ");
+            if ($secondFsStmt) {
+                $secondFsStmt->bind_param('isi', $secondCourse['id'], $currentYear, $currentSemester);
+                if ($secondFsStmt->execute()) {
+                    $secondFsRes = $secondFsStmt->get_result();
+                    while ($fsRow = $secondFsRes->fetch_assoc()) {
+                        $secondSessionIds[] = (int)$fsRow['FYP_Session_ID'];
+                    }
+                }
+                $secondFsStmt->close();
+            }
+            if (!empty($secondSessionIds)) {
+                $placeholders = implode(',', array_fill(0, count($secondSessionIds), '?'));
+                $secondStudentStmt = $conn->prepare("
+                    SELECT COUNT(*) AS cnt
+                    FROM student 
+                    WHERE Course_ID = ? AND FYP_Session_ID IN ($placeholders)
+                ");
+                if ($secondStudentStmt) {
+                    $params = array_merge([$secondCourse['id']], $secondSessionIds);
+                    $types = 'i' . str_repeat('i', count($secondSessionIds));
+                    $secondStudentStmt->bind_param($types, ...$params);
+                    if ($secondStudentStmt->execute()) {
+                        $secondStudentRes = $secondStudentStmt->get_result();
+                        if ($row = $secondStudentRes->fetch_assoc()) {
+                            $secondCourseStudentCount = (int)$row['cnt'];
+                        }
+                    }
+                    $secondStudentStmt->close();
+                }
+            }
+        }
+    }
+    
+    // Get total lecturers for the department
+    $lecturerCountStmt = $conn->prepare("SELECT COUNT(*) AS cnt FROM lecturer WHERE Department_ID = ?");
+    if ($lecturerCountStmt) {
+        $lecturerCountStmt->bind_param('i', $departmentId);
+        if ($lecturerCountStmt->execute()) {
+            $lecturerCountRes = $lecturerCountStmt->get_result();
+            if ($row = $lecturerCountRes->fetch_assoc()) {
+                $totalLecturers = (int)$row['cnt'];
+            }
+        }
+        $lecturerCountStmt->close();
+    }
+
+    // 2) For each course, find FYP session IDs for the current year/semester
+    foreach ($courses as $course) {
+        $courseId = $course['id'];
+        $sessionIds = [];
+        $fsStmt = $conn->prepare("
+            SELECT FYP_Session_ID 
+            FROM fyp_session 
+            WHERE Course_ID = ? AND FYP_Session = ? AND Semester = ?
+        ");
+        if ($fsStmt) {
+            $fsStmt->bind_param('isi', $courseId, $currentYear, $currentSemester);
+            if ($fsStmt->execute()) {
+                $fsRes = $fsStmt->get_result();
+                while ($fsRow = $fsRes->fetch_assoc()) {
+                    $sessionIds[] = (int)$fsRow['FYP_Session_ID'];
+                }
+            }
+            $fsStmt->close();
+        }
+        if (empty($sessionIds)) continue;
+
+        // 3) Get students in these sessions for this course
+        $students = [];
+        $placeholders = implode(',', array_fill(0, count($sessionIds), '?'));
+        $types = str_repeat('i', count($sessionIds));
+        $studentSql = "
+            SELECT Student_ID 
+            FROM student 
+            WHERE Course_ID = $courseId
+              AND FYP_Session_ID IN ($placeholders)
+        ";
+        if ($stmtStu = $conn->prepare($studentSql)) {
+            $stmtStu->bind_param($types, ...$sessionIds);
+            if ($stmtStu->execute()) {
+                $stuRes = $stmtStu->get_result();
+                while ($sRow = $stuRes->fetch_assoc()) {
+                    $students[] = $sRow['Student_ID'];
+                }
+            }
+            $stmtStu->close();
+        }
+        $totalStudents = count($students);
+        if ($totalStudents === 0) continue;
+
+        // 4) Get assessments for this course with their role classification
+        $assessments = [];
+        $asmtStmt = $conn->prepare("
+            SELECT a.Assessment_ID, a.Assessment_Name, COALESCE(ac.Role_Name, 'Supervisor') AS Role_Name
+            FROM assessment a
+            LEFT JOIN assessment_classification ac ON a.Assessment_ID = ac.Assessment_ID
+            WHERE a.Course_ID = ?
+            ORDER BY a.Assessment_Name
+        ");
+        if ($asmtStmt) {
+            $asmtStmt->bind_param('i', $courseId);
+            if ($asmtStmt->execute()) {
+                $asmtRes = $asmtStmt->get_result();
+                while ($aRow = $asmtRes->fetch_assoc()) {
+                    $role = strtolower($aRow['Role_Name']) === 'assessor' ? 'Assessor' : 'Supervisor';
+                    $assessments[] = [
+                        'id' => (int)$aRow['Assessment_ID'],
+                        'name' => $aRow['Assessment_Name'],
+                        'role' => $role
+                    ];
+                }
+            }
+            $asmtStmt->close();
+        }
+        if (empty($assessments)) continue;
+
+        // 5) For each assessment, count lecturers who completed vs incomplete
+        $assessmentData = [];
+        foreach ($assessments as $a) {
+            $assessmentRole = $a['role']; // 'Supervisor' or 'Assessor'
+            $assessmentId = $a['id'];
+            
+            // Get all criteria for this assessment to check completion
+            $criteriaIds = [];
+            $criteriaStmt = $conn->prepare("
+                SELECT Criteria_ID
+                FROM assessment_criteria
+                WHERE Assessment_ID = ?
+            ");
+            if ($criteriaStmt) {
+                $criteriaStmt->bind_param('i', $assessmentId);
+                if ($criteriaStmt->execute()) {
+                    $criteriaRes = $criteriaStmt->get_result();
+                    while ($critRow = $criteriaRes->fetch_assoc()) {
+                        $criteriaIds[] = (int)$critRow['Criteria_ID'];
+                    }
+                }
+                $criteriaStmt->close();
+            }
+            
+            $lectureCompletionMap = []; // Maps lecturer_id to completion status for this assessment
+            
+            if ($assessmentRole === 'Supervisor') {
+                // For Supervisor role assessments: only get supervisors from student_enrollment
+                $supStmt = $conn->prepare("
+                    SELECT DISTINCT se.Supervisor_ID, s.Lecturer_ID
+                    FROM student_enrollment se
+                    INNER JOIN supervisor s ON se.Supervisor_ID = s.Supervisor_ID
+                    WHERE se.Fyp_Session_ID IN (" . implode(',', array_fill(0, count($sessionIds), '?')) . ")
+                      AND se.Supervisor_ID IS NOT NULL
+                ");
+                if ($supStmt) {
+                    $supStmt->bind_param(str_repeat('i', count($sessionIds)), ...$sessionIds);
+                    if ($supStmt->execute()) {
+                        $supRes = $supStmt->get_result();
+                        while ($supRow = $supRes->fetch_assoc()) {
+                            $lecturerId = $supRow['Lecturer_ID'];
+                            $supervisorId = $supRow['Supervisor_ID'];
+                            
+                            // Get students supervised by this lecturer for this session
+                            $lecturerStudents = [];
+                            $lecStuStmt = $conn->prepare("
+                                SELECT DISTINCT se.Student_ID
+                                FROM student_enrollment se
+                                WHERE se.Fyp_Session_ID IN (" . implode(',', array_fill(0, count($sessionIds), '?')) . ")
+                                  AND se.Supervisor_ID = ?
+                            ");
+                            if ($lecStuStmt) {
+                                $sessionIdsWithSup = array_merge($sessionIds, [$supervisorId]);
+                                $typesStu = str_repeat('i', count($sessionIds)) . 'i';
+                                $lecStuStmt->bind_param($typesStu, ...$sessionIdsWithSup);
+                                if ($lecStuStmt->execute()) {
+                                    $lecStuRes = $lecStuStmt->get_result();
+                                    while ($stuRow = $lecStuRes->fetch_assoc()) {
+                                        $lecturerStudents[] = $stuRow['Student_ID'];
+                                    }
+                                }
+                                $lecStuStmt->close();
+                            }
+                            
+                            // Check if all students have complete evaluations for all criteria
+                            $isComplete = false;
+                            if (!empty($lecturerStudents) && !empty($criteriaIds)) {
+                                $stuPlace = implode(',', array_fill(0, count($lecturerStudents), '?'));
+                                $critPlace = implode(',', array_fill(0, count($criteriaIds), '?'));
+                                $checkSql = "
+                                    SELECT COUNT(DISTINCT CONCAT(e.Student_ID, '_', e.Criteria_ID)) AS completed_count
+                                    FROM evaluation e
+                                    WHERE e.Assessment_ID = ?
+                                      AND e.Student_ID IN ($stuPlace)
+                                      AND e.Criteria_ID IN ($critPlace)
+                                      AND e.Supervisor_ID = ?
+                                      AND e.Evaluation_Percentage IS NOT NULL
+                                ";
+                                if ($checkStmt = $conn->prepare($checkSql)) {
+                                    $expectedCount = count($lecturerStudents) * count($criteriaIds);
+                                    $bindTypes = 'i' . str_repeat('s', count($lecturerStudents)) . str_repeat('i', count($criteriaIds)) . 'i';
+                                    $params = array_merge([$assessmentId], $lecturerStudents, $criteriaIds, [$supervisorId]);
+                                    if (!$checkStmt->bind_param($bindTypes, ...$params)) {
+                                        error_log("bind_param failed: " . $checkStmt->error);
+                                    }
+                                    if ($checkStmt->execute()) {
+                                        $checkRes = $checkStmt->get_result();
+                                        if ($checkRow = $checkRes->fetch_assoc()) {
+                                            $completedCount = (int)$checkRow['completed_count'];
+                                            $isComplete = ($completedCount === $expectedCount);
+                                        }
+                                    }
+                                    $checkStmt->close();
+                                }
+                            }
+                            
+                            $lectureCompletionMap[$lecturerId] = $isComplete ? 'complete' : 'incomplete';
+                        }
+                    }
+                    $supStmt->close();
+                }
+            } else {
+                // For Assessor role assessments: only get assessors from student_enrollment
+                $assStmt = $conn->prepare("
+                    SELECT DISTINCT se.Assessor_ID_1 as Assessor_ID, a.Lecturer_ID
+                    FROM student_enrollment se
+                    INNER JOIN assessor a ON se.Assessor_ID_1 = a.Assessor_ID
+                    WHERE se.Fyp_Session_ID IN (" . implode(',', array_fill(0, count($sessionIds), '?')) . ")
+                      AND se.Assessor_ID_1 IS NOT NULL
+                    UNION
+                    SELECT DISTINCT se.Assessor_ID_2 as Assessor_ID, a.Lecturer_ID
+                    FROM student_enrollment se
+                    INNER JOIN assessor a ON se.Assessor_ID_2 = a.Assessor_ID
+                    WHERE se.Fyp_Session_ID IN (" . implode(',', array_fill(0, count($sessionIds), '?')) . ")
+                      AND se.Assessor_ID_2 IS NOT NULL
+                ");
+                if ($assStmt) {
+                    $sessionIdsForAss = array_merge($sessionIds, $sessionIds);
+                    $assStmt->bind_param(str_repeat('i', count($sessionIdsForAss)), ...$sessionIdsForAss);
+                    if ($assStmt->execute()) {
+                        $assRes = $assStmt->get_result();
+                        // Group by Lecturer_ID to handle lecturers who are assessors for multiple students
+                        $lecturerToAssessors = []; // Maps lecturer_id to array of assessor_ids
+                        while ($assRow = $assRes->fetch_assoc()) {
+                            $lecturerId = $assRow['Lecturer_ID'];
+                            $assessorId = $assRow['Assessor_ID'];
+                            if (!isset($lecturerToAssessors[$lecturerId])) {
+                                $lecturerToAssessors[$lecturerId] = [];
+                            }
+                            if (!in_array($assessorId, $lecturerToAssessors[$lecturerId])) {
+                                $lecturerToAssessors[$lecturerId][] = $assessorId;
+                            }
+                        }
+                        
+                        // For each lecturer, check completion
+                        foreach ($lecturerToAssessors as $lecturerId => $assessorIds) {
+                            // Get students assessed by this lecturer (via any of their assessor IDs)
+                            $lecturerStudents = [];
+                            $assIdsPlace = implode(',', array_fill(0, count($assessorIds), '?'));
+                            $lecStuStmt = $conn->prepare("
+                                SELECT DISTINCT se.Student_ID
+                                FROM student_enrollment se
+                                WHERE se.Fyp_Session_ID IN (" . implode(',', array_fill(0, count($sessionIds), '?')) . ")
+                                  AND (se.Assessor_ID_1 IN ($assIdsPlace) OR se.Assessor_ID_2 IN ($assIdsPlace))
+                            ");
+                            if ($lecStuStmt) {
+                                $sessionIdsWithAss = array_merge($sessionIds, $assessorIds, $assessorIds);
+                                $typesAssStu = str_repeat('i', count($sessionIds)) . str_repeat('i', count($assessorIds) * 2);
+                                $lecStuStmt->bind_param($typesAssStu, ...$sessionIdsWithAss);
+                                if ($lecStuStmt->execute()) {
+                                    $lecStuRes = $lecStuStmt->get_result();
+                                    while ($stuRow = $lecStuRes->fetch_assoc()) {
+                                        $lecturerStudents[] = $stuRow['Student_ID'];
+                                    }
+                                }
+                                $lecStuStmt->close();
+                            }
+                            
+                            // Check if all students have complete evaluations for all criteria
+                            // For assessor role, check Assessor_ID in evaluation table
+                            $isComplete = false;
+                            if (!empty($lecturerStudents) && !empty($criteriaIds)) {
+                                $stuPlace = implode(',', array_fill(0, count($lecturerStudents), '?'));
+                                $critPlace = implode(',', array_fill(0, count($criteriaIds), '?'));
+                                $assIdsPlaceForEval = implode(',', array_fill(0, count($assessorIds), '?'));
+                                $checkSql = "
+                                    SELECT COUNT(DISTINCT CONCAT(e.Student_ID, '_', e.Criteria_ID)) AS completed_count
+                                    FROM evaluation e
+                                    WHERE e.Assessment_ID = ?
+                                      AND e.Student_ID IN ($stuPlace)
+                                      AND e.Criteria_ID IN ($critPlace)
+                                      AND e.Assessor_ID IN ($assIdsPlaceForEval)
+                                      AND e.Evaluation_Percentage IS NOT NULL
+                                ";
+                                if ($checkStmt = $conn->prepare($checkSql)) {
+                                    $expectedCount = count($lecturerStudents) * count($criteriaIds);
+                                    $bindTypes = 'i' . str_repeat('s', count($lecturerStudents)) . str_repeat('i', count($criteriaIds)) . str_repeat('i', count($assessorIds));
+                                    $params = array_merge([$assessmentId], $lecturerStudents, $criteriaIds, $assessorIds);
+                                    if (!$checkStmt->bind_param($bindTypes, ...$params)) {
+                                        error_log("bind_param failed: " . $checkStmt->error);
+                                    }
+                                    if ($checkStmt->execute()) {
+                                        $checkRes = $checkStmt->get_result();
+                                        if ($checkRow = $checkRes->fetch_assoc()) {
+                                            $completedCount = (int)$checkRow['completed_count'];
+                                            $isComplete = ($completedCount === $expectedCount);
+                                        }
+                                    }
+                                    $checkStmt->close();
+                                }
+                            }
+                            
+                            $lectureCompletionMap[$lecturerId] = $isComplete ? 'complete' : 'incomplete';
+                        }
+                    }
+                    $assStmt->close();
+                }
+            }
+            
+            // Count complete and incomplete lecturers
+            $completeLecturers = 0;
+            $incompleteLecturers = 0;
+            foreach ($lectureCompletionMap as $status) {
+                if ($status === 'complete') {
+                    $completeLecturers++;
+                } else {
+                    $incompleteLecturers++;
+                }
+            }
+            
+            $assessmentData[] = [
+                'id' => $a['id'],
+                'name' => $a['name'],
+                'role' => $a['role'],
+                'submitted' => $completeLecturers,
+                'notSubmitted' => $incompleteLecturers,
+                'total' => count($lectureCompletionMap),
+                'studentCount' => $totalStudents
+            ];
+        }
+
+        $courseCharts[] = [
+            'course_code' => $course['code'],
+            'assessments' => $assessmentData
+        ];
+    }
+    
+    // -------------------------
+    // Fetch due dates for reminders
+    // -------------------------
+    $reminders = [];
+    if (!empty($courses) && $currentYear !== null && $currentSemester !== null) {
+        // Get all FYP session IDs for current year and semester for all courses in department
+        $allSessionIds = [];
+        foreach ($courses as $course) {
+            $sessionStmt = $conn->prepare("
+                SELECT FYP_Session_ID 
+                FROM fyp_session 
+                WHERE Course_ID = ? AND FYP_Session = ? AND Semester = ?
+            ");
+            if ($sessionStmt) {
+                $sessionStmt->bind_param('isi', $course['id'], $currentYear, $currentSemester);
+                if ($sessionStmt->execute()) {
+                    $sessionRes = $sessionStmt->get_result();
+                    while ($sRow = $sessionRes->fetch_assoc()) {
+                        $allSessionIds[] = (int)$sRow['FYP_Session_ID'];
+                    }
+                }
+                $sessionStmt->close();
+            }
+        }
+        
+        // Fetch due dates for all assessments in these sessions
+        if (!empty($allSessionIds)) {
+            $placeholders = implode(',', array_fill(0, count($allSessionIds), '?'));
+            $dueDateQuery = "
+                SELECT dd.Due_ID, dd.Start_Date, dd.End_Date, dd.Start_Time, dd.End_Time, dd.Role,
+                       a.Assessment_Name, c.Course_Code
+                FROM due_date dd
+                INNER JOIN assessment a ON dd.Assessment_ID = a.Assessment_ID
+                INNER JOIN course c ON a.Course_ID = c.Course_ID
+                WHERE dd.FYP_Session_ID IN ($placeholders)
+                ORDER BY dd.Start_Date, dd.Start_Time, c.Course_Code, a.Assessment_Name
+            ";
+            $dueDateStmt = $conn->prepare($dueDateQuery);
+            if ($dueDateStmt) {
+                $types = str_repeat('i', count($allSessionIds));
+                $dueDateStmt->bind_param($types, ...$allSessionIds);
+                if ($dueDateStmt->execute()) {
+                    $dueDateRes = $dueDateStmt->get_result();
+                    while ($ddRow = $dueDateRes->fetch_assoc()) {
+                        $reminders[] = [
+                            'course_code' => $ddRow['Course_Code'],
+                            'assessment_name' => $ddRow['Assessment_Name'],
+                            'start_date' => $ddRow['Start_Date'],
+                            'end_date' => $ddRow['End_Date'],
+                            'start_time' => $ddRow['Start_Time'],
+                            'end_time' => $ddRow['End_Time'],
+                            'role' => $ddRow['Role']
+                        ];
+                    }
+                }
+                $dueDateStmt->close();
+            }
+        }
+    }
+}
+?>
 <!DOCTYPE html>
 <html>
 <head>
@@ -75,7 +667,7 @@
     </div>
 
     <div id="containerAtas" class="containerAtas">
-        <a href="dashboardCoordinator.php">
+        <a href="../dashboard/dashboardCoordinator.php">
             <img src="../../../assets/UPMLogo.png" alt="UPM logo" width="100px" id="upm-logo">
         </a>
 
@@ -95,24 +687,24 @@
         <!-- Top widgets -->
         <div class="metrics-grid">
             <div class="widget">
-                <span class="widget-icon"><i class="fa-solid fa-file-circle-check"></i></span>
+                <span class="widget-icon"><i class="fa-solid fa-users"></i></span>
                 <div class="widget-content">
-                    <span class="widget-title">Title Submissions</span>
-                    <span id="titleSubmissions" class="widget-value">45/50</span>
-                </div>
-            </div>
-            <div class="widget">
-                <span class="widget-icon"><i class="fa-solid fa-chart-line"></i></span>
-                <div class="widget-content">
-                    <span class="widget-title">Overall Progress</span>
-                    <span id="overallProgress" class="widget-value">85%</span>
+                    <span class="widget-title"><?php echo htmlspecialchars($firstCourseCode ? 'Total Students for ' . $firstCourseCode : 'Title Submissions'); ?></span>
+                    <span id="titleSubmissions" class="widget-value"><?php echo $firstCourseStudentCount; ?></span>
                 </div>
             </div>
             <div class="widget">
                 <span class="widget-icon"><i class="fa-solid fa-users"></i></span>
                 <div class="widget-content">
-                    <span class="widget-title">Total Students</span>
-                    <span id="totalStudents" class="widget-value">50</span>
+                    <span class="widget-title"><?php echo htmlspecialchars($secondCourseCode ? 'Total Students for ' . $secondCourseCode : 'Overall Progress'); ?></span>
+                    <span id="overallProgress" class="widget-value"><?php echo $secondCourseStudentCount; ?></span>
+                </div>
+            </div>
+            <div class="widget">
+                <span class="widget-icon"><i class="fa-solid fa-users"></i></span>
+                <div class="widget-content">
+                    <span class="widget-title">Total Lecturers</span>
+                    <span id="totalStudents" class="widget-value"><?php echo $totalLecturers; ?></span>
                 </div>
             </div>
         </div>
@@ -125,8 +717,9 @@
                 <div class="evaluation-task-card">
                     <div class="tab-buttons">
                         <button class="task-tab active-tab" data-tab="title">FYP Title Submission</button>
-                        <button class="task-tab" data-tab="swe4949a">SWE4949A</button>
-                        <button class="task-tab" data-tab="swe4949b">SWE4949B</button>
+                        <?php foreach ($courseCharts as $idx => $course): ?>
+                            <button class="task-tab" data-tab="course-<?php echo $idx; ?>"><?php echo htmlspecialchars($course['course_code']); ?></button>
+                        <?php endforeach; ?>
                     </div>
                     <div class="task-list-area">
 
@@ -139,23 +732,16 @@
                             </div>
                         </div>
 
-                        <!-- SWE4949A Tab -->
-                        <div class="task-group" data-group="swe4949a">
+                        <!-- Course Assessment Tabs -->
+                        <?php foreach ($courseCharts as $idx => $course): ?>
+                        <div class="task-group" data-group="course-<?php echo $idx; ?>">
                             <div class="graph-container-wrapper">
-                                <div id="swe4949aChartContainer" class="chart-container">
-                                    <canvas id="swe4949aChart"></canvas>
+                                <div id="courseChartContainer-<?php echo $idx; ?>" class="chart-container">
+                                    <canvas id="courseChart-<?php echo $idx; ?>"></canvas>
                                 </div>
                             </div>
                         </div>
-
-                        <!-- SWE4949B Tab -->
-                        <div class="task-group" data-group="swe4949b">
-                            <div class="graph-container-wrapper">
-                                <div id="swe4949bChartContainer" class="chart-container">
-                                    <canvas id="swe4949bChart"></canvas>
-                                </div>
-                            </div>
-                        </div>
+                        <?php endforeach; ?>
 
                     </div>
                 </div>
@@ -166,28 +752,62 @@
                 <h1 class="card-title">Reminder</h1>
                 <div class="reminder-card">
                     <div class="reminder-card-content">
-                        <div class="reminder-item">
-                            <p class="reminder-date">4 August 2025</p>
-                            <ul>
-                                <li>Mark entry process starts for all supervisors and assessors.</li>
-                            </ul>
-                        </div>
-                        <hr class="reminder-separator">
-                        <div class="reminder-item">
-                            <p class="reminder-date">22 August 2025</p>
-                            <ul>
-                                <li>Mark entry process ends for all supervisors and assessors.</li>
-                            </ul>
-                        </div>
-                        <hr class="reminder-separator">
-                        <div class="reminder-item">
-                            <p class="reminder-date">Reminders</p>
-                            <ul>
-                                <li>Review pending submissions</li>
-                                <li>Update student assignments</li>
-                                <li>Schedule evaluation sessions</li>
-                            </ul>
-                        </div>
+                        <?php if (empty($reminders)): ?>
+                            <div class="reminder-item">
+                                <p class="reminder-date" style="text-align: center; color: #999; font-style: italic;">No reminder for now</p>
+                            </div>
+                        <?php else: ?>
+                            <?php 
+                            // Group reminders by date
+                            $groupedReminders = [];
+                            foreach ($reminders as $reminder) {
+                                $dateKey = $reminder['start_date'];
+                                if (!isset($groupedReminders[$dateKey])) {
+                                    $groupedReminders[$dateKey] = [];
+                                }
+                                $groupedReminders[$dateKey][] = $reminder;
+                            }
+                            // Sort by date
+                            ksort($groupedReminders);
+                            $firstItem = true;
+                            foreach ($groupedReminders as $date => $dateReminders): 
+                            ?>
+                                <?php if (!$firstItem): ?>
+                                    <hr class="reminder-separator">
+                                <?php endif; ?>
+                                <div class="reminder-item">
+                                    <?php 
+                                    // Format date
+                                    $dateObj = DateTime::createFromFormat('Y-m-d', $date);
+                                    $formattedDate = $dateObj ? $dateObj->format('d F Y') : $date;
+                                    ?>
+                                    <p class="reminder-date"><?php echo htmlspecialchars($formattedDate); ?></p>
+                                    <ul>
+                                        <?php foreach ($dateReminders as $reminder): ?>
+                                            <?php 
+                                            // Format time
+                                            $startTime = $reminder['start_time'] ? date('H:i', strtotime($reminder['start_time'])) : '';
+                                            $endTime = $reminder['end_time'] ? date('H:i', strtotime($reminder['end_time'])) : '';
+                                            $timeStr = $startTime && $endTime ? "$startTime - $endTime" : ($startTime ? $startTime : '');
+                                            ?>
+                                            <li style="list-style-type: disc; margin-bottom: 8px;">
+                                                <strong>Assessment:</strong> <?php echo htmlspecialchars($reminder['assessment_name']); ?><br>
+                                                <?php if ($reminder['course_code']): ?>
+                                                    <strong>Course Code:</strong> <?php echo htmlspecialchars($reminder['course_code']); ?><br>
+                                                <?php endif; ?>
+                                                <?php if ($reminder['role']): ?>
+                                                    <strong>Role:</strong> <?php echo htmlspecialchars($reminder['role']); ?><br>
+                                                <?php endif; ?>
+                                                <?php if ($timeStr): ?>
+                                                    <strong>Time:</strong> <?php echo htmlspecialchars($timeStr); ?>
+                                                <?php endif; ?>
+                                            </li>
+                                        <?php endforeach; ?>
+                                    </ul>
+                                </div>
+                                <?php $firstItem = false; ?>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>
@@ -245,67 +865,9 @@
         }
     </style>
     <script>
-        // Sample data - Replace with actual data from backend
-        const titleSubmissionData = {
-            titles: ['Title Submission'],
-            submitted: [20],
-            notSubmitted: [14],
-            total: [34]
-        };
-
-        const swe4949aData = {
-            titles: ['Proposal Report (SV)', 'Seminar Proposal (Assessor)'],
-            data: [
-                {
-                    name: 'Proposal Report (SV)',
-                    submitted: 13,
-                    notSubmitted: 12,
-                    total: 25
-                },
-                {
-                    name: 'Seminar Proposal (Assessor)',
-                    submitted: 14,
-                    notSubmitted: 11,
-                    total: 25
-                }
-            ]
-        };
-
-        const swe4949bData = {
-            titles: ['Thesis (SV)', 'Project Demonstration (Assessor)', 'Project Demonstration (SV)', 'Final Seminar Presentation (Assessor)', 'Logbook (SV)'],
-            data: [
-                {
-                    name: 'Thesis (SV)',
-                    submitted: 14,
-                    notSubmitted: 11,
-                    total: 25
-                },
-                {
-                    name: 'Project Demonstration (Assessor)',
-                    submitted: 14,
-                    notSubmitted: 11,
-                    total: 25
-                },
-                {
-                    name: 'Project Demonstration (SV)',
-                    submitted: 14,
-                    notSubmitted: 11,
-                    total: 25
-                },
-                {
-                    name: 'Final Seminar Presentation (Assessor)',
-                    submitted: 14,
-                    notSubmitted: 11,
-                    total: 25
-                },
-                {
-                    name: 'Logbook (SV)',
-                    submitted: 14,
-                    notSubmitted: 11,
-                    total: 25
-                }
-            ]
-        };
+        // Dynamic data from backend
+        const titleStatusData = <?php echo json_encode($titleChartData); ?>;
+        const courseChartsData = <?php echo json_encode($courseCharts); ?>;
 
         // Function to create bar chart where each title has its own bars with gaps
         function createGroupedBarChart(canvasId, chartData) {
@@ -315,13 +877,14 @@
             // Extract labels and data
             const labels = chartData.titles || chartData.data.map(item => item.name);
             const data = chartData.data || [chartData];
+            const courseCode = chartData.course_code || '';
 
             // Check if this is SWE4949-A or B chart to use Complete/Incomplete labels
             const isSWE4949 = canvasId.includes('swe4949a') || canvasId.includes('swe4949b');
-            const positiveLabel = isSWE4949 ? 'Complete' : 'Submitted';
-            const negativeLabel = isSWE4949 ? 'Incomplete' : 'Not Submitted';
+            const positiveLabel = isSWE4949 ? 'Complete' : 'Complete';
+            const negativeLabel = isSWE4949 ? 'Incomplete' : 'Incomplete';
 
-            // Create datasets for submitted and not submitted
+            // Create datasets for submitted and not submitted (now representing lecturers)
             const submittedData = data.map(item => item.submitted);
             const notSubmittedData = data.map(item => item.notSubmitted);
             const totals = data.map(item => item.total);
@@ -366,6 +929,36 @@
                     },
                     responsive: true,
                     maintainAspectRatio: false,
+                    onHover: (event, activeElements) => {
+                        event.native.target.style.cursor = activeElements.length > 0 ? 'pointer' : 'default';
+                    },
+                    onClick: (event, activeElements) => {
+                        if (activeElements.length > 0 && courseCode) {
+                            const dataIndex = activeElements[0].index;
+                            const datasetIndex = activeElements[0].datasetIndex;
+                            const assessmentData = data[dataIndex];
+                            const isComplete = datasetIndex === 0; // First dataset is "Complete"
+                            
+                            // Get assessment ID and role from the data
+                            const assessmentId = assessmentData.id;
+                            const role = assessmentData.role ? assessmentData.role.toLowerCase() : 'supervisor';
+                            const status = isComplete ? 'completed' : 'incomplete';
+                            
+                            // Normalize course code for tab (lowercase, remove special chars)
+                            const normalizedCourseCode = courseCode.toLowerCase().replace(/[^a-zA-Z0-9]/g, '');
+                            
+                            // Create filter value in the format: supervisor_${assessment_id}_${status} or assessor_${assessment_id}_${status}
+                            const filterValue = `${role}_${assessmentId}_${status}`;
+                            
+                            // Navigate to markSubmission.php with course tab, view, and assessment filter
+                            const params = new URLSearchParams({
+                                tab: normalizedCourseCode,
+                                view: 'lecturer-progress',
+                                assessmentFilter: filterValue
+                            });
+                            window.location.href = '../markSubmission/markSubmission.php?' + params.toString();
+                        }
+                    },
                     interaction: {
                         mode: 'point',
                         intersect: true
@@ -393,7 +986,7 @@
                             grid: { display: false },
                             title: {
                                 display: true,
-                                text: 'Number of Students',
+                                text: 'Number of Lecturers',
                                 font: { size: 12, weight: 'bold' }
                             }
                         }
@@ -437,10 +1030,11 @@
                                 const dataset = chart.data.datasets[datasetIndex];
                                 const value = dataPoint.parsed.y;
                                 const total = totals[dataIndex];
+                                const studentCount = data[dataIndex].studentCount || 0;
                                 const percentage = total > 0 ? ((value / total) * 100).toFixed(0) : 0;
-                                const count = value.toFixed(2);
-                                const statusLabel = dataset.label; // "Submitted"/"Complete" or "Not Submitted"/"Incomplete"
-                                const titleLabel = chart.data.labels[dataIndex]; // Title like "Thesis (SV)", "Proposal Report (SV)", etc.
+                                const count = value.toFixed(0);
+                                const statusLabel = dataset.label; // "Complete" or "Incomplete"
+                                const assessmentName = chart.data.labels[dataIndex]; // Assessment name
 
                                 // Position tooltip
                                 const position = chart.canvas.getBoundingClientRect();
@@ -456,17 +1050,16 @@
                                 tooltipEl.style.pointerEvents = 'none';
 
                                 // Determine indicator color based on status
-                                const indicatorColor = (statusLabel === 'Submitted' || statusLabel === 'Complete') ? '#4CAF50' : '#F44336';
+                                const indicatorColor = (statusLabel === 'Complete') ? '#4CAF50' : '#F44336';
 
-                                // Set tooltip content with dark theme - title in header, status in body
+                                // Set tooltip content with dark theme - assessment name and status in header, details in body
                                 tooltipEl.innerHTML = `
-                                    <div class="tooltip-header">${statusLabel}</div>
+                                    <div class="tooltip-header">${assessmentName}</div>
                                     <div class="tooltip-body">
                                         <div class="tooltip-indicator" style="background-color: ${indicatorColor};"></div>
                                         <div class="tooltip-content">
-                                            <div>${titleLabel}</div>
-                                            <div>Percentage: ${percentage}%</div>
-                                            <div>Count: ${count} logs</div>
+                                            <div>${statusLabel}: ${count} Lecturers (${percentage}%)</div>
+                                            <div>Total Students: ${studentCount}</div>
                                         </div>
                                     </div>
                                 `;
@@ -482,22 +1075,100 @@
 
         // Initialize charts when page loads
         document.addEventListener('DOMContentLoaded', function() {
-            // FYP Title Submission Chart
-            createGroupedBarChart('titleChart', {
-                titles: titleSubmissionData.titles,
-                data: [{
-                    name: titleSubmissionData.titles[0],
-                    submitted: titleSubmissionData.submitted[0],
-                    notSubmitted: titleSubmissionData.notSubmitted[0],
-                    total: titleSubmissionData.total[0]
-                }]
-            });
+            // FYP Title Submission Chart (Pie)
+            const titleCtx = document.getElementById('titleChart');
+            if (titleCtx && titleStatusData && Array.isArray(titleStatusData.data)) {
+                const totalCount = titleStatusData.data.reduce((sum, val) => sum + (parseInt(val) || 0), 0);
+                new Chart(titleCtx, {
+                    type: 'pie',
+                    data: {
+                        labels: titleStatusData.labels,
+                        datasets: [{
+                            data: titleStatusData.data,
+                            backgroundColor: [
+                                '#4CAF50',  // Approved
+                                '#FF9800',  // Waiting for approval
+                                '#F44336'   // Rejected
+                            ],
+                            borderColor: '#ffffff',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        onHover: (event, activeElements) => {
+                            event.native.target.style.cursor = activeElements.length > 0 ? 'pointer' : 'default';
+                        },
+                        onClick: (event, activeElements) => {
+                            if (activeElements.length > 0) {
+                                const dataIndex = activeElements[0].index;
+                                const labels = titleStatusData.labels;
+                                const statusMap = {
+                                    'Approved': 'approved',
+                                    'Waiting for approval': 'waiting',
+                                    'Rejected': 'rejected'
+                                };
+                                const selectedLabel = labels[dataIndex];
+                                const statusFilter = statusMap[selectedLabel] || 'all';
+                                
+                                // Navigate to markSubmission.php with status filter and FYP title submission tab
+                                window.location.href = '../markSubmission/markSubmission.php?tab=fyp-title-submission&status=' + encodeURIComponent(statusFilter);
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    font: { size: 12 },
+                                    padding: 12,
+                                    usePointStyle: true
+                                }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const label = context.label || '';
+                                        const value = context.parsed || 0;
+                                        const pct = totalCount > 0 ? ((value / totalCount) * 100).toFixed(1) : 0;
+                                        return `${label}: ${value} (${pct}%)`;
+                                    }
+                                }
+                            },
+                            datalabels: {
+                                color: '#fff',
+                                font: { weight: 'bold' },
+                                formatter: function(value) {
+                                    if (totalCount === 0) return '';
+                                    const pct = ((value / totalCount) * 100).toFixed(0);
+                                    return value > 0 ? `${pct}%` : '';
+                                }
+                            }
+                        }
+                    }
+                });
+            }
 
-            // SWE4949A Chart - 2 tasks
-            createGroupedBarChart('swe4949aChart', swe4949aData);
-
-            // SWE4949B Chart - 5 tasks
-            createGroupedBarChart('swe4949bChart', swe4949bData);
+            // Course assessment charts (Complete vs Incomplete) per course code
+            if (Array.isArray(courseChartsData)) {
+                courseChartsData.forEach((course, idx) => {
+                    const chartId = 'courseChart-' + idx;
+                    const chartData = {
+                        titles: course.assessments.map(a => a.name),
+                        data: course.assessments.map(a => ({
+                            id: a.id,
+                            name: a.name,
+                            role: a.role,
+                            submitted: a.submitted,
+                            notSubmitted: a.notSubmitted,
+                            total: a.total,
+                            studentCount: a.studentCount
+                        })),
+                        course_code: course.course_code // Store course code for navigation
+                    };
+                    createGroupedBarChart(chartId, chartData);
+                });
+            }
         });
     </script>
 
@@ -514,8 +1185,12 @@
             document.getElementById("mySidebar").style.width = fullWidth;
 
             // 2. Push the main content AND the header container to the right
-            if (mainContent) mainContent.style.marginLeft = fullWidth;
-            if (header) header.style.marginLeft = fullWidth;
+            if (mainContent) {
+                mainContent.style.marginLeft = fullWidth;
+            }
+            if (header) {
+                header.style.marginLeft = fullWidth;
+            }
 
             // 3. Show the links
             document.getElementById("nameSide").style.display = "block";
@@ -547,8 +1222,12 @@
             sidebar.style.width = collapsedWidth;
 
             // 2. Move the main content AND the header container back
-            if (mainContent) mainContent.style.marginLeft = collapsedWidth;
-            if (header) header.style.marginLeft = collapsedWidth;
+            if (mainContent) {
+                mainContent.style.marginLeft = collapsedWidth;
+            }
+            if (header) {
+                header.style.marginLeft = collapsedWidth;
+            }
 
             // 3. Hide the name and the links (except for the open menu icon)
             document.getElementById("nameSide").style.display = "none";

@@ -23,7 +23,7 @@ if (!isset($input['fyp_session_id']) || $input['fyp_session_id'] <= 0) {
     exit();
 }
 
-    $fypSessionId = intval($input['fyp_session_id']);
+$fypSessionId = intval($input['fyp_session_id']);
     $deletions = isset($input['deletions']) && is_array($input['deletions']) ? $input['deletions'] : [];
 
 try {
