@@ -1,5 +1,10 @@
 
 <?php
+// Prevent caching to stop back button access after logout
+header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+header("Cache-Control: post-check=0, pre-check=0", false);
+header("Pragma: no-cache");
+
 include '../../../php/mysqlConnect.php';
 session_start();
 
@@ -45,7 +50,7 @@ if ($titleStatus === 'Approved') {
 } elseif ($titleStatus === 'Rejected' || strcasecmp($titleStatus, 'Declined') === 0) {
     $approvalDisplay = 'REJECTED';
 } elseif ($titleStatus === '') {
-    $approvalDisplay = 'PENDING';
+    $approvalDisplay = 'NO FYP TITLE';
 } else {
     // Any other status (e.g., Waiting For Approval) treated as pending
     $approvalDisplay = 'PENDING';
@@ -186,7 +191,7 @@ if ($assessmentSessionsStmt) {
             <a href="../notification/notification.php" id="notification"><i class="bi bi-bell-fill" style="padding-right: 10px;"></i>Notification</a>
             <a href="../signatureUpload/signatureUpload.php" id="signatureSubmission"><i class="bi bi-pen-fill" style="padding-right: 10px;"></i>Signature Submission</a>
           
-            <a href="../../login/login.php" id="logout">
+            <a href="../../logout.php" id="logout">
                 <i class="bi bi-box-arrow-left" style="padding-right: 10px;"></i> Logout
             </a>
         </div>
@@ -731,6 +736,29 @@ if ($assessmentSessionsStmt) {
         updateApprovalStatusColor();
         updateAssessmentCountdown();
     };
+
+    // Check session validity on page load and periodically
+    function validateSession() {
+        fetch('../../../php/check_session_alive.php')
+            .then(function(resp){ return resp.json(); })
+            .then(function(data){
+                if (!data.valid) {
+                    // Session is invalid, redirect to login
+                    window.location.href = '../../login/Login.php';
+                }
+            })
+            .catch(function(err){
+                // If we can't reach the server, assume session is invalid
+                console.warn('Session validation failed:', err);
+                window.location.href = '../../login/Login.php';
+            });
+    }
+
+    // Validate session on page load
+    window.addEventListener('load', validateSession);
+
+    // Also check every 10 seconds
+    setInterval(validateSession, 10000);
 </script>
 </body>
 </html>

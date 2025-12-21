@@ -2,16 +2,27 @@
 include __DIR__ . '/mysqlConnect.php';
 session_start();
 
+// Prevent caching to avoid back button access after logout
+header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+header("Cache-Control: post-check=0, pre-check=0", false);
+header("Pragma: no-cache");
+header("Expires: Sat, 26 Jul 1997 05:00:00 GMT");
+
 if (!isset($_SESSION['upmId']) || !isset($_SESSION['role']) || $_SESSION['role'] !== 'Coordinator') {
-    header("Location: ../html/login/Login.php");
+    header("Location: ../../login/Login.php");
     exit();
 }
 
 $userId = $_SESSION['upmId'];
 $coordinatorName = 'Coordinator';
 
-// Attempt to resolve coordinator name from lecturer table
-if ($stmt = $conn->prepare("SELECT Lecturer_Name FROM lecturer WHERE Lecturer_ID = ? LIMIT 1")) {
+// Fetch coordinator info including department
+$coordinatorDepartmentId = null;
+$departmentName = '';
+if ($stmt = $conn->prepare("SELECT l.Lecturer_Name, l.Department_ID, d.Department_Name 
+                            FROM lecturer l 
+                            LEFT JOIN department d ON l.Department_ID = d.Department_ID 
+                            WHERE l.Lecturer_ID = ? LIMIT 1")) {
     $stmt->bind_param("s", $userId);
     if ($stmt->execute()) {
         $res = $stmt->get_result();
@@ -19,10 +30,31 @@ if ($stmt = $conn->prepare("SELECT Lecturer_Name FROM lecturer WHERE Lecturer_ID
             if (!empty($row['Lecturer_Name'])) {
                 $coordinatorName = $row['Lecturer_Name'];
             }
+            $coordinatorDepartmentId = $row['Department_ID'];
+            $departmentName = $row['Department_Name'];
         }
     }
     $stmt->close();
 }
+
+// Fetch course codes for the coordinator's department
+$departmentCourseCodes = [];
+if ($coordinatorDepartmentId) {
+    $courseQuery = "SELECT DISTINCT Course_Code FROM course WHERE Department_ID = ? ORDER BY Course_Code";
+    if ($stmt = $conn->prepare($courseQuery)) {
+        $stmt->bind_param("i", $coordinatorDepartmentId);
+        if ($stmt->execute()) {
+            $result = $stmt->get_result();
+            while ($row = $result->fetch_assoc()) {
+                $departmentCourseCodes[] = $row['Course_Code'];
+            }
+        }
+        $stmt->close();
+    }
+}
+
+// Set display course code (first course or default)
+$displayCourseCode = !empty($departmentCourseCodes) ? $departmentCourseCodes[0] : 'N/A';
 
 // Get filter values from URL or set defaults
 $selectedYear = isset($_GET['year']) ? $_GET['year'] : '';

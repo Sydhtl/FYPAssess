@@ -1,4 +1,35 @@
-<?php include '../../../php/coordinator_bootstrap.php'; 
+<?php include '../../../php/coordinator_bootstrap.php'; ?>
+<script>
+// Prevent back button after logout
+window.history.pushState(null, "", window.location.href);
+window.onpopstate = function() {
+    window.history.pushState(null, "", window.location.href);
+};
+
+// Check session validity on page load and periodically
+function validateSession() {
+    fetch('../../../php/check_session_alive.php')
+        .then(function(resp){ return resp.json(); })
+        .then(function(data){
+            if (!data.valid) {
+                // Session is invalid, redirect to login
+                window.location.href = '../../login/Login.php';
+            }
+        })
+        .catch(function(err){
+            // If we can't reach the server, assume session is invalid
+            console.warn('Session validation failed:', err);
+            window.location.href = '../../login/Login.php';
+        });
+}
+
+// Validate session on page load
+window.addEventListener('load', validateSession);
+
+// Also check every 10 seconds
+setInterval(validateSession, 10000);
+</script>
+<?php
 
 // Get coordinator's department ID
 $departmentId = null;
@@ -114,7 +145,7 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
                 <a href="../dateTimeAllocation/dateTimeAllocation.php" id="dateTimeAllocation"><i class="bi bi-calendar-event-fill icon-padding"></i> Date & Time Allocation</a>
             </div>
 
-            <a href="../../login/login.php" id="logout">
+            <a href="../../logout.php" id="logout">
                 <i class="bi bi-box-arrow-left" style="padding-right: 10px;"></i> Logout
             </a>
         </div>
@@ -981,29 +1012,17 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
             const viewParam = urlParams.get('view');
             const statusParam = urlParams.get('status');
             const assessmentParam = urlParams.get('assessment');
-            const assessmentFilterParam = urlParams.get('assessmentFilter');
             
             // Apply tab selection if provided
             if (tabParam) {
                 const tabButton = document.querySelector(`[data-tab="${tabParam}"]`);
                 if (tabButton) {
-                    // Switch tab immediately by directly manipulating DOM
-                    const tabs = document.querySelectorAll('.task-tab');
-                    const taskGroups = document.querySelectorAll('.task-group');
-                    tabs.forEach(t => t.classList.remove('active-tab'));
-                    tabButton.classList.add('active-tab');
-                    taskGroups.forEach(group => {
-                        if (group.getAttribute('data-group') === tabParam) {
-                            group.classList.add('active');
-                        } else {
-                            group.classList.remove('active');
-                        }
-                    });
+                    // Trigger tab click to switch to the correct tab
+                    tabButton.click();
                     
                     // If view parameter is provided, switch to that view (for course tabs)
                     if (viewParam && tabParam !== 'fyp-title-submission') {
-                        // Proceed immediately - DOM is already ready
-                        (async () => {
+                        setTimeout(async () => {
                             // Determine tab suffix based on tab name
                             let tabSuffix = 'A';
                             if (tabParam === 'swe4949a') {
@@ -1025,39 +1044,15 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
                             if (viewDropdown) {
                                 viewDropdown.value = viewParam;
                                 await changeView(tabParam, viewParam);
-                                
-                                // Apply assessment filter if provided
-                                // changeView already awaits populateAssessmentFilter, so dropdown should be ready
-                                if (assessmentFilterParam) {
-                                    const filterDropdown = document.getElementById(`assessmentFilter${tabSuffix}`);
-                                    if (filterDropdown) {
-                                        // Since changeView already awaited populateAssessmentFilter, 
-                                        // the dropdown should be populated. Apply filter immediately.
-                                        if (filterDropdown.options.length > 1) {
-                                            // Dropdown is populated, apply filter immediately
-                                            filterDropdown.value = assessmentFilterParam;
-                                            await filterAssessment(tabParam, assessmentFilterParam);
-                                        } else {
-                                            // Fallback: if somehow not populated, wait briefly and retry
-                                            setTimeout(async () => {
-                                                if (filterDropdown.options.length > 1) {
-                                                    filterDropdown.value = assessmentFilterParam;
-                                                    await filterAssessment(tabParam, assessmentFilterParam);
-                                                }
-                                            }, 100);
-                                        }
-                                    }
-                                }
                             }
-                        })();
+                        }, 200);
                     }
                 }
             }
             
             // Apply FYP title submission status filter if provided
             if (statusParam && tabParam === 'fyp-title-submission') {
-                // Use requestAnimationFrame for immediate execution
-                requestAnimationFrame(() => {
+                setTimeout(() => {
                     const statusFilter = document.getElementById('fypStatusFilter');
                     if (statusFilter) {
                         // Map status values
@@ -1077,7 +1072,7 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
                             filterFYPTable();
                         }
                     }
-                });
+                }, 100);
             }
             
             renderFYPTable();
@@ -1331,7 +1326,7 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
             if (filterDropdown) {
                 if (viewType === 'lecturer-progress') {
                     filterDropdown.style.display = 'inline-block';
-                    // Populate the dropdown with assessment options - ensure this completes
+                    // Populate the dropdown with assessment options
                     await populateAssessmentFilter(tabName, tableIdSuffix);
                 } else {
                     filterDropdown.style.display = 'none';

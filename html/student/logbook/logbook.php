@@ -2,6 +2,11 @@
 include '../../../php/mysqlConnect.php';
 session_start();
 
+// Prevent caching to avoid back button access after logout
+header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+header("Cache-Control: post-check=0, pre-check=0", false);
+header("Pragma: no-cache");
+
 if (!isset($_SESSION['upmId']) || $_SESSION['role'] !== 'Student') {
     header("Location: ../../login/Login.php");
     exit();
@@ -152,7 +157,7 @@ if ($tableExists && $tableExists->num_rows > 0) {
             <a href="../notification/notification.php" id="notification"><i class="bi bi-bell-fill" style="padding-right: 10px;"></i>Notification</a>
             <a href="../signatureUpload/signatureUpload.php" id="signatureSubmission"><i class="bi bi-pen-fill" style="padding-right: 10px;"></i>Signature Submission</a>
           
-            <a href="../../login/login.php" id="logout">
+            <a href="../../logout.php" id="logout">
                 <i class="bi bi-box-arrow-left" style="padding-right: 10px;"></i> Logout
             </a>
         </div>
@@ -176,7 +181,7 @@ if ($tableExists && $tableExists->num_rows > 0) {
         </div>
     </div>
 
-<div id="main">
+<div id="main" style="overflow-x: hidden; max-width: 100%; box-sizing: border-box;">
     <div class="logbook-container">
         <div class="tab-buttons">
             <button id="tabSweA" class="task-tab active-tab"><?php echo htmlspecialchars($course1['Course_Code']); ?></button>
@@ -771,7 +776,109 @@ if ($tableExists && $tableExists->num_rows > 0) {
             renderTable('A', 'all');
             renderTable('B', 'all');
         }
+
+        // Start real-time polling for logbook updates
+        startLogbookPolling();
     };
+
+    // --- REAL-TIME LOGBOOK UPDATES ---
+    var logbookUpdateInterval = null;
+    var currentLogbookHash = '';
+
+    function getLogbookHash(entries) {
+        try {
+            return JSON.stringify(entries.map(function(e){
+                return {
+                    id: e.Logbook_ID,
+                    status: (e.Logbook_Status || '').toLowerCase(),
+                    course: e.course_id,
+                    name: e.Logbook_Name
+                };
+            }));
+        } catch (e) { return ''; }
+    }
+
+    function mapEntriesToSectionData(entries, courseId) {
+        var list = [];
+        var counter = 1;
+        entries.forEach(function(e){
+            if (e.course_id === courseId) {
+                list.push({
+                    id: counter++,
+                    logbook_id: e.Logbook_ID,
+                    entry: e.Logbook_Name,
+                    status: e.Logbook_Status || 'Waiting for approval',
+                    file: 'logbook' + e.Logbook_ID + '.pdf',
+                    agendas: Array.isArray(e.agendas) ? e.agendas : []
+                });
+            }
+        });
+        return list;
+    }
+
+    function fetchLogbooks() {
+        fetch('../../../php/phpStudent/fetch_logbook.php')
+            .then(function(resp){ return resp.json(); })
+            .then(function(data){
+                if (!data || !data.success || !Array.isArray(data.entries)) return;
+                var newHash = getLogbookHash(data.entries);
+                if (newHash !== currentLogbookHash) {
+                    currentLogbookHash = newHash;
+                    // Update A/B datasets
+                    logbookDataA = mapEntriesToSectionData(data.entries, course1Id);
+                    logbookDataB = mapEntriesToSectionData(data.entries, course2Id);
+
+                    // Respect current filters
+                    var filterA = (document.getElementById('statusFilterA') || { value: 'all' }).value;
+                    var filterB = (document.getElementById('statusFilterB') || { value: 'all' }).value;
+                    renderTable('A', filterA || 'all');
+                    renderTable('B', filterB || 'all');
+                }
+            })
+            .catch(function(err){ console.error('Error fetching logbooks:', err); });
+    }
+
+    function startLogbookPolling() {
+        fetchLogbooks();
+        logbookUpdateInterval = setInterval(fetchLogbooks, 5000);
+    }
+
+    document.addEventListener('visibilitychange', function(){
+        if (document.hidden) {
+            if (logbookUpdateInterval) { clearInterval(logbookUpdateInterval); logbookUpdateInterval = null; }
+        } else {
+            if (!logbookUpdateInterval) { startLogbookPolling(); }
+        }
+    });
+
+    // Prevent back button after logout
+    window.history.pushState(null, "", window.location.href);
+    window.onpopstate = function() {
+        window.history.pushState(null, "", window.location.href);
+    };
+
+    // Check session validity on page load and periodically
+    function validateSession() {
+        fetch('../../../php/check_session_alive.php')
+            .then(function(resp){ return resp.json(); })
+            .then(function(data){
+                if (!data.valid) {
+                    // Session is invalid, redirect to login
+                    window.location.href = '../../login/Login.php';
+                }
+            })
+            .catch(function(err){
+                // If we can't reach the server, assume session is invalid
+                console.warn('Session validation failed:', err);
+                window.location.href = '../../login/Login.php';
+            });
+    }
+
+    // Validate session on page load
+    window.addEventListener('load', validateSession);
+
+    // Also check every 10 seconds
+    setInterval(validateSession, 10000);
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>

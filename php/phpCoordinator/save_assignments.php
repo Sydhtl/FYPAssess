@@ -315,6 +315,11 @@ try {
         $assessor1Name  = $assignment['assessor1'] ?? null;
         $assessor2Name  = $assignment['assessor2'] ?? null;
 
+        // Debug logging
+        if (!empty($supervisorName)) {
+            error_log("DEBUG: Student $studentId, Supervisor: $supervisorName, Supervisor_ID: " . var_export($supervisorId, true));
+        }
+
         if (empty($studentId)) {
             continue; // Skip invalid entries
         }
@@ -341,13 +346,17 @@ try {
             continue;
         }
 
-        // 2) Update supervisor in student table (Supervisor_ID follows current selection)
+        // 2) Update supervisor in student table and transfer across all sessions if applicable
+        // Supervisor follows the session and year - update for current and future sessions
         if (!is_null($supervisorId) && (int)$supervisorId > 0) {
+            $supIdInt = (int)$supervisorId;
+            
+            // Update supervisor for this student across all their FYP sessions
+            // This ensures supervisor consistency across sessions in the same year/term
             $updateStudent = $conn->prepare("UPDATE student SET Supervisor_ID = ? WHERE Student_ID = ?");
             if (!$updateStudent) {
                 throw new Exception('Prepare failed (updateStudent): ' . $conn->error);
             }
-            $supIdInt = (int)$supervisorId;
             $updateStudent->bind_param("is", $supIdInt, $studentId);
             if (!$updateStudent->execute()) {
                 throw new Exception('Execute failed (updateStudent): ' . $updateStudent->error);

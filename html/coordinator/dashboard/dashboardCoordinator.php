@@ -1,5 +1,20 @@
 <?php
+// Prevent caching to stop back button access after logout
+header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+header("Cache-Control: post-check=0, pre-check=0", false);
+header("Pragma: no-cache");
+header("Expires: Sat, 26 Jul 1997 05:00:00 GMT");
+
 include '../../../php/coordinator_bootstrap.php';
+?>
+<script>
+// Prevent back button after logout
+window.history.pushState(null, "", window.location.href);
+window.onpopstate = function() {
+    window.history.pushState(null, "", window.location.href);
+};
+</script>
+<?php
 
 // -------------------------
 // Coordinator context & session
@@ -600,6 +615,36 @@ if ($departmentId !== null) {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <script>
+    // Prevent back button after logout
+    window.history.pushState(null, "", window.location.href);
+    window.onpopstate = function() {
+        window.history.pushState(null, "", window.location.href);
+    };
+
+    // Check session validity on page load and periodically
+    function validateSession() {
+        fetch('../../../php/check_session_alive.php')
+            .then(function(resp){ return resp.json(); })
+            .then(function(data){
+                if (!data.valid) {
+                    // Session is invalid, redirect to login
+                    window.location.href = '../../login/Login.php';
+                }
+            })
+            .catch(function(err){
+                // If we can't reach the server, assume session is invalid
+                console.warn('Session validation failed:', err);
+                window.location.href = '../../login/Login.php';
+            });
+    }
+
+    // Validate session on page load
+    window.addEventListener('load', validateSession);
+
+    // Also check every 10 seconds
+    setInterval(validateSession, 10000);
+    </script>
 </head>
 <body>
 
@@ -660,7 +705,7 @@ if ($departmentId !== null) {
                 <a href="../dateTimeAllocation/dateTimeAllocation.php" id="dateTimeAllocation"><i class="bi bi-calendar-event-fill icon-padding"></i> Date and Time Allocation</a>
             </div>
 
-            <a href="../../login/login.php" id="logout">
+            <a href="../../logout.php" id="logout">
                 <i class="bi bi-box-arrow-left" style="padding-right: 10px;"></i> Logout
             </a>
         </div>

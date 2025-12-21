@@ -17,28 +17,20 @@ $otherRace = $_POST['otherRace'] ?? '';
 $address = $_POST['address'] ?? '';
 $minor = $_POST['minor'] ?? '';
 $cgpa = $_POST['cgpa'] ?? '';
-$supervisorId = $_POST['supervisor'] ?? '';
-$supervisorLocked = $_POST['supervisor_locked'] ?? '';
-$assessor1 = $_POST['assessor1'] ?? '';
-$assessor2 = $_POST['assessor2'] ?? '';
-$title1 = $_POST['title1'] ?? '';
+
 
 $finalRace = ($race === 'Others' && !empty($otherRace)) ? $otherRace : $race;
 
 $courseCodeInt = (int)$courseCode;
 $semesterInt = (int)$semester;
-$supervisorIdInt = (int)$supervisorId;
-$supervisorLockedInt = (int)$supervisorLocked;
 $programmeInt = (int)$programme;
 $cgpaFloat = (float)$cgpa;
-$assessor1Int = $assessor1 !== '' ? (int)$assessor1 : 0;
-$assessor2Int = $assessor2 !== '' ? (int)$assessor2 : 0;
 
 // Validate required fields
 if (empty($upmId) || empty($password) || empty($studentName) || 
     empty($programme) || empty($courseCode) || empty($semester) || 
     empty($sessionName) || empty($phone) || empty($finalRace) || 
-    empty($address) || empty($cgpa) || empty($title1)) {
+    empty($address) || empty($cgpa)) {
     
     $_SESSION['error'] = 'Please fill in all required fields.';
     header("Location: ../../html/login/information.php");
@@ -102,43 +94,26 @@ try {
     $dupCheck->close();
     if ($dupResult->num_rows > 0) {
         $conn->rollback();
-        echo "<script>alert('Student cannot register for the same course in the same session.'); window.location.href='../../html/login/Login.php';</script>";
+        $_SESSION['error'] = 'Student cannot register for the same course in the same session.';
+        header("Location: ../../html/login/information.php");
         exit();
     }
 
-    $finalSupervisorId = $supervisorLockedInt ?: $supervisorIdInt;
-    // Always insert a new row into student table for this session
-    $stmt3 = $conn->prepare("INSERT INTO student (Student_ID, Course_ID, Student_Name, Phone_No, Address, `Minor`, CGPA, Semester, FYP_Session_ID, Supervisor_ID, Race, Department_ID) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-    $paramTypes = "s" . "i" . "s" . "s" . "s" . "s" . "d" . "i" . "i" . "i" . "s" . "i";
-    $stmt3->bind_param($paramTypes, $upmId, $courseCodeInt, $studentName, $phone, $address, $minor, $cgpaFloat, $semesterInt, $fypSessionId, $finalSupervisorId, $finalRace, $programmeInt);
+    // Always insert a new row into student table for this session (without supervisor)
+    $stmt3 = $conn->prepare("INSERT INTO student (Student_ID, Course_ID, Student_Name, Phone_No, Address, `Minor`, CGPA, Semester, FYP_Session_ID, Race, Department_ID) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    $paramTypes = "s" . "i" . "s" . "s" . "s" . "s" . "d" . "i" . "i" . "s" . "i";
+    $stmt3->bind_param($paramTypes, $upmId, $courseCodeInt, $studentName, $phone, $address, $minor, $cgpaFloat, $semesterInt, $fypSessionId, $finalRace, $programmeInt);
     $stmt3->execute();
     $stmt3->close();
 
-    // Insert into student_enrollment for this session
-    $stmtEnroll = $conn->prepare("INSERT INTO student_enrollment (Fyp_Session_ID, Student_ID, Supervisor_ID, Assessor_ID_1, Assessor_ID_2) VALUES (?, ?, ?, ?, ?)");
-    $stmtEnroll->bind_param("isiii", $fypSessionId, $upmId, $finalSupervisorId, $assessor1Int, $assessor2Int);
-    $stmtEnroll->execute();
-    $stmtEnroll->close();
-
-    // For existing students, reuse existing project and do NOT create a new entry
-    // For new students (or if no project exists), create the initial project entry
-    $projectExistsStmt = $conn->prepare("SELECT 1 FROM fyp_project WHERE Student_ID = ? LIMIT 1");
-    $projectExistsStmt->bind_param("s", $upmId);
-    $projectExistsStmt->execute();
-    $projectExistsRes = $projectExistsStmt->get_result();
-    $projectExistsStmt->close();
-
-    if ($projectExistsRes->num_rows === 0) {
-        $stmt4 = $conn->prepare("INSERT INTO fyp_project (Student_ID, Proposed_Title, Project_Title, Title_Status) VALUES (?, ?, ?, 'Waiting For Approval')");
-        $stmt4->bind_param("sss", $upmId, $title1, $title1);
-        $stmt4->execute();
-        $stmt4->close();
-    }
+    // Skip student_enrollment and fyp_project inserts - will be handled by coordinator
 
     $conn->commit();
 
-    // Clear session data
+    // Set success flag and clear session data
+    $_SESSION['registration_success'] = true;
     session_unset();
+    $_SESSION['registration_success'] = true;
     header("Location: ../../html/login/Login.php");
     exit();
 

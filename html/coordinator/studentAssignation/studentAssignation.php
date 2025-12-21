@@ -2,10 +2,48 @@
 include '../../../php/mysqlConnect.php';
 session_start();
 
+// Prevent caching to avoid back button access after logout
+header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+header("Cache-Control: post-check=0, pre-check=0", false);
+header("Pragma: no-cache");
+header("Expires: Sat, 26 Jul 1997 05:00:00 GMT");
+
 if (!isset($_SESSION['upmId']) || !isset($_SESSION['role']) || $_SESSION['role'] !== 'Coordinator') {
     header("Location: ../../login/Login.php");
     exit();
 }
+?>
+<script>
+// Prevent back button after logout
+window.history.pushState(null, "", window.location.href);
+window.onpopstate = function() {
+    window.history.pushState(null, "", window.location.href);
+};
+
+// Check session validity on page load and periodically
+function validateSession() {
+    fetch('../../../php/check_session_alive.php')
+        .then(function(resp){ return resp.json(); })
+        .then(function(data){
+            if (!data.valid) {
+                // Session is invalid, redirect to login
+                window.location.href = '../../login/Login.php';
+            }
+        })
+        .catch(function(err){
+            // If we can't reach the server, assume session is invalid
+            console.warn('Session validation failed:', err);
+            window.location.href = '../../login/Login.php';
+        });
+}
+
+// Validate session on page load
+window.addEventListener('load', validateSession);
+
+// Also check every 10 seconds
+setInterval(validateSession, 10000);
+</script>
+<?php
 
 $userId = $_SESSION['upmId'];
 $coordinatorName = 'Coordinator';
@@ -271,6 +309,13 @@ $assessorDataJson = json_encode($assessorData);
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <script>
+    // Prevent back button after logout
+    window.history.pushState(null, "", window.location.href);
+    window.onpopstate = function() {
+        window.history.pushState(null, "", window.location.href);
+    };
+    </script>
 </head>
 <body class="student-assignation-page">
 
@@ -330,7 +375,7 @@ $assessorDataJson = json_encode($assessorData);
                 <a href="../dateTimeAllocation/dateTimeAllocation.php" id="dateTimeAllocation"><i class="bi bi-calendar-event-fill icon-padding"></i> Date and Time Allocation</a>
             </div>
 
-            <a href="../../login/login.php" id="logout">
+            <a href="../../logout.php" id="logout">
                 <i class="bi bi-box-arrow-left" style="padding-right: 10px;"></i> Logout
             </a>
         </div>
@@ -834,10 +879,13 @@ $assessorDataJson = json_encode($assessorData);
                     lecturer_ids: (lecturers || []).map(l => l.id)
                 };
 
-                // Optional: simple loading state
-                const saveMsg = document.getElementById('remainingStudent');
-                const oldText = saveMsg ? saveMsg.textContent : '';
-                if (saveMsg) saveMsg.textContent = 'Loading past quotas...';
+                // Show loading state
+                const remainingStudentEl = document.getElementById('remainingStudent');
+                const oldText = remainingStudentEl ? remainingStudentEl.textContent : '';
+                if (remainingStudentEl) {
+                    remainingStudentEl.textContent = 'Loading...';
+                    remainingStudentEl.style.opacity = '0.6';
+                }
 
                 fetch('../../../php/phpCoordinator/fetch_past_quotas.php', {
                     method: 'POST',
@@ -848,6 +896,11 @@ $assessorDataJson = json_encode($assessorData);
                 .then(data => {
                     if (!data || !data.success) {
                         console.error('Failed to fetch past quotas:', data && data.message);
+                        // Restore on error
+                        if (remainingStudentEl) {
+                            remainingStudentEl.textContent = oldText;
+                            remainingStudentEl.style.opacity = '1';
+                        }
                         return;
                     }
                     const map = new Map();
@@ -861,16 +914,33 @@ $assessorDataJson = json_encode($assessorData);
                         }
                     });
 
-                    // Refresh UI and remaining counts
+                    // Refresh UI and remaining counts in real-time
                     updateAllRemainingQuotas();
                     renderLecturerTable();
+                    
+                    // Update remaining student count with animation
                     updateRemainingStudent();
+                    if (remainingStudentEl) {
+                        remainingStudentEl.style.opacity = '1';
+                        remainingStudentEl.style.transition = 'opacity 0.3s ease-in-out';
+                    }
+                    
+                    // Log the update for confirmation
+                    console.log('Past quotas applied successfully. Remaining students: ' + (remainingStudentEl ? remainingStudentEl.textContent : 'N/A'));
                 })
                 .catch(err => {
                     console.error('Error fetching past quotas:', err);
+                    // Restore on error
+                    if (remainingStudentEl) {
+                        remainingStudentEl.textContent = oldText;
+                        remainingStudentEl.style.opacity = '1';
+                    }
                 })
                 .finally(() => {
-                    if (saveMsg) saveMsg.textContent = oldText || saveMsg.textContent;
+                    // Ensure opacity is reset
+                    if (remainingStudentEl) {
+                        remainingStudentEl.style.opacity = '1';
+                    }
                 });
             } catch (e) {
                 console.error('followPastQuota() error:', e);
@@ -2636,8 +2706,16 @@ $assessorDataJson = json_encode($assessorData);
 
         // Helper: get supervisor ID by lecturer name from lecturers array
         function getSupervisorIdByName(lecturerName) {
-            if (!lecturerName || !lecturers || lecturers.length === 0) return null;
+            if (!lecturerName || !lecturers || lecturers.length === 0) {
+                console.warn('getSupervisorIdByName: Missing lecturer name or lecturers array');
+                return null;
+            }
             const match = lecturers.find(l => l && l.name === lecturerName);
+            if (!match) {
+                console.warn(`getSupervisorIdByName: No match found for "${lecturerName}". Available lecturers: ${lecturers.map(l => l.name).join(', ')}`);
+                return null;
+            }
+            console.log(`getSupervisorIdByName: Found "${lecturerName}" -> Supervisor_ID: ${match.id}`);
             return match ? match.id : null;
         }
 
@@ -2657,6 +2735,11 @@ $assessorDataJson = json_encode($assessorData);
                 const assessor1Id = getAssessorIdByName(student.assessor1);
                 const assessor2Id = getAssessorIdByName(student.assessor2);
 
+                // Debug logging
+                if (student.supervisor) {
+                    console.log(`Student: ${student.id}, Supervisor: ${student.supervisor}, Supervisor_ID: ${supervisorId}`);
+                }
+
                 return {
                     id: student.id,
                     name: student.name,
@@ -2671,6 +2754,9 @@ $assessorDataJson = json_encode($assessorData);
 
             // Show loading modal
             showLoadingModal('Saving assignments and sending emails. Please wait.');
+
+            // Debug: log the full assignment payload
+            console.log('Assignment payload:', JSON.stringify(assignmentData, null, 2));
 
             // Make AJAX call to save assignments to backend
             fetch('../../../php/phpCoordinator/save_assignments.php', {
