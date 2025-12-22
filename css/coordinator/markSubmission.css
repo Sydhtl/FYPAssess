@@ -243,12 +243,29 @@
   flex: 0 0 auto;
   background-color: #28a745;
   color: white;
+  width: fit-content;
 }
 
 .btn-download:hover {
   background-color: #218838;
   transform: translateY(-1px);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+@media (max-width: 768px) {
+  .btn-download {
+    font-size: 12px;
+    padding: 8px 12px;
+    gap: 4px;
+  }
+  
+  .btn-download i {
+    font-size: 14px;
+  }
+  
+  .btn-download .dropdown-arrow {
+    font-size: 10px;
+  }
 }
 
 .btn-download-pdf {
@@ -288,7 +305,8 @@
   display: none;
   position: absolute;
   top: 100%;
-  left: 0;
+  left: auto;
+  right: 0;
   margin-top: 5px;
   background-color: white;
   border: 1px solid #e0e0e0;
@@ -297,6 +315,12 @@
   min-width: 250px;
   z-index: 1000;
   overflow: hidden;
+}
+
+/* For lecturer-view, download button is on left, so dropdown should open to the right */
+.lecturer-view-actions .download-dropdown-menu {
+  left: 0;
+  right: auto;
 }
 
 /* Notify dropdown - align to right edge of button (opens to the left) */
@@ -1712,5 +1736,122 @@
     padding: 8px 6px;
     font-size: 11px;
   }
+}
+
+/* Student Details Modal Styles */
+#studentDetailsModal.custom-modal {
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.student-click-hint {
+  margin: 8px 0 12px 0;
+  padding: 10px 12px;
+  background: #f5f0ea;
+  border-left: 4px solid #780000;
+  border-radius: 6px;
+  color: #3a2a2a;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.lecturer-click-hint {
+  margin: 8px 0 12px 0;
+  padding: 10px 12px;
+  background: #f5f0ea;
+  border-left: 4px solid #780000;
+  border-radius: 6px;
+  color: #3a2a2a;
+  font-size: 13px;
+  font-weight: 600;
+  display: none;
+}
+
+#studentDetailsModal .modal-content-custom {
+  width: 600px;
+  max-width: 600px;
+  min-width: 600px;
+}
+
+.student-details-section {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  padding: 15px 0;
+  text-align: left;
+}
+
+.detail-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.detail-label {
+  font-weight: 600;
+  color: #780000;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.detail-value {
+  color: #000000;
+  font-size: 14px;
+  padding: 8px 12px;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  border-left: 3px solid #ab0a0a;
+  word-break: break-word;
+  font-family: 'Montserrat', Arial, sans-serif;
+}
+
+.student-name-link {
+  color: #007bff;
+  text-decoration: none;
+  cursor: pointer;
+  font-weight: 500;
+  border-radius: 3px;
+  padding: 2px 4px;
+  transition: all 0.2s ease;
+}
+
+.student-name-link:hover {
+  color: #0056b3;
+  text-decoration: underline;
+  background-color: rgba(0, 123, 255, 0.1);
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+.modal-footer .btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'Montserrat', Arial, sans-serif;
+  transition: all 0.2s;
+}
+
+.modal-footer .btn-secondary {
+  background-color: #ffffff;
+  color: rgb(0, 0, 0);
+  border: 1px solid #cacaca;
+}
+
+.modal-footer .btn-secondary:hover {
+  background-color: #ffffff;
+  color: black;
+    border: 1px solid #cacaca;
+}
+
+#studentDetailsModal .close-btn {
+  color: white !important;
 }
 

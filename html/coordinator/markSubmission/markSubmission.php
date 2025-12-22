@@ -270,6 +270,8 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
                             </div>
                         </div>
 
+                        <div class="student-click-hint" data-tab="fyp-title-submission">Click on a student name to view their supervisor and assessors.</div>
+
                         <div class="table-scroll-container">
                             <table class="mark-submission-table" id="markTableFYP">
                                 <thead>
@@ -328,7 +330,16 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
                             </div>
                         </div>
 
+                                                    <div class="student-click-hint" data-tab="swe4949a">Click on a student name to view their supervisor and assessors. 
+                                                        <br><br>
+                                                        Hover over the assessment to see more details.
+                                                    </div>
+                                                    <div class="lecturer-click-hint" data-tab="swe4949a">Click on a lecturer name to view the students they supervise or assess.
+                                                        <br><br>
+                                                      Hover over the assessment to see more details.
+                                                    </div>
                         <div class="table-scroll-container">
+                          
                             <table class="mark-submission-table" id="markTableA">
                                 <thead>
                                     <tr>
@@ -389,10 +400,20 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
                                         <i class="bi bi-bell"></i>
                                     <span>Notify All</span>
                                     </button>
-                            </div>
+                
                         </div>
-
+                        </div>
+                         <div class="student-click-hint" data-tab="swe4949b">Click on a student name to view their supervisor and assessors.
+                            <br><br>
+                                                        Hover over the assessment to see more details.
+                         </div>
+                         <div class="lecturer-click-hint" data-tab="swe4949b">Click on a lecturer name to view the students they supervise or assess.
+                            <br><br>
+                                                        Hover over the assessment to see more details.
+                                                   
+                         </div>
                         <div class="table-scroll-container">
+                          
                             <table class="mark-submission-table" id="markTableB">
                                 <thead>
                                     <tr>
@@ -423,6 +444,7 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
 
     <div id="notifyModal" class="custom-modal"></div>
     <div id="fypFormModal" class="custom-modal"></div>
+    <div id="studentDetailsModal" class="custom-modal"></div>
 
     <script>
         // --- FILTER RELOAD FUNCTION ---
@@ -490,6 +512,7 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
                 cgpa: student.cgpa || '',
                 titleStatus: student.titleStatus || '',
                 supervisorName: student.supervisorName || '',
+                assessorNames: student.assessorNames || '',
                 comments: hasSubmission ? `Status: ${statusDisplay}` : 'No submission received yet.',
                 submission: hasSubmission ? {
                     courseTitle: 'Final Year Project',
@@ -506,7 +529,8 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
                     currentTitle: student.projectTitle || '-',
                     proposedTitle: student.proposedTitle || '-',
                     titleStatus: student.titleStatus || '-',
-                    supervisorName: student.supervisorName || '-'
+                    supervisorName: student.supervisorName || '-',
+                    assessorNames: student.assessorNames || '-'
                 } : null
             };
         });
@@ -748,7 +772,8 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
                     const columns = columnsResult || [];
                     marksData[tabName] = studentsResult.students.map((student, index) => {
                         const studentData = {
-                            id: index + 1,
+                            // Use actual student identifier for modal lookups
+                            id: student.student_id,
                             matricNo: student.student_id,
                             name: student.name,
                             fypTitle: student.project_title,
@@ -1087,6 +1112,7 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
                 if (event.key === 'Escape') {
                     closeModal();
                     closeFYPFormModal();
+                    closeStudentDetailsModal();
                     closeAllDropdowns();
                 }
             });
@@ -1096,6 +1122,15 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
                 fypModal.addEventListener('click', function(e) {
                     if (e.target === fypModal) {
                         closeFYPFormModal();
+                    }
+                });
+            }
+            
+            const studentDetailsModal = document.getElementById('studentDetailsModal');
+            if (studentDetailsModal) {
+                studentDetailsModal.addEventListener('click', function(e) {
+                    if (e.target === studentDetailsModal) {
+                        closeStudentDetailsModal();
                     }
                 });
             }
@@ -1227,7 +1262,7 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
                 row.innerHTML = `
                     <td>${index + 1}.</td>
                     <td>${item.matricNo}</td>
-                    <td>${item.name}</td>
+                    <td><a href="javascript:void(0)" onclick="showStudentDetailsModal('${item.id}')" class="student-name-link" title="View student details">${item.name}</a></td>
                     <td><span class="status-badge ${statusClass}">${statusText}</span></td>
                     <td class="submission-cell">${submissionHTML}</td>
                     <td class="download-cell">${downloadHTML}</td>
@@ -1297,19 +1332,41 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
                 console.error(`Error updating hash after view change for tab ${tabName}:`, error);
             }
             
+            // Toggle student-name hint visibility per tab
+            document.querySelectorAll(`.student-click-hint[data-tab="${tabName}"]`).forEach(hint => {
+                hint.style.display = viewType === 'student-overview' ? 'block' : 'none';
+            });
+
+            // Toggle lecturer-name hint visibility per tab
+            document.querySelectorAll(`.lecturer-click-hint[data-tab="${tabName}"]`).forEach(hint => {
+                hint.style.display = viewType === 'lecturer-progress' ? 'block' : 'none';
+            });
+
             // Show/hide notify button based on view
             const tabSuffix = tabName.charAt(tabName.length - 1).toUpperCase();
             const notifyButton = document.getElementById(`downloadButtonNotify${tabSuffix}`);
+            
+            // Get the download actions container to toggle dropdown alignment
+            const taskGroup = document.querySelector(`.task-group[data-group="${tabName}"]`);
+            const downloadActions = taskGroup?.querySelector('.download-actions');
             
             if (viewType === 'student-overview') {
                 // Hide notify button in student marks overview
                 if (notifyButton) {
                     notifyButton.style.display = 'none';
                 }
+                // Remove lecturer-view class for dropdown alignment
+                if (downloadActions) {
+                    downloadActions.classList.remove('lecturer-view-actions');
+                }
             } else {
                 // Show notify button in lecturer progress view
                 if (notifyButton) {
                     notifyButton.style.display = 'flex';
+                }
+                // Add lecturer-view class for dropdown alignment
+                if (downloadActions) {
+                    downloadActions.classList.add('lecturer-view-actions');
                 }
             }
         }
@@ -1519,7 +1576,9 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
                 // Render rows
                 filteredLecturers.forEach((lec, idx) => {
                     const row = document.createElement('tr');
-                    let rowHTML = `<td>${idx + 1}.</td><td>${lec.name}</td>`;
+                    const originalIndex = lecturers.indexOf(lec);
+                    const lookupIndex = originalIndex >= 0 ? originalIndex : idx;
+                    let rowHTML = `<td>${idx + 1}.</td><td><a href="javascript:void(0)" class="student-name-link" title="View students" onclick="showLecturerStudentsModal('${tabName}', ${lookupIndex})">${lec.name}</a></td>`;
 
                     filteredSupAssess.forEach(a => {
                         const status = lec.status?.Supervisor?.[a.assessment_id] || 'N/A';
@@ -1527,8 +1586,8 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
                         const text = status === 'N/A' ? 'N/A' : statusInfo.text;
                         const cls = status === 'N/A' ? '' : statusInfo.className;
                         
-                        // Build tooltip text for lecturer progress
-                        let tooltipText = `Role: Supervisor\nAssessment: ${a.assessment_name}`;
+                        // Build tooltip text for lecturer progress (include lecturer name)
+                        let tooltipText = `Lecturer: ${lec.name}\nRole: Supervisor\nAssessment: ${a.assessment_name}`;
                         if (a.criteria && a.criteria.length > 0) {
                             tooltipText += '\n\nCriteria:';
                             a.criteria.forEach(crit => {
@@ -1549,8 +1608,8 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
                         const text = status === 'N/A' ? 'N/A' : statusInfo.text;
                         const cls = status === 'N/A' ? '' : statusInfo.className;
                         
-                        // Build tooltip text for lecturer progress
-                        let tooltipText = `Role: Assessor\nAssessment: ${a.assessment_name}`;
+                        // Build tooltip text for lecturer progress (include lecturer name)
+                        let tooltipText = `Lecturer: ${lec.name}\nRole: Assessor\nAssessment: ${a.assessment_name}`;
                         if (a.criteria && a.criteria.length > 0) {
                             tooltipText += '\n\nCriteria:';
                             a.criteria.forEach(crit => {
@@ -1657,7 +1716,7 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
                     let rowHTML = `
                         <td>${index + 1}.</td>
                         <td>${item.matricNo}</td>
-                        <td>${item.name}</td>
+                        <td><a href="javascript:void(0)" class="student-name-link" title="View student details" onclick="showStudentDetailsModal('${item.id}')">${item.name}</a></td>
                         <td>${item.fypTitle}</td>
                     `;
                     
@@ -1667,9 +1726,9 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
                         const key = `assessment_${column.assessment_id}_criteria_${criteriaIdStr}_lo_${column.learning_objective_code}`;
                         const value = item[key] || '-';
                         
-                        // Build tooltip text
+                        // Build tooltip text (include student name)
                         const criteriaText = column.criteria_name || (column.criteria_id ? `Criteria ${column.criteria_id}` : 'No Criteria');
-                        const tooltipText = `Assessment: ${column.assessment_name}\nCriteria: ${criteriaText}\nLearning Objective: ${column.learning_objective_code}\nPercentage: ${parseFloat(column.percentage).toFixed(2)}%`;
+                        const tooltipText = `Student: ${item.name}\nAssessment: ${column.assessment_name}\nCriteria: ${criteriaText}\nLearning Objective: ${column.learning_objective_code}\nPercentage: ${parseFloat(column.percentage).toFixed(2)}%`;
                         
                         rowHTML += `<td class="table-cell-tooltip" data-tooltip="${tooltipText.replace(/"/g, '&quot;')}">${value}</td>`;
                     });
@@ -2273,28 +2332,32 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
             closeAllDropdowns();
         }
 
-        function buildLecturerExportRows(tabName) {
-            const data = lecturerProgressData[tabName] || [];
-            const supervisorTaskNames = (data[0]?.supervisorTasks?.length ? data[0].supervisorTasks.map(task => task.task) : ['No tasks']);
-            const assessorTaskNames = (data[0]?.assessorTasks?.length ? data[0].assessorTasks.map(task => task.task) : ['No tasks']);
-            const headers = ['No.', 'Name', ...supervisorTaskNames.map(name => `Supervisor - ${name}`), ...assessorTaskNames.map(name => `Assessor - ${name}`)];
+        async function buildLecturerProgressExport(tabName) {
+            const progress = await fetchLecturerProgress(tabName);
+            const supAssess = progress.assessments?.Supervisor || [];
+            const assAssess = progress.assessments?.Assessor || [];
+            const lecturers = progress.lecturers || [];
 
-            const rows = data.map((item, index) => {
-                const supervisorTasks = supervisorTaskNames.map((_, idx) => {
-                    const task = (item.supervisorTasks || [])[idx];
-                    return task ? formatStatus(task.status).text : '-';
-                });
-                const assessorTasks = assessorTaskNames.map((_, idx) => {
-                    const task = (item.assessorTasks || [])[idx];
-                    return task ? formatStatus(task.status).text : '-';
-                });
-                return [index + 1, item.name, ...supervisorTasks, ...assessorTasks];
+            const headers = ['No.', 'Name', ...supAssess.map(a => `Supervisor - ${a.assessment_name}`), ...assAssess.map(a => `Assessor - ${a.assessment_name}`)];
+
+            const toStatusText = (status) => {
+                if (!status || status === 'N/A') return '-';
+                const lower = String(status).toLowerCase();
+                if (lower === 'completed') return 'Completed';
+                if (lower === 'incomplete') return 'Incomplete';
+                return status;
+            };
+
+            const rows = lecturers.map((lec, index) => {
+                const supervisorStatuses = supAssess.map(a => toStatusText(lec.status?.Supervisor?.[a.assessment_id]));
+                const assessorStatuses = assAssess.map(a => toStatusText(lec.status?.Assessor?.[a.assessment_id]));
+                return [index + 1, lec.name, ...supervisorStatuses, ...assessorStatuses];
             });
 
             return { headers, rows };
         }
 
-        function downloadAsPDF(tabName, type) {
+        async function downloadAsPDF(tabName, type) {
             // Special handling for FYP Title Submission - download all individual student PDFs
             if (tabName === 'fyp-title-submission' && type === 'submissions') {
                 downloadAllFYPSubmissionsPDF();
@@ -2337,7 +2400,7 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
                 title = `FYP Title Submission${includeComments ? ' - With Comments' : ''}`;
                 filename = `fyp-title-submission${includeComments ? '-with-comments' : ''}.pdf`;
             } else if (viewType === 'lecturer-progress') {
-                const exportData = buildLecturerExportRows(tabName);
+                const exportData = await buildLecturerProgressExport(tabName);
                 if (!exportData.rows.length) {
                     openModal('Download Failed', 'No lecturer progress data available.');
                     return;
@@ -2406,7 +2469,7 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
             closeAllDropdowns();
         }
 
-        function downloadAsExcel(tabName, type) {
+        async function downloadAsExcel(tabName, type) {
             const viewType = currentView[tabName];
             let headers = [];
             let rows = [];
@@ -2438,7 +2501,7 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
                 });
                 filename = `fyp-title-submission${includeComments ? '-with-comments' : ''}.csv`;
             } else if (viewType === 'lecturer-progress') {
-                const exportData = buildLecturerExportRows(tabName);
+                const exportData = await buildLecturerProgressExport(tabName);
                 if (!exportData.rows.length) {
                     openModal('Download Failed', 'No lecturer progress data available.');
                     return;
@@ -2609,6 +2672,168 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
                 // Open PDF in new window
                 window.open(doc.output('bloburl'), '_blank');
             });
+        }
+        
+        function showStudentDetailsModal(studentId) {
+            // Convert studentId to string for consistent comparison
+            const studentIdStr = String(studentId);
+            
+            // Search in all data
+            let student = fypTitleSubmissionData.find(item => String(item.id) === studentIdStr);
+            
+            if (!student) {
+                openModal('Error', 'Student data not found.');
+                return;
+            }
+            
+            const modal = document.getElementById('studentDetailsModal');
+            if (!modal) return;
+            
+            // Prepare data to display
+            const fypTitle = student.submission?.currentTitle || student.projectTitle || '-';
+            const supervisor = student.supervisorName || '-';
+            
+            // Split assessors by comma and create separate rows for each
+            const assessorsArray = student.assessorNames 
+                ? student.assessorNames.split(',').map(name => name.trim()).filter(name => name)
+                : [];
+            
+            let assessorsHTML = '';
+            if (assessorsArray.length > 0) {
+                assessorsArray.forEach((assessor, index) => {
+                    assessorsHTML += `
+                        <div class="detail-field">
+                            <label class="detail-label">Assessor ${index + 1}:</label>
+                            <span class="detail-value">${assessor}</span>
+                        </div>`;
+                });
+            } else {
+                assessorsHTML = `
+                    <div class="detail-field">
+                        <label class="detail-label">Assessors:</label>
+                        <span class="detail-value">-</span>
+                    </div>`;
+            }
+            
+            modal.innerHTML = `
+                <div class="modal-dialog">
+                    <div class="modal-content-custom">
+                        <span class="close-btn" style="color: #fff;" onclick="closeStudentDetailsModal()">&times;</span>
+                        <h2 style="margin-top: 0; margin-bottom: 20px; color: #333; font-size: 20px; font-weight: 700;">Student Details</h2>
+                        
+                        <div class="student-details-section">
+                            <div class="detail-field">
+                                <label class="detail-label">Name:</label>
+                                <span class="detail-value">${student.name}</span>
+                            </div>
+                            
+                            <div class="detail-field">
+                                <label class="detail-label">Matric No:</label>
+                                <span class="detail-value">${student.matricNo}</span>
+                            </div>
+                            
+                            <div class="detail-field">
+                                <label class="detail-label">FYP Title:</label>
+                                <span class="detail-value">${fypTitle}</span>
+                            </div>
+                            
+                            <div class="detail-field">
+                                <label class="detail-label">Supervisor:</label>
+                                <span class="detail-value">${supervisor}</span>
+                            </div>
+                            
+                            ${assessorsHTML}
+                        </div>
+                        
+                        <div class="modal-footer" style="margin-top: 20px; text-align: center;">
+                            <button class="btn btn-secondary" onclick="closeStudentDetailsModal()">Close</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            modal.style.display = 'flex';
+        }
+
+        // Show students supervised/assessed by a lecturer in lecturer-progress view
+        async function showLecturerStudentsModal(tabName, lecturerIndex) {
+            try {
+                // Prefer cached data; fallback to fresh fetch
+                let progress = lecturerProgressCache[tabName];
+                if (!progress) {
+                    progress = await fetchLecturerProgress(tabName, false);
+                }
+
+                const lecturer = progress?.lecturers?.[lecturerIndex];
+                if (!lecturer) {
+                    openModal('Error', 'Lecturer data not found.');
+                    return;
+                }
+
+                const modal = document.getElementById('studentDetailsModal');
+                if (!modal) return;
+
+                const supervised = lecturer.students_supervise || [];
+                const assessed = lecturer.students_assess || [];
+
+                const supervisedList = supervised.length
+                    ? supervised.map(s => `<li>${s.name} (${s.id})</li>`).join('')
+                    : '<li>-</li>';
+
+                const assessedList = assessed.length
+                    ? assessed.map(s => `<li>${s.name} (${s.id})</li>`).join('')
+                    : '<li>-</li>';
+
+                modal.innerHTML = `
+                    <div class="modal-dialog">
+                        <div class="modal-content-custom">
+                            <span class="close-btn" style="color: #fff;" onclick="closeStudentDetailsModal()">&times;</span>
+                            <h2 style="margin-top: 0; margin-bottom: 20px; color: #333; font-size: 20px; font-weight: 700;">Lecturer Students</h2>
+
+                            <div class="student-details-section">
+                                <div class="detail-field">
+                                    <label class="detail-label">Lecturer:</label>
+                                    <span class="detail-value">${lecturer.name}</span>
+                                </div>
+
+                                <div class="detail-field">
+                                    <label class="detail-label">Supervises:</label>
+                                    <span class="detail-value" style="display:block;">
+                                        <ul style="margin: 4px 0 0 16px; padding: 0; list-style: disc;">
+                                            ${supervisedList}
+                                        </ul>
+                                    </span>
+                                </div>
+
+                                <div class="detail-field">
+                                    <label class="detail-label">Assesses:</label>
+                                    <span class="detail-value" style="display:block;">
+                                        <ul style="margin: 4px 0 0 16px; padding: 0; list-style: disc;">
+                                            ${assessedList}
+                                        </ul>
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div class="modal-footer" style="margin-top: 20px; text-align: center;">
+                                <button class="btn btn-secondary" onclick="closeStudentDetailsModal()">Close</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                modal.style.display = 'flex';
+            } catch (err) {
+                console.error('Error showing lecturer students modal:', err);
+                openModal('Error', 'Unable to load lecturer student list.');
+            }
+        }
+        
+        function closeStudentDetailsModal() {
+            const modal = document.getElementById('studentDetailsModal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
         }
         
         // Keep the old implementation as fallback (will be removed after testing)
