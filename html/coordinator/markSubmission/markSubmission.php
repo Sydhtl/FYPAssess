@@ -250,38 +250,20 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
                                 </div>
                             </div>
                             <div class="download-actions">
-                             
                                 <div class="download-dropdown">
-                                    <button id="downloadButtonPdfFYP" class="btn-download btn-download-pdf" onclick="toggleDownloadDropdown('pdf', 'fyp', this)">
-                                        <i class="bi bi-file-earmark-pdf"></i>
-                                        <span>Download as PDF</span>
+                                    <button id="downloadButtonFYP" class="btn-download" onclick="toggleDownloadDropdown('combined', 'fyp', this)">
+                                        <i class="bi bi-download"></i>
+                                        <span>Download as...</span>
                                         <i class="bi bi-chevron-down dropdown-arrow"></i>
                                     </button>
-                                    <div class="download-dropdown-menu" id="downloadDropdownPdfFYP">
-                                        <a href="javascript:void(0)" onclick="downloadAsPDF('fyp-title-submission', 'submissions'); closeDownloadDropdown('pdf', 'fyp');" class="download-option pdf-option">
+                                    <div class="download-dropdown-menu" id="downloadDropdownCombinedFYP">
+                                        <a href="javascript:void(0)" onclick="downloadAsPDF('fyp-title-submission', 'submissions'); closeDownloadDropdown('combined', 'fyp');" class="download-option">
                                             <i class="bi bi-file-earmark-pdf"></i>
-                                            <span>Download submissions</span>
+                                            <span>Download as PDF</span>
                                         </a>
-                                        <a href="javascript:void(0)" onclick="downloadAsPDF('fyp-title-submission', 'submissions-comments'); closeDownloadDropdown('pdf', 'fyp');" class="download-option pdf-option">
-                                            <i class="bi bi-file-earmark-pdf"></i>
-                                            <span>Download as PDF with comments</span>
-                                        </a>
-                                    </div>
-                                </div>
-                                <div class="download-dropdown">
-                                    <button id="downloadButtonExcelFYP" class="btn-download btn-download-excel" onclick="toggleDownloadDropdown('excel', 'fyp', this)">
-                                        <i class="bi bi-file-earmark-excel"></i>
-                                        <span>Download as Excel</span>
-                                        <i class="bi bi-chevron-down dropdown-arrow"></i>
-                                    </button>
-                                    <div class="download-dropdown-menu" id="downloadDropdownExcelFYP">
-                                        <a href="javascript:void(0)" onclick="downloadAsExcel('fyp-title-submission', 'submissions'); closeDownloadDropdown('excel', 'fyp');" class="download-option excel-option">
+                                        <a href="javascript:void(0)" onclick="downloadAsExcel('fyp-title-submission', 'submissions'); closeDownloadDropdown('combined', 'fyp');" class="download-option">
                                             <i class="bi bi-file-earmark-excel"></i>
-                                            <span>Download submissions</span>
-                                        </a>
-                                        <a href="javascript:void(0)" onclick="downloadAsExcel('fyp-title-submission', 'submissions-comments'); closeDownloadDropdown('excel', 'fyp');" class="download-option excel-option">
-                                            <i class="bi bi-file-earmark-excel"></i>
-                                            <span>Download as Excel with comments</span>
+                                            <span>Download as Excel</span>
                                         </a>
                                     </div>
                                 </div>
@@ -323,36 +305,19 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
                             </div>
                             <div class="download-actions">
                                 <div class="download-dropdown">
-                                    <button id="downloadButtonPdfA" class="btn-download btn-download-pdf" onclick="toggleDownloadDropdown('pdf', 'a', this)">
-                                        <i class="bi bi-file-earmark-pdf"></i>
-                                        <span>Download as PDF</span>
+                                    <button id="downloadButtonA" class="btn-download" onclick="toggleDownloadDropdown('combined', 'a', this)">
+                                        <i class="bi bi-download"></i>
+                                        <span>Download as...</span>
                                         <i class="bi bi-chevron-down dropdown-arrow"></i>
                                     </button>
-                                    <div class="download-dropdown-menu" id="downloadDropdownPdfA">
-                                        <a href="javascript:void(0)" onclick="downloadAsPDF('swe4949a', 'marks'); closeDownloadDropdown('pdf', 'a');" class="download-option pdf-option">
+                                    <div class="download-dropdown-menu" id="downloadDropdownCombinedA">
+                                        <a href="javascript:void(0)" onclick="downloadAsPDF('swe4949a', 'marks'); closeDownloadDropdown('combined', 'a');" class="download-option">
                                             <i class="bi bi-file-earmark-pdf"></i>
-                                            <span>Download marks</span>
+                                            <span>Download as PDF</span>
                                         </a>
-                                        <a href="javascript:void(0)" onclick="downloadAsPDF('swe4949a', 'marks-comments'); closeDownloadDropdown('pdf', 'a');" class="download-option pdf-option">
-                                            <i class="bi bi-file-earmark-pdf"></i>
-                                            <span>Download marks with comments</span>
-                                        </a>
-                                    </div>
-                                </div>
-                                <div class="download-dropdown">
-                                    <button id="downloadButtonExcelA" class="btn-download btn-download-excel" onclick="toggleDownloadDropdown('excel', 'a', this)">
-                                        <i class="bi bi-file-earmark-excel"></i>
-                                        <span>Download as Excel</span>
-                                        <i class="bi bi-chevron-down dropdown-arrow"></i>
-                                    </button>
-                                    <div class="download-dropdown-menu" id="downloadDropdownExcelA">
-                                        <a href="javascript:void(0)" onclick="downloadAsExcel('swe4949a', 'marks'); closeDownloadDropdown('excel', 'a');" class="download-option excel-option">
+                                        <a href="javascript:void(0)" onclick="downloadAsExcel('swe4949a', 'marks'); closeDownloadDropdown('combined', 'a');" class="download-option">
                                             <i class="bi bi-file-earmark-excel"></i>
-                                            <span>Download marks</span>
-                                        </a>
-                                        <a href="javascript:void(0)" onclick="downloadAsExcel('swe4949a', 'marks-comments'); closeDownloadDropdown('excel', 'a');" class="download-option excel-option">
-                                            <i class="bi bi-file-earmark-excel"></i>
-                                            <span>Download marks with comments</span>
+                                            <span>Download as Excel</span>
                                         </a>
                                     </div>
                                 </div>
@@ -404,36 +369,19 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
                             </div>
                             <div class="download-actions">
                                 <div class="download-dropdown">
-                                    <button id="downloadButtonPdfB" class="btn-download btn-download-pdf" onclick="toggleDownloadDropdown('pdf', 'b', this)">
-                                        <i class="bi bi-file-earmark-pdf"></i>
-                                        <span>Download as PDF</span>
+                                    <button id="downloadButtonB" class="btn-download" onclick="toggleDownloadDropdown('combined', 'b', this)">
+                                        <i class="bi bi-download"></i>
+                                        <span>Download as...</span>
                                         <i class="bi bi-chevron-down dropdown-arrow"></i>
                                     </button>
-                                    <div class="download-dropdown-menu" id="downloadDropdownPdfB">
-                                        <a href="javascript:void(0)" onclick="downloadAsPDF('swe4949b', 'marks'); closeDownloadDropdown('pdf', 'b');" class="download-option pdf-option">
+                                    <div class="download-dropdown-menu" id="downloadDropdownCombinedB">
+                                        <a href="javascript:void(0)" onclick="downloadAsPDF('swe4949b', 'marks'); closeDownloadDropdown('combined', 'b');" class="download-option">
                                             <i class="bi bi-file-earmark-pdf"></i>
-                                            <span>Download marks</span>
+                                            <span>Download as PDF</span>
                                         </a>
-                                        <a href="javascript:void(0)" onclick="downloadAsPDF('swe4949b', 'marks-comments'); closeDownloadDropdown('pdf', 'b');" class="download-option pdf-option">
-                                            <i class="bi bi-file-earmark-pdf"></i>
-                                            <span>Download marks with comments</span>
-                                        </a>
-                                    </div>
-                                </div>
-                                <div class="download-dropdown">
-                                    <button id="downloadButtonExcelB" class="btn-download btn-download-excel" onclick="toggleDownloadDropdown('excel', 'b', this)">
-                                        <i class="bi bi-file-earmark-excel"></i>
-                                        <span>Download as Excel</span>
-                                        <i class="bi bi-chevron-down dropdown-arrow"></i>
-                                    </button>
-                                    <div class="download-dropdown-menu" id="downloadDropdownExcelB">
-                                        <a href="javascript:void(0)" onclick="downloadAsExcel('swe4949b', 'marks'); closeDownloadDropdown('excel', 'b');" class="download-option excel-option">
+                                        <a href="javascript:void(0)" onclick="downloadAsExcel('swe4949b', 'marks'); closeDownloadDropdown('combined', 'b');" class="download-option">
                                             <i class="bi bi-file-earmark-excel"></i>
-                                            <span>Download marks</span>
-                                        </a>
-                                        <a href="javascript:void(0)" onclick="downloadAsExcel('swe4949b', 'marks-comments'); closeDownloadDropdown('excel', 'b');" class="download-option excel-option">
-                                            <i class="bi bi-file-earmark-excel"></i>
-                                            <span>Download marks with comments</span>
+                                            <span>Download as Excel</span>
                                         </a>
                                     </div>
                                 </div>
@@ -2306,9 +2254,9 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
         }
 
         function toggleDownloadDropdown(type, tab, button) {
-            const idSuffix = `${type.charAt(0).toUpperCase() + type.slice(1)}${tab.toUpperCase()}`;
+            const idSuffix = type === 'combined' ? `Combined${tab.toUpperCase()}` : `${type.charAt(0).toUpperCase() + type.slice(1)}${tab.toUpperCase()}`;
             const dropdown = document.getElementById(`downloadDropdown${idSuffix}`);
-            const triggerButton = button || document.getElementById(`downloadButton${idSuffix}`);
+            const triggerButton = button || document.getElementById(`downloadButton${type === 'combined' ? tab.toUpperCase() : idSuffix}`);
             const wasOpen = dropdown?.classList.contains('show');
 
             closeAllDropdowns();
