@@ -478,14 +478,15 @@ $assessorDataJson = json_encode($assessorData);
                                     <i class="bi bi-plus-circle"></i>
                                     <span>Assign Remaining Quota</span>
                                 </button>
-                                <button class="btn btn-outline-dark" onclick="followPastQuota()" style="background-color: white; color: black; border-color: black;" onmouseover="this.style.backgroundColor='white'; this.style.color='black';" onmouseout="this.style.backgroundColor='white'; this.style.color='black';">Follow Past Quota</button>
-                                <div class="download-dropdown">
-                                    <button class="btn-download" onclick="toggleDownloadDropdown()">
-                                        <i class="bi bi-download"></i>
-                                        <span>Download as...</span>
-                                        <i class="bi bi-chevron-down dropdown-arrow"></i>
-                                    </button>
-                                    <div class="download-dropdown-menu" id="downloadDropdown">
+                                <div class="button-group">
+                                    <button class="btn btn-outline-dark" onclick="followPastQuota()" style="background-color: white; color: black; border-color: black;" onmouseover="this.style.backgroundColor='white'; this.style.color='black';" onmouseout="this.style.backgroundColor='white'; this.style.color='black';">Follow Past Quota</button>
+                                    <div class="download-dropdown">
+                                        <button class="btn-download" onclick="toggleDownloadDropdown()">
+                                            <i class="bi bi-download"></i>
+                                            <span>Download as...</span>
+                                            <i class="bi bi-chevron-down dropdown-arrow"></i>
+                                        </button>
+                                        <div class="download-dropdown-menu" id="downloadDropdown">
                                         <a href="javascript:void(0)" onclick="downloadAsPDF(); closeDownloadDropdown();" class="download-option">
                                             <i class="bi bi-file-earmark-pdf"></i>
                                             <span>Download as PDF</span>
@@ -495,6 +496,7 @@ $assessorDataJson = json_encode($assessorData);
                                             <span>Download as Excel</span>
                                         </a>
                                     </div>
+                                </div>
                                 </div>
                             </div>
                         </div>

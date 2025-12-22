@@ -382,8 +382,6 @@
 .mark-submission-table thead {
   background-color: #780000;
   color: white;
-  position: sticky;
-  top: 0;
   z-index: 102;
 }
 
@@ -464,39 +462,30 @@
   background-color: #ffffff;
 }
 
-/* Sticky Columns - Student Marks Overview */
+/* Columns - Student Marks Overview */
 .mark-submission-table:not(.lecturer-view) th:nth-child(1),
 .mark-submission-table:not(.lecturer-view) td:nth-child(1) {
-  position: sticky;
-  left: 0;
   background-color: #ffffff;
   z-index: 100;
   width: 60px;
   min-width: 60px;
-  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);
 }
 
 .mark-submission-table:not(.lecturer-view) th:nth-child(2),
 .mark-submission-table:not(.lecturer-view) td:nth-child(2) {
-  position: sticky;
-  left: 60px;
   background-color: #ffffff;
   z-index: 100;
   width: 120px;
   min-width: 120px;
-  box-shadow: -2px 0 4px rgb(0, 0, 0);
   font-weight: bold;
 }
 
 .mark-submission-table:not(.lecturer-view) th:nth-child(3),
 .mark-submission-table:not(.lecturer-view) td:nth-child(3) {
-  position: sticky;
-  left: 180px;
   background-color: #ffffff;
   z-index: 100;
   width: 150px;
   min-width: 150px;
-   box-shadow: -2px 0 4px rgb(0, 0, 0);
    font-weight: bold;
 }
 
@@ -543,27 +532,21 @@
   box-shadow: -2px 0 4px rgba(0, 0, 0, 0.1);
 }
 
-/* Sticky Columns - Lecturer Progress */
+/* Columns - Lecturer Progress */
 .mark-submission-table.lecturer-view th:nth-child(1),
 .mark-submission-table.lecturer-view td:nth-child(1) {
-  position: sticky;
-  left: 0;
   background-color: #ffffff;
   z-index: 100;
   width: 60px;
   min-width: 60px;
-  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);
 }
 
 .mark-submission-table.lecturer-view th:nth-child(2),
 .mark-submission-table.lecturer-view td:nth-child(2) {
-  position: sticky;
-  left: 60px;
   background-color: #ffffff;
   z-index: 100;
   width: 200px;
   min-width: 200px;
-  box-shadow: -2px 0 4px rgba(0, 0, 0, 0.1);
   font-weight: bold;
 }
 
@@ -798,38 +781,29 @@
   font-size: 15px;
 }
 
-/* Sticky columns for FYP Title Submission table */
+/* Columns for FYP Title Submission table */
 #markTableFYP th:nth-child(1),
 #markTableFYP td:nth-child(1) {
-  position: sticky;
-  left: 0;
   background-color: #ffffff;
   z-index: 100;
   width: 60px;
   min-width: 60px;
-  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);
 }
 
 #markTableFYP th:nth-child(2),
 #markTableFYP td:nth-child(2) {
-  position: sticky;
-  left: 60px;
   background-color: #ffffff;
   z-index: 100;
   width: 120px;
   min-width: 120px;
-  box-shadow: -2px 0 4px rgb(0, 0, 0);
 }
 
 #markTableFYP th:nth-child(3),
 #markTableFYP td:nth-child(3) {
-  position: sticky;
-  left: 180px;
   background-color: #ffffff;
   z-index: 100;
   width: 150px;
   min-width: 150px;
-  box-shadow: -2px 0 4px rgb(0, 0, 0);
 }
 
 #markTableFYP thead tr th:nth-child(1),

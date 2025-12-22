@@ -270,6 +270,7 @@ $courseIdBJson = json_encode($courseIdB);
         const expandedWidth = "220px";
 
         const dateTimeAllocations = {}; // Will be populated from database
+        const originalDateTimeAllocations = {}; // Backup of original data for cancel/reset
         const courses = []; // Will be loaded from database
         const assessmentsByCourse = {}; // Cache assessments by course_id
         const courseIdMap = {}; // Maps course code to course_id
@@ -398,12 +399,18 @@ $courseIdBJson = json_encode($courseIdB);
             return null;
         }
 
+        // Deep copy helper function
+        function deepCopy(obj) {
+            return JSON.parse(JSON.stringify(obj));
+        }
+
         // Load existing due dates from database
         async function loadDueDates() {
             try {
                 // Clear existing allocations
                 Object.keys(dateTimeAllocations).forEach(key => {
                     dateTimeAllocations[key] = [];
+                    originalDateTimeAllocations[key] = [];
                 });
                 
                 const year = document.getElementById('yearFilter')?.value || '';
@@ -459,6 +466,11 @@ $courseIdBJson = json_encode($courseIdB);
                         dateTimeAllocations[tabKey].push(task);
                     });
                 }
+                
+                // Create backup of original data for cancel/reset functionality
+                Object.keys(dateTimeAllocations).forEach(key => {
+                    originalDateTimeAllocations[key] = deepCopy(dateTimeAllocations[key]);
+                });
                 
                 // Render all tables (will show empty state if no data)
                 courses.forEach(course => {
@@ -735,11 +747,11 @@ $courseIdBJson = json_encode($courseIdB);
                 <div class="modal-dialog">
                     <div class="modal-content-custom">
                         <span class="close-btn" onclick="closeResetModal()">&times;</span>
-                        <div class="modal-title-custom">Reset Allocations</div>
-                        <div class="modal-message">Are you sure you want to reset allocations for this tab?</div>
+                        <div class="modal-title-custom">Discard Changes</div>
+                        <div class="modal-message">Are you sure you want to discard all changes and restore the original data?</div>
                         <div style="margin-top:15px; display:flex; gap:10px; justify-content:flex-end;">
                             <button class="btn btn-light border" onclick="closeResetModal()">Cancel</button>
-                            <button class="btn btn-success" onclick="confirmReset()">Yes, Reset</button>
+                            <button class="btn btn-success" onclick="confirmReset()">Yes, Discard</button>
                         </div>
                     </div>
                 </div>`;
@@ -760,7 +772,13 @@ $courseIdBJson = json_encode($courseIdB);
                 return;
             }
 
-            dateTimeAllocations[pendingResetTab] = [];
+            // Restore from backup instead of clearing
+            if (originalDateTimeAllocations[pendingResetTab]) {
+                dateTimeAllocations[pendingResetTab] = deepCopy(originalDateTimeAllocations[pendingResetTab]);
+            } else {
+                dateTimeAllocations[pendingResetTab] = [];
+            }
+            
             renderAllocationTable(pendingResetTab);
             pendingResetTab = null;
             closeResetModal();
@@ -845,7 +863,7 @@ $courseIdBJson = json_encode($courseIdB);
                         successModal.style.display = 'flex';
                     }
                     
-                    // Reload data from database to get updated due_ids
+                    // Reload data from database to get updated due_ids and refresh backup
                     await loadDueDates();
                 } else {
                     alert('Error saving: ' + (data.error || 'Unknown error'));

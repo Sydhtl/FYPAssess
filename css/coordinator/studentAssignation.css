@@ -50,6 +50,26 @@
   display: flex;
   flex-direction: column;
   gap: 15px;
+  overflow: visible;
+  height: auto;
+  max-height: none;
+}
+
+/* Task List Area */
+.task-list-area {
+  display: block;
+  overflow: visible;
+  height: auto;
+  max-height: none;
+}
+
+/* Task Group */
+.task-group {
+  display: none;
+}
+
+.task-group.active {
+  display: block;
 }
 
 /* Top Action Bar */
@@ -76,9 +96,41 @@
   display: flex;
   gap: 10px;
   align-items: center;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   justify-content: flex-end;
   flex: 1 1 auto;
+}
+
+.button-group {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.button-group .btn,
+.button-group .btn-outline-dark,
+.button-group .download-dropdown {
+  flex: 1 1 auto;
+  min-width: 100px;
+}
+
+@media (max-width: 768px) {
+  .button-group {
+    width: 100%;
+    gap: 8px;
+  }
+  
+  .button-group .btn,
+  .button-group .btn-outline-dark,
+  .button-group .download-dropdown {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  
+  .button-group .download-dropdown .btn-download {
+    width: 100%;
+  }
 }
 
 .search-section {
@@ -134,6 +186,29 @@
   background-color: #f8f9fa;
 }
 
+.sort-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.sort-section .filter-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #666;
+}
+
+.sort-section .course-filter-dropdown .btn-download {
+  background-color: #fff;
+  color: #333;
+  border: 2px solid #ddd;
+}
+
+.sort-section .course-filter-dropdown .btn-download:hover {
+  background-color: #f8f9fa;
+}
+
 /* Scrollable Table Container */
 .table-scroll-container {
   width: 100%;
@@ -143,7 +218,9 @@
   background-color: white;
   border: 1px solid #e0e0e0;
   padding: 0;
-  position: relative; /* Establish stacking context */
+  position: relative;
+  height: auto;
+  max-height: none;
 }
 
 /* Ensure table cells don't expand when dropdown opens */
@@ -672,6 +749,22 @@
     flex: 1 1 100%;
   }
 
+  .button-group {
+    width: 100%;
+    gap: 8px;
+  }
+
+  .button-group .btn,
+  .button-group .btn-outline-dark,
+  .button-group .download-dropdown {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .button-group .download-dropdown .btn-download {
+    width: 100%;
+  }
+
   .right-actions {
     width: 100%;
     display: flex;
@@ -722,7 +815,7 @@
 
   .quota-table-container {
     height: auto;
-    min-height: 400px;
+    min-height: auto;
     max-height: none;
     padding: 15px;
   }
