@@ -547,8 +547,30 @@ try {
         // Get all student enrollments for these sessions
         if (!empty($fypSessionIds)) {
             $sessionPlaceholders = implode(',', array_fill(0, count($fypSessionIds), '?'));
+            
+            // Get the current year and semester from the first student to filter enrollments
+            $currentYear = '';
+            $currentSemester = '';
+            if (!empty($firstStudentId)) {
+                $currentSessionQuery = "SELECT fs.FYP_Session, fs.Semester 
+                                       FROM student s
+                                       JOIN fyp_session fs ON s.FYP_Session_ID = fs.FYP_Session_ID
+                                       WHERE s.Student_ID = ? LIMIT 1";
+                $stmtCurrentSession = $conn->prepare($currentSessionQuery);
+                if ($stmtCurrentSession) {
+                    $stmtCurrentSession->bind_param("s", $firstStudentId);
+                    $stmtCurrentSession->execute();
+                    $currentSessionResult = $stmtCurrentSession->get_result();
+                    if ($currentSessionRow = $currentSessionResult->fetch_assoc()) {
+                        $currentYear = $currentSessionRow['FYP_Session'] ?? '';
+                        $currentSemester = $currentSessionRow['Semester'] ?? '';
+                    }
+                    $stmtCurrentSession->close();
+                }
+            }
+            
             $enrollmentQuery = "
-                SELECT se.Student_ID, se.Supervisor_ID, se.Assessor_ID_1, se.Assessor_ID_2,
+                SELECT DISTINCT se.Student_ID, se.Supervisor_ID, se.Assessor_ID_1, se.Assessor_ID_2,
                        s.Student_Name,
                        sup.Lecturer_ID as Supervisor_Lecturer_ID,
                        a1.Lecturer_ID as Assessor1_Lecturer_ID,
@@ -558,19 +580,30 @@ try {
                        l3.Lecturer_Name as Assessor2_Name
                 FROM student_enrollment se
                 JOIN student s ON se.Student_ID = s.Student_ID
+                JOIN fyp_session fs ON se.Fyp_Session_ID = fs.FYP_Session_ID
                 LEFT JOIN supervisor sup ON se.Supervisor_ID = sup.Supervisor_ID
                 LEFT JOIN lecturer l1 ON sup.Lecturer_ID = l1.Lecturer_ID
                 LEFT JOIN assessor a1 ON se.Assessor_ID_1 = a1.Assessor_ID
                 LEFT JOIN lecturer l2 ON a1.Lecturer_ID = l2.Lecturer_ID
                 LEFT JOIN assessor a2 ON se.Assessor_ID_2 = a2.Assessor_ID
                 LEFT JOIN lecturer l3 ON a2.Lecturer_ID = l3.Lecturer_ID
-                WHERE se.Fyp_Session_ID IN ($sessionPlaceholders)
-            ";
+                WHERE se.Fyp_Session_ID IN ($sessionPlaceholders)";
+            
+            // Add filter for current year and semester if available
+            if (!empty($currentYear) && !empty($currentSemester)) {
+                $enrollmentQuery .= " AND fs.FYP_Session = ? AND fs.Semester = ?";
+            }
             
             $stmtEnroll = $conn->prepare($enrollmentQuery);
             if ($stmtEnroll) {
-                $types = str_repeat('i', count($fypSessionIds));
-                $stmtEnroll->bind_param($types, ...$fypSessionIds);
+                if (!empty($currentYear) && !empty($currentSemester)) {
+                    $types = str_repeat('i', count($fypSessionIds)) . 'ss';
+                    $params = array_merge($fypSessionIds, [$currentYear, $currentSemester]);
+                    $stmtEnroll->bind_param($types, ...$params);
+                } else {
+                    $types = str_repeat('i', count($fypSessionIds));
+                    $stmtEnroll->bind_param($types, ...$fypSessionIds);
+                }
                 $stmtEnroll->execute();
                 $enrollResult = $stmtEnroll->get_result();
                 
