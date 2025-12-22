@@ -105,31 +105,54 @@
   display: flex;
   gap: 10px;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
 .button-group .btn,
 .button-group .btn-outline-dark,
 .button-group .download-dropdown {
-  flex: 1 1 auto;
-  min-width: 100px;
+  flex: 0 0 auto;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: fit-content;
+}
+
+.button-group .follow-quota-btn {
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px 16px;
+  font-family: 'Montserrat', Arial, sans-serif;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: fit-content;
 }
 
 @media (max-width: 768px) {
   .button-group {
-    width: 100%;
-    gap: 8px;
+    gap: 6px;
+    flex-wrap: nowrap;
   }
   
   .button-group .btn,
   .button-group .btn-outline-dark,
   .button-group .download-dropdown {
-    flex: 1 1 auto;
-    min-width: 0;
+    flex: 0 0 auto;
+    font-size: 11px !important;
+    padding: 7px 10px !important;
+    width: fit-content;
+  }
+  
+  .button-group .follow-quota-btn {
+    font-size: 11px !important;
+    padding: 7px 10px !important;
+    width: fit-content;
   }
   
   .button-group .download-dropdown .btn-download {
-    width: 100%;
+    width: auto;
+    font-size: 12px !important;
+    padding: 8px 12px !important;
   }
 }
 
