@@ -68,6 +68,9 @@ $courseCodeB = !empty($courses[1]) ? $courses[1]['Course_Code'] : 'SWE4949-B';
 $courseIdA = !empty($courses[0]) ? $courses[0]['Course_ID'] : null;
 $courseIdB = !empty($courses[1]) ? $courses[1]['Course_ID'] : null;
 
+// Display base course code without section suffix (e.g., SWE4949-A -> SWE4949)
+$baseCourseCode = $courseCodeA ? preg_replace('/[-_ ]?[A-Za-z]$/', '', $courseCodeA) : '';
+
 // Fetch assessments for each course
 $assessmentsA = [];
 $assessmentsB = [];
@@ -190,7 +193,7 @@ $courseIdBJson = json_encode($courseIdB);
                 <div id="containerFYPAssess">FYPAssess</div>
             </div>
             <div id="course-session">
-                <div id="courseCode"><?php echo htmlspecialchars($displayCourseCode); ?></div>
+                <div id="courseCode"><?php echo htmlspecialchars($baseCourseCode ?: $courseCodeA); ?></div>
                 <div id="courseSession"><?php echo htmlspecialchars($selectedYear . ' - ' . $selectedSemester); ?></div>
             </div>
         </div>

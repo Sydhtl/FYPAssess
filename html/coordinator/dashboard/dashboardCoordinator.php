@@ -125,6 +125,7 @@ $firstCourseStudentCount = 0;
 $secondCourseStudentCount = 0;
 $firstCourseCode = '';
 $secondCourseCode = '';
+$baseCourseCode = '';
 $totalLecturers = 0;
 
 // -------------------------
@@ -148,6 +149,9 @@ if ($departmentId !== null) {
             }
         }
         $courseStmt->close();
+    }
+    if (!empty($courses)) {
+        $baseCourseCode = preg_replace('/[-_ ]?[A-Za-z]$/', '', $courses[0]['code']);
     }
     
     // Get student counts for first and second courses
@@ -722,8 +726,8 @@ if ($departmentId !== null) {
                 <div id="containerFYPAssess">FYPAssess</div>
             </div>
             <div id="course-session">
-                <div id="courseCode">SWE4949</div>
-                <div id="courseSession">2024/2025 - 2</div>
+                <div id="courseCode"><?php echo htmlspecialchars($baseCourseCode ?: $firstCourseCode); ?></div>
+                <div id="courseSession"><?php echo htmlspecialchars($currentYear . ' - ' . $currentSemester); ?></div>
             </div>
         </div>
     </div>
@@ -765,6 +769,9 @@ if ($departmentId !== null) {
                         <?php foreach ($courseCharts as $idx => $course): ?>
                             <button class="task-tab" data-tab="course-<?php echo $idx; ?>"><?php echo htmlspecialchars($course['course_code']); ?></button>
                         <?php endforeach; ?>
+                    </div>
+                    <div class="graph-hover-hint">Hover over the chart to see overall status.
+                        <br><br>Click on the chart to see detailed assessment status.
                     </div>
                     <div class="task-list-area">
 

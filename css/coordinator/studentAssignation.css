@@ -577,11 +577,12 @@
 }
 
 .filters-section {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 15px;
+  display: flex;
+  gap: 20px;
   margin-bottom: 20px;
-  align-items: end;
+  align-items: flex-end;
+  max-width: 100%;
+  width: 100%;
 }
 
 .filter-group {
@@ -593,7 +594,8 @@
 .filter-group label {
   font-size: 14px;
   font-weight: 600;
-  color: #666;
+  color: #333;
+  font-family: 'Montserrat', Arial, sans-serif;
 }
 
 .filter-group select,
@@ -689,6 +691,10 @@
 
   .course-filter-section .btn-download {
     width: 100%;
+    justify-content: space-between;
+  }
+
+  .sort-section .course-filter-dropdown .btn-download {
     justify-content: space-between;
   }
 
@@ -886,6 +892,31 @@
     width: 100%;
   }
 
+  .course-filter-section {
+    width: 100%;
+  }
+
+  .course-filter-dropdown {
+    width: 100%;
+  }
+
+  .course-filter-dropdown .btn-download {
+    width: 100%;
+  }
+
+  .sort-section {
+    width: 100%;
+  }
+
+  .sort-section .course-filter-dropdown {
+    width: 100%;
+  }
+
+  .sort-section .course-filter-dropdown .btn-download {
+    width: 100%;
+    justify-content: space-between;
+  }
+
   .right-actions {
     display: flex;
     gap: 8px;
@@ -974,6 +1005,14 @@
     width: 55px;
     padding: 6px 4px;
     font-size: 11px;
+  }
+  
+  /* Left-align date and time inputs on small screens */
+  input[type="date"],
+  input[type="time"],
+  .assessment-date-input,
+  .assessment-time-input {
+    text-align: left !important;
   }
   
   /* Ensure dropdowns don't exceed container width on small screens */

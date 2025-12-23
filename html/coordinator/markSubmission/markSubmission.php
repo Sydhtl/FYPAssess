@@ -70,6 +70,10 @@ foreach ($courses as $course) {
     ];
 }
 
+// Use the first course code as the base display (strip trailing section letter)
+$courseCodeA = !empty($courses[0]) ? $courses[0]['Course_Code'] : '';
+$baseCourseCode = $courseCodeA ? preg_replace('/[-_ ]?[A-Za-z]$/', '', $courseCodeA) : '';
+
 // Pass course mapping and filter values to JavaScript
 $courseMappingJson = json_encode($courseMapping);
 $selectedYearJson = json_encode($selectedYear ?? '');
@@ -162,8 +166,8 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
                 <div id="containerFYPAssess">FYPAssess</div>
             </div>
             <div id="course-session">
-                <div id="courseCode">SWE4949</div>
-                <div id="courseSession">2024/2025 - 2</div>
+                <div id="courseCode"><?php echo htmlspecialchars($baseCourseCode ?: $courseCodeA); ?></div>
+                <div id="courseSession"><?php echo htmlspecialchars(($selectedYear ?? '') . ' - ' . ($selectedSemester ?? '')); ?></div>
             </div>
         </div>
     </div>

@@ -1,4 +1,11 @@
 <?php include '../../../php/coordinator_bootstrap.php'; ?>
+<?php
+// Derive base course code (strip trailing section letter if present)
+$baseCourseCode = '';
+if (!empty($displayCourseCode)) {
+    $baseCourseCode = preg_replace('/[-_ ]?[A-Za-z]$/', '', $displayCourseCode);
+}
+?>
 <script>
 // Prevent back button after logout
 window.history.pushState(null, "", window.location.href);
@@ -113,7 +120,7 @@ setInterval(validateSession, 10000);
                 <div id="containerFYPAssess">FYPAssess</div>
             </div>
             <div id="course-session">
-                <div id="courseCode"><?php echo htmlspecialchars($displayCourseCode); ?></div>
+                <div id="courseCode"><?php echo htmlspecialchars($baseCourseCode ?: $displayCourseCode); ?></div>
                 <div id="courseSession"><?php echo htmlspecialchars($selectedYear . ' - ' . $selectedSemester); ?></div>
             </div>
         </div>

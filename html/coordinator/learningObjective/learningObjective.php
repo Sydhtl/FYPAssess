@@ -67,6 +67,15 @@ if ($coordinatorDepartmentId) {
     }
 }
 
+// Derive base course code from first course (strip trailing section letter)
+$baseCourseCode = '';
+if (!empty($courseData)) {
+    $firstCourse = reset($courseData);
+    if (!empty($firstCourse['Course_Code'])) {
+        $baseCourseCode = preg_replace('/[-_ ]?[A-Za-z]$/', '', $firstCourse['Course_Code']);
+    }
+}
+
 // Fetch learning objective allocation data with all related information
 $learningObjectiveData = [];
 if ($coordinatorDepartmentId) {
@@ -276,7 +285,7 @@ if ($coordinatorDepartmentId) {
                 <div id="containerFYPAssess">FYPAssess</div>
             </div>
             <div id="course-session">
-                <div id="courseCode"><?php echo htmlspecialchars($displayCourseCode); ?></div>
+                <div id="courseCode"><?php echo htmlspecialchars($baseCourseCode); ?></div>
                 <div id="courseSession"><?php echo htmlspecialchars($selectedYear . ' - ' . $selectedSemester); ?></div>
             </div>
         </div>

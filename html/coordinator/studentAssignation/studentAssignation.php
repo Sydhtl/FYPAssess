@@ -60,6 +60,34 @@ if ($stmt = $conn->prepare("SELECT Lecturer_Name FROM lecturer WHERE Lecturer_ID
     $stmt->close();
 }
 
+// Get coordinator department and base course code (strip trailing section letter)
+$departmentId = null;
+if ($stmt = $conn->prepare("SELECT Department_ID FROM lecturer WHERE Lecturer_ID = ? LIMIT 1")) {
+    $stmt->bind_param("s", $userId);
+    if ($stmt->execute()) {
+        $res = $stmt->get_result();
+        if ($row = $res->fetch_assoc()) {
+            $departmentId = $row['Department_ID'];
+        }
+    }
+    $stmt->close();
+}
+
+$baseCourseCode = '';
+if ($departmentId) {
+    if ($stmt = $conn->prepare("SELECT Course_Code FROM course WHERE Department_ID = ? ORDER BY Course_Code LIMIT 1")) {
+        $stmt->bind_param("i", $departmentId);
+        if ($stmt->execute()) {
+            $res = $stmt->get_result();
+            if ($row = $res->fetch_assoc()) {
+                $firstCourseCode = $row['Course_Code'];
+                $baseCourseCode = preg_replace('/[-_ ]?[A-Za-z]$/', '', $firstCourseCode);
+            }
+        }
+        $stmt->close();
+    }
+}
+
 // Get filter values from URL or set defaults
 $selectedYear = isset($_GET['year']) ? $_GET['year'] : '';
 $selectedSemester = isset($_GET['semester']) ? $_GET['semester'] : '';
@@ -392,8 +420,8 @@ $assessorDataJson = json_encode($assessorData);
                 <div id="containerFYPAssess">FYPAssess</div>
             </div>
             <div id="course-session">
-                <div id="courseCode">SWE4949</div>
-                <div id="courseSession">2024/2025 - 2</div>
+                <div id="courseCode"><?php echo htmlspecialchars($baseCourseCode); ?></div>
+                <div id="courseSession"><?php echo htmlspecialchars(($selectedYear ?? '') . ' - ' . ($selectedSemester ?? '')); ?></div>
             </div>
         </div>
     </div>
@@ -405,7 +433,7 @@ $assessorDataJson = json_encode($assessorData);
         <div class="filters-section">
             <div class="filter-group">
                 <label for="yearFilter">Year</label>
-                <select id="yearFilter" onchange="reloadPageWithFilters()">
+                <select id="yearFilter" class="filter-select" onchange="reloadPageWithFilters()">
                     <?php foreach ($yearOptions as $year): ?>
                         <option value="<?php echo htmlspecialchars($year); ?>" 
                                 <?php echo ($year == $selectedYear) ? 'selected' : ''; ?>>
@@ -416,7 +444,7 @@ $assessorDataJson = json_encode($assessorData);
             </div>
             <div class="filter-group">
                 <label for="semesterFilter">Semester</label>
-                <select id="semesterFilter" onchange="reloadPageWithFilters()">
+                <select id="semesterFilter" class="filter-select" onchange="reloadPageWithFilters()">
                     <?php foreach ($semesterOptions as $semester): ?>
                         <option value="<?php echo htmlspecialchars($semester); ?>" 
                                 <?php echo ($semester == $selectedSemester) ? 'selected' : ''; ?>>
