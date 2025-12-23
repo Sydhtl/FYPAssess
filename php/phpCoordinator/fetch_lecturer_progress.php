@@ -153,10 +153,37 @@ try {
     }
 
     // Gather evaluations for all students in session/course
-    $allStudentIds = array_unique(array_merge(
-        array_merge(...array_values($studentsBySupervisor ?: [[]])),
-        array_merge(...array_values($studentsByAssessor ?: [[]]))
-    ));
+    // Collect all student IDs involved for later lookups (names and status)
+    $allStudentIds = [];
+    foreach ($studentsBySupervisor as $list) {
+        foreach ($list as $sid) {
+            $allStudentIds[] = $sid;
+        }
+    }
+    foreach ($studentsByAssessor as $list) {
+        foreach ($list as $sid) {
+            $allStudentIds[] = $sid;
+        }
+    }
+    $allStudentIds = array_values(array_unique($allStudentIds));
+
+    // Fetch student names for all relevant IDs
+    $studentInfo = [];
+    if (!empty($allStudentIds)) {
+        $placeholders = implode(',', array_fill(0, count($allStudentIds), '?'));
+        $studentQuery = "SELECT Student_ID, Student_Name FROM student WHERE Student_ID IN ($placeholders)";
+        $studentStmt = $conn->prepare($studentQuery);
+        if ($studentStmt) {
+            $types = str_repeat('s', count($allStudentIds));
+            $studentStmt->bind_param($types, ...$allStudentIds);
+            $studentStmt->execute();
+            $studentRes = $studentStmt->get_result();
+            while ($row = $studentRes->fetch_assoc()) {
+                $studentInfo[$row['Student_ID']] = $row['Student_Name'];
+            }
+            $studentStmt->close();
+        }
+    }
     $evaluationStatus = [];
     if (!empty($allStudentIds)) {
         $placeholders = implode(',', array_fill(0, count($allStudentIds), '?'));
@@ -195,7 +222,9 @@ try {
             'name' => $name,
             'supervisor_id' => $supId,
             'assessor_ids' => [],
-            'status' => ['Supervisor' => [], 'Assessor' => []]
+            'status' => ['Supervisor' => [], 'Assessor' => []],
+            'students_supervise' => [],
+            'students_assess' => []
         ];
     }
     foreach ($assessors as $assId => $name) {
@@ -207,10 +236,45 @@ try {
                 'name' => $name,
                 'supervisor_id' => null,
                 'assessor_ids' => [$assId],
-                'status' => ['Supervisor' => [], 'Assessor' => []]
+                'status' => ['Supervisor' => [], 'Assessor' => []],
+                'students_supervise' => [],
+                'students_assess' => []
             ];
         }
     }
+
+    // Attach student lists (with names) per lecturer
+    foreach ($lecturers as &$lec) {
+        // Supervised students
+        $supList = [];
+        if ($lec['supervisor_id'] && isset($studentsBySupervisor[$lec['supervisor_id']])) {
+            foreach ($studentsBySupervisor[$lec['supervisor_id']] as $sid) {
+                $supList[] = [
+                    'id' => $sid,
+                    'name' => $studentInfo[$sid] ?? $sid
+                ];
+            }
+        }
+        $lec['students_supervise'] = $supList;
+
+        // Assessed students (merge unique across assessor IDs)
+        $assessedIds = [];
+        foreach ($lec['assessor_ids'] as $aid) {
+            if (!empty($studentsByAssessor[$aid])) {
+                $assessedIds = array_merge($assessedIds, $studentsByAssessor[$aid]);
+            }
+        }
+        $assessedIds = array_values(array_unique($assessedIds));
+        $assList = [];
+        foreach ($assessedIds as $sid) {
+            $assList[] = [
+                'id' => $sid,
+                'name' => $studentInfo[$sid] ?? $sid
+            ];
+        }
+        $lec['students_assess'] = $assList;
+    }
+    unset($lec);
 
     // Helper to check completion
     $isComplete = function($role, $roleId, $assessmentId) use ($evaluationStatus, $criteriaByAssessment, $studentsBySupervisor, $studentsByAssessor) {

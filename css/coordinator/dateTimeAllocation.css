@@ -17,6 +17,8 @@
   gap: 20px;
   margin-bottom: 20px;
   flex-wrap: wrap;
+  max-width: 100%;
+  width: 100%;
 }
 
 .filter-group {
@@ -27,15 +29,29 @@
 
 .filter-group label {
   font-weight: 600;
-  color: #555;
+  color: #333;
+  font-family: 'Montserrat', Arial, sans-serif;
 }
 
 .filter-select {
-  min-width: 160px;
+  min-width: 150px;
   padding: 8px 12px;
-  border-radius: 6px;
-  border: 1px solid #ccc;
+  border-radius: 8px;
+  border: 2px solid #ddd;
   background-color: #fff;
+  font-size: 14px;
+  font-family: 'Montserrat', Arial, sans-serif;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.filter-select:focus {
+  outline: none;
+  border-color: #780000;
+}
+
+.filter-select:hover {
+  border-color: #999;
 }
 
 .allocation-container {
@@ -336,6 +352,23 @@
 .allocation-footer .actions .btn {
   font-weight: 600;
   padding: 8px 16px;
+}
+
+@media (max-width: 768px) {
+  .filters-section {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  .filter-group {
+    width: 100%;
+  }
+
+  .filter-select {
+    width: 100%;
+  }
 }
 
 @media (max-width: 768px) {

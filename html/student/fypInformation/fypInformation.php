@@ -2,6 +2,12 @@
 include '../../../php/mysqlConnect.php';
 session_start();
 
+// Prevent caching to avoid back button access after logout
+header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+header("Cache-Control: post-check=0, pre-check=0", false);
+header("Pragma: no-cache");
+header("Expires: Sat, 26 Jul 1997 05:00:00 GMT");
+
 // Check if user is logged in
 if (!isset($_SESSION['upmId']) || $_SESSION['role'] !== 'Student') {
     header("Location: ../../login/Login.php");
@@ -73,14 +79,15 @@ $semesterDisplay = $semesterRaw . '-' . $fypSession;
 
 // --- Ensure Project_Title is updated when Approved ---
 if ($titleStatus === 'Approved' && !empty($proposedTitle)) {
-    // If Approved, copy Proposed_Title into Project_Title (idempotent)
-    $updateApproved = $conn->prepare("UPDATE fyp_project SET Project_Title = Proposed_Title WHERE Student_ID = ?");
+    // If Approved, move Proposed_Title into Project_Title and clear Proposed_Title
+    $updateApproved = $conn->prepare("UPDATE fyp_project SET Project_Title = Proposed_Title, Proposed_Title = NULL WHERE Student_ID = ?");
     if ($updateApproved) {
         $updateApproved->bind_param("s", $studentId);
         $updateApproved->execute();
         $updateApproved->close();
-        // Refresh $projectTitle from DB context without requery: use proposedTitle as the current title
+        // Update local variables for UI without requery
         $projectTitle = $proposedTitle;
+        $proposedTitle = '';
     }
 }
 
@@ -204,7 +211,7 @@ if ($commentStmt) {
             <a href="../notification/notification.php" id="notification"><i class="bi bi-bell-fill" style="padding-right: 10px;"></i>Notification</a>
             <a href="../signatureUpload/signatureUpload.php" id="signatureSubmission"><i class="bi bi-pen-fill" style="padding-right: 10px;"></i>Signature Submission</a>
           
-            <a href="../../login/login.php" id="logout">
+            <a href="../../logout.php" id="logout">
                 <i class="bi bi-box-arrow-left" style="padding-right: 10px;"></i> Logout
             </a>
         </div>
@@ -845,6 +852,154 @@ if ($commentStmt) {
             `;
             document.head.appendChild(style);
         }
+
+        // --- REAL-TIME FYP INFORMATION UPDATES ---
+        var fypInfoUpdateInterval = null;
+        var currentFypInfoHash = '';
+
+        function getFypInfoHash(info) {
+            try {
+                return JSON.stringify({
+                    projectTitle: info.student?.projectTitle || '',
+                    proposedTitle: info.student?.proposedTitle || '',
+                    titleStatus: info.student?.titleStatus || '',
+                    commentsCount: Array.isArray(info.comments) ? info.comments.length : 0
+                });
+            } catch (e) {
+                return '';
+            }
+        }
+
+        function escapeHtml(text) {
+            var div = document.createElement('div');
+            div.textContent = text == null ? '' : String(text);
+            return div.innerHTML;
+        }
+
+        function updatePendingContainerUI(titleStatus, proposedTitle) {
+            var container = document.getElementById('pendingContainer');
+            var labelEl = container ? container.querySelector('.pending-label') : null;
+            var pendingTextEl = document.getElementById('pendingTitleText');
+
+            var statusLower = (titleStatus || '').toLowerCase();
+            var isApproved = statusLower === 'approved' || statusLower.includes('approved');
+            var isRejected = statusLower === 'rejected' || statusLower.includes('rejected');
+            var isWaiting = statusLower === 'waiting for approval' || statusLower.includes('waiting');
+
+            var showBox = !!titleStatus && (proposedTitle || isRejected || isWaiting || isApproved);
+            if (!container) return;
+
+            container.style.display = showBox ? 'block' : 'none';
+            container.style.border = '1px solid ' + (isApproved ? '#2e7d32' : (isRejected ? '#c62828' : '#999'));
+            container.style.backgroundColor = (isApproved ? '#e8f5e9' : (isRejected ? '#ffebee' : '#fffbea'));
+            container.style.borderLeftWidth = '6px';
+
+            if (labelEl) {
+                labelEl.style.color = isApproved ? '#2e7d32' : (isRejected ? '#c62828' : 'inherit');
+                var icon = isApproved ? '<i class="bi bi-check-circle-fill"></i>' : (isRejected ? '<i class="bi bi-x-circle-fill"></i>' : '<i class="bi bi-hourglass-split"></i>');
+                var statusText = isApproved ? 'Proposed Title Accepted' : (isRejected ? 'Proposed Title Rejected' : 'Proposed Title (Under Consideration)');
+                labelEl.innerHTML = icon + ' ' + escapeHtml(statusText);
+            }
+
+            if (pendingTextEl) {
+                var shouldShowProposed = !isApproved && !!proposedTitle;
+                pendingTextEl.style.display = shouldShowProposed ? 'block' : 'none';
+                pendingTextEl.innerHTML = shouldShowProposed ? escapeHtml(proposedTitle) : '';
+                // Append helper note for Waiting status
+                if (shouldShowProposed && isWaiting) {
+                    // Ensure a helper note exists (non-disruptive)
+                    var note = container.querySelector('.pending-helper-note');
+                    if (!note) {
+                        note = document.createElement('small');
+                        note.className = 'text-muted pending-helper-note';
+                        container.appendChild(note);
+                    }
+                    note.textContent = 'This title will replace the current title once approved by your supervisor.';
+                } else {
+                    var noteEl = container.querySelector('.pending-helper-note');
+                    if (noteEl) noteEl.remove();
+                }
+            }
+        }
+
+        function applyFypInfoToUI(info) {
+            if (!info || !info.success || !info.student) return;
+            var s = info.student;
+            var fypTitleTextarea = document.getElementById('fypTitle');
+            if (fypTitleTextarea) {
+                fypTitleTextarea.value = s.projectTitle || 'No title assigned';
+            }
+            updatePendingContainerUI(s.titleStatus || '', s.proposedTitle || '');
+
+            // Update comments data for PDF exporter
+            if (Array.isArray(info.comments)) {
+                commentsData = info.comments;
+            }
+        }
+
+        function fetchFypInfo() {
+            fetch('../../../php/phpStudent/fetch_fyp_info.php')
+                .then(function(response) { return response.json(); })
+                .then(function(data) {
+                    var newHash = getFypInfoHash(data);
+                    if (newHash !== currentFypInfoHash) {
+                        currentFypInfoHash = newHash;
+                        applyFypInfoToUI(data);
+                    }
+                })
+                .catch(function(err) { console.error('Error fetching FYP info:', err); });
+        }
+
+        function startFypInfoPolling() {
+            fetchFypInfo();
+            fypInfoUpdateInterval = setInterval(fetchFypInfo, 5000);
+        }
+
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                if (fypInfoUpdateInterval) { clearInterval(fypInfoUpdateInterval); fypInfoUpdateInterval = null; }
+            } else {
+                if (!fypInfoUpdateInterval) { startFypInfoPolling(); }
+            }
+        });
+
+        // Initialize current hash from server-rendered PHP values
+        (function initFypInfoRealtime() {
+            var initial = {
+                success: true,
+                student: {
+                    projectTitle: <?php echo json_encode($projectTitle); ?>,
+                    proposedTitle: <?php echo json_encode($proposedTitle); ?>,
+                    titleStatus: <?php echo json_encode($titleStatus); ?>
+                },
+                comments: <?php echo json_encode($commentsData); ?>
+            };
+            currentFypInfoHash = getFypInfoHash(initial);
+            startFypInfoPolling();
+        })();
+
+        // Check session validity on page load and periodically
+        function validateSession() {
+            fetch('../../../php/check_session_alive.php')
+                .then(function(resp){ return resp.json(); })
+                .then(function(data){
+                    if (!data.valid) {
+                        // Session is invalid, redirect to login
+                        window.location.href = '../../login/Login.php';
+                    }
+                })
+                .catch(function(err){
+                    // If we can't reach the server, assume session is invalid
+                    console.warn('Session validation failed:', err);
+                    window.location.href = '../../login/Login.php';
+                });
+        }
+
+        // Validate session on page load
+        window.addEventListener('load', validateSession);
+
+        // Also check every 10 seconds
+        setInterval(validateSession, 10000);
     };
     </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
