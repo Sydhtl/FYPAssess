@@ -1,5 +1,20 @@
 <?php
+// Prevent caching to stop back button access after logout
+header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+header("Cache-Control: post-check=0, pre-check=0", false);
+header("Pragma: no-cache");
+header("Expires: Sat, 26 Jul 1997 05:00:00 GMT");
+
 include '../../../php/coordinator_bootstrap.php';
+?>
+<script>
+// Prevent back button after logout
+window.history.pushState(null, "", window.location.href);
+window.onpopstate = function() {
+    window.history.pushState(null, "", window.location.href);
+};
+</script>
+<?php
 
 // -------------------------
 // Coordinator context & session
@@ -110,6 +125,7 @@ $firstCourseStudentCount = 0;
 $secondCourseStudentCount = 0;
 $firstCourseCode = '';
 $secondCourseCode = '';
+$baseCourseCode = '';
 $totalLecturers = 0;
 
 // -------------------------
@@ -133,6 +149,9 @@ if ($departmentId !== null) {
             }
         }
         $courseStmt->close();
+    }
+    if (!empty($courses)) {
+        $baseCourseCode = preg_replace('/[-_ ]?[A-Za-z]$/', '', $courses[0]['code']);
     }
     
     // Get student counts for first and second courses
@@ -600,6 +619,36 @@ if ($departmentId !== null) {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <script>
+    // Prevent back button after logout
+    window.history.pushState(null, "", window.location.href);
+    window.onpopstate = function() {
+        window.history.pushState(null, "", window.location.href);
+    };
+
+    // Check session validity on page load and periodically
+    function validateSession() {
+        fetch('../../../php/check_session_alive.php')
+            .then(function(resp){ return resp.json(); })
+            .then(function(data){
+                if (!data.valid) {
+                    // Session is invalid, redirect to login
+                    window.location.href = '../../login/Login.php';
+                }
+            })
+            .catch(function(err){
+                // If we can't reach the server, assume session is invalid
+                console.warn('Session validation failed:', err);
+                window.location.href = '../../login/Login.php';
+            });
+    }
+
+    // Validate session on page load
+    window.addEventListener('load', validateSession);
+
+    // Also check every 10 seconds
+    setInterval(validateSession, 10000);
+    </script>
 </head>
 <body>
 
@@ -621,13 +670,13 @@ if ($departmentId !== null) {
             </a>
 
             <div id="supervisorMenu" class="menu-items">
-                <a href="#" id="dashboard"><i class="bi bi-house-fill icon-padding"></i> Dashboard</a>
-                <a href="#" id="Notification"><i class="bi bi-bell-fill icon-padding"></i> Notification</a>
-                <a href="#" id="industryCollaboration"><i class="bi bi-file-earmark-text-fill icon-padding"></i>
+                <a href="../../../php/phpSupervisor/dashboard.php" id="dashboard"><i class="bi bi-house-fill icon-padding"></i> Dashboard</a>
+                <a href="../../../php/phpSupervisor/notification.php" id="Notification"><i class="bi bi-bell-fill icon-padding"></i> Notification</a>
+                <a href="../../../php/phpSupervisor/industrey%20collaboration.php" id="industryCollaboration"><i class="bi bi-file-earmark-text-fill icon-padding"></i>
                     Industry Collaboration</a>
-                <a href="#" id="evaluationForm"><i class="bi bi-file-earmark-text-fill icon-padding"></i> Evaluation Form</a>
-                <a href="#" id="superviseesReport"><i class="bi bi-bar-chart-fill icon-padding"></i> Supervisees' Report</a>
-                <a href="#" id="logbookSubmission"><i class="bi bi-calendar-check-fill icon-padding"></i> Logbook Submission</a>
+                <a href="../../../php/phpAssessor_Supervisor/evaluation_form.php" id="evaluationForm"><i class="bi bi-file-earmark-text-fill icon-padding"></i> Evaluation Form</a>
+                <a href="../../../php/phpSupervisor/report.php" id="superviseesReport"><i class="bi bi-bar-chart-fill icon-padding"></i> Supervisees' Report</a>
+                <a href="../../../php/phpSupervisor/logbook_submission.php" id="logbookSubmission"><i class="bi bi-calendar-check-fill icon-padding"></i> Logbook Submission</a>
             </div>
 
             <a href="#assessorMenu" class="role-header" data-role="assessor">
@@ -638,9 +687,9 @@ if ($departmentId !== null) {
             </a>
 
             <div id="assessorMenu" class="menu-items">
-                <a href="#" id="Dashboard"><i class="bi bi-house-fill icon-padding"></i> Dashboard</a>
-                <a href="#" id="Notification"><i class="bi bi-bell-fill icon-padding"></i> Notification</a>
-                <a href="#" id="EvaluationForm"><i class="bi bi-file-earmark-text-fill icon-padding"></i> Evaluation Form</a>
+                <a href="../../../php/phpAssessor/dashboard.php" id="Dashboard"><i class="bi bi-house-fill icon-padding"></i> Dashboard</a>
+                <a href="../../../php/phpAssessor/notification.php" id="Notification"><i class="bi bi-bell-fill icon-padding"></i> Notification</a>
+                <a href="../../../php/phpAssessor_Supervisor/evaluation_form.php" id="EvaluationForm"><i class="bi bi-file-earmark-text-fill icon-padding"></i> Evaluation Form</a>
             </div>
 
             <a href="#coordinatorMenu" class="role-header active-role menu-expanded" data-role="coordinator">
@@ -660,7 +709,7 @@ if ($departmentId !== null) {
                 <a href="../dateTimeAllocation/dateTimeAllocation.php" id="dateTimeAllocation"><i class="bi bi-calendar-event-fill icon-padding"></i> Date and Time Allocation</a>
             </div>
 
-            <a href="../../login/login.php" id="logout">
+            <a href="../../logout.php" id="logout">
                 <i class="bi bi-box-arrow-left" style="padding-right: 10px;"></i> Logout
             </a>
         </div>
@@ -677,8 +726,8 @@ if ($departmentId !== null) {
                 <div id="containerFYPAssess">FYPAssess</div>
             </div>
             <div id="course-session">
-                <div id="courseCode">SWE4949</div>
-                <div id="courseSession">2024/2025 - 2</div>
+                <div id="courseCode"><?php echo htmlspecialchars($baseCourseCode ?: $firstCourseCode); ?></div>
+                <div id="courseSession"><?php echo htmlspecialchars($currentYear . ' - ' . $currentSemester); ?></div>
             </div>
         </div>
     </div>
@@ -720,6 +769,9 @@ if ($departmentId !== null) {
                         <?php foreach ($courseCharts as $idx => $course): ?>
                             <button class="task-tab" data-tab="course-<?php echo $idx; ?>"><?php echo htmlspecialchars($course['course_code']); ?></button>
                         <?php endforeach; ?>
+                    </div>
+                    <div class="graph-hover-hint">Hover over the chart to see overall status.
+                        <br><br>Click on the chart to see detailed assessment status.
                     </div>
                     <div class="task-list-area">
 

@@ -2,6 +2,12 @@
 include '../../../php/mysqlConnect.php';
 session_start();
 
+// Prevent caching to avoid back button access after logout
+header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+header("Cache-Control: post-check=0, pre-check=0", false);
+header("Pragma: no-cache");
+header("Expires: Sat, 26 Jul 1997 05:00:00 GMT");
+
 if (!isset($_SESSION['upmId']) || $_SESSION['role'] !== 'Student') {
     header("Location: ../../login/Login.php");
     exit();
@@ -61,7 +67,7 @@ $fypSession = $student['FYP_Session'] ?? 'N/A';
             <a href="../notification/notification.php" id="notification"><i class="bi bi-bell-fill" style="padding-right: 10px;"></i>Notification</a>
             <a href="./signatureUpload.php" id="signatureSubmission" class="focus"><i class="bi bi-pen-fill" style="padding-right: 10px;"></i>Signature Submission</a>
           
-            <a href="../../login/login.php" id="logout">
+            <a href="../../logout.php" id="logout">
                 <i class="bi bi-box-arrow-left" style="padding-right: 10px;"></i> Logout
             </a>
         </div>
@@ -344,6 +350,29 @@ $fypSession = $student['FYP_Session'] ?? 'N/A';
                 // No existing signature; keep prompt
             });
     };
+
+    // Check session validity on page load and periodically
+    function validateSession() {
+        fetch('../../../php/check_session_alive.php')
+            .then(function(resp){ return resp.json(); })
+            .then(function(data){
+                if (!data.valid) {
+                    // Session is invalid, redirect to login
+                    window.location.href = '../../login/Login.php';
+                }
+            })
+            .catch(function(err){
+                // If we can't reach the server, assume session is invalid
+                console.warn('Session validation failed:', err);
+                window.location.href = '../../login/Login.php';
+            });
+    }
+
+    // Validate session on page load
+    window.addEventListener('load', validateSession);
+
+    // Also check every 10 seconds
+    setInterval(validateSession, 10000);
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>

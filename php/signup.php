@@ -5,6 +5,7 @@ session_start();
 $fullname = $_POST['fullName'];
 $upmId = $_POST['upmId'];
 $password = $_POST['password'];
+$hashedPassword = password_hash($password, PASSWORD_DEFAULT);
 
 $stmt=$conn-> prepare("Select * from user where UPM_ID=?");
 $stmt-> bind_param("s",$upmId);
@@ -15,7 +16,7 @@ if($result->num_rows>0){
     // Account exists: ask if registering for a new semester
     $_SESSION['signup_fullName']  = $fullname;
     $_SESSION['signup_upmId']     = $upmId;
-    $_SESSION['signup_password']  = $password;
+    $_SESSION['signup_password']  = $hashedPassword;
     $_SESSION['existing_student'] = true;
 
     echo "<script>
@@ -29,7 +30,7 @@ if($result->num_rows>0){
 else{
  $_SESSION['signup_fullName'] = $fullname;
     $_SESSION['signup_upmId']   = $upmId;
-    $_SESSION['signup_password'] = $password;
+    $_SESSION['signup_password'] = $hashedPassword;
     header("Location: ../html/login/information.php");
     exit();
 
