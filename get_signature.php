@@ -1,9 +1,9 @@
 <?php
 session_start();
-include '../db_connect.php';
+include 'php/db_connect.php';
 
 // Get login ID
-$loginID = isset($_SESSION['upmId']) ? $_SESSION['upmId'] : (isset($_SESSION['loginID']) ? $_SESSION['loginID'] : 'hazura');
+$loginID = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : (isset($_SESSION['loginID']) ? $_SESSION['loginID'] : 'hazura');
 
 // Fetch signature from database
 $stmt = $conn->prepare("SELECT Signature_File FROM signature_lecturer WHERE Lecturer_ID = ? LIMIT 1");

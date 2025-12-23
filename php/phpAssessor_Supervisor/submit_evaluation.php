@@ -1,7 +1,7 @@
 <?php
 
 ob_start();
-session_start(); 
+session_start();
 header('Content-Type: application/json');
 include '../db_connect.php';
 
@@ -12,20 +12,19 @@ try {
     $input = file_get_contents('php://input');
     $data = json_decode($input, true);
 
-    if (!$data) throw new Exception("No data received");
+    if (!$data)
+        throw new Exception("No data received");
 
     // =======================================================================
     // 2. DETERMINE IDENTITY (Who is logged in?)
     // =======================================================================
     // A. Get the String ID from Session (e.g., "hazura")
-    if (isset($_SESSION['user_id'])) {
-        $lecturerUPM = $_SESSION['user_id'];
+    if (isset($_SESSION['upmId'])) {
+        $lecturerUPM = $_SESSION['upmId'];
     } else {
         // Fallback for testing if not logged in (REMOVE THIS IN PRODUCTION)
-        $lecturerUPM = 'hazura'; 
-    }
-
-    // B. Get the Context Role from Frontend Payload
+        $lecturerUPM = 'hazura';
+    }    // B. Get the Context Role from Frontend Payload
     $currentRole = isset($data['role']) ? $data['role'] : 'supervisor';
 
     // C. Lookup the specific Numeric ID for this role
@@ -40,8 +39,7 @@ try {
         if ($row = $res->fetch_assoc()) {
             $currentUserID = $row['Supervisor_ID'];
         }
-    } 
-    elseif ($currentRole === 'assessor') {
+    } elseif ($currentRole === 'assessor') {
         // Find the Assessor_ID associated with this Lecturer
         $stmtLookup = $conn->prepare("SELECT Assessor_ID FROM assessor WHERE Lecturer_ID = ?");
         $stmtLookup->bind_param("s", $lecturerUPM);
@@ -60,18 +58,36 @@ try {
     // =======================================================================
     // 3. SETUP VARIABLES & TRANSACTION
     // =======================================================================
-    
+
     $studentId = $data['student_id'];
     $assessmentId = $data['assessment_id'];
     $marksList = $data['marks'] ?? [];
     $commentText = $data['comment'] ?? '';
 
-    if (empty($marksList)) throw new Exception("No marks provided.");
+    if (empty($marksList))
+        throw new Exception("No marks provided.");
+
+    // Get Assessment Name to prepend to comment
+    $stmtAssessment = $conn->prepare("SELECT Assessment_Name FROM assessment WHERE Assessment_ID = ?");
+    $stmtAssessment->bind_param("i", $assessmentId);
+    $stmtAssessment->execute();
+    $assessmentResult = $stmtAssessment->get_result();
+    $assessmentName = "Assessment";
+    if ($assessmentRow = $assessmentResult->fetch_assoc()) {
+        $assessmentName = $assessmentRow['Assessment_Name'];
+    }
+
+    // Format comment with assessment name prefix
+    if (!empty($commentText)) {
+        $commentText = $assessmentName . ": " . $commentText;
+    } else {
+        $commentText = $assessmentName . ": (No comment provided)";
+    }
 
     // Determine which column to use based on Role
     $assessorCol = ($currentRole === 'assessor') ? $currentUserID : null;
     $supervisorCol = ($currentRole === 'supervisor') ? $currentUserID : null;
-    
+
     // Determine which column to use for Comment ownership
     $roleColumnForComment = ($currentRole === 'supervisor') ? 'Supervisor_ID' : 'Assessor_ID';
 
@@ -83,7 +99,7 @@ try {
     $stmtChk = $conn->prepare("SELECT Comment_ID FROM comment WHERE Student_ID = ? AND Assessment_ID = ?");
     $stmtChk->bind_param("si", $studentId, $assessmentId);
     $stmtChk->execute();
-    
+
     if ($stmtChk->get_result()->num_rows > 0) {
         // Update existing comment
         $sqlC = "UPDATE comment SET Given_Comment = ?, $roleColumnForComment = ? WHERE Student_ID = ? AND Assessment_ID = ?";
@@ -100,12 +116,12 @@ try {
     // ---------------------------------------------------
     // 5. SAVE MARKS (Update or Insert Logic)
     // ---------------------------------------------------
-    
+
     foreach ($marksList as $mark) {
         $c_id = intval($mark['criteria_id']);
         $raw_score = intval($mark['score']);
         $sub_id = (isset($mark['type']) && $mark['type'] === 'subcriteria') ? strval($mark['element_id']) : null;
-        
+
         // --- CALCULATE WEIGHT ---
         $calculated_weight = 0;
 
@@ -113,54 +129,54 @@ try {
         // CRITERIA 10: REPORT ASSESSMENT
         // ======================================================
         if ($c_id == 10) {
-            
+
             // FORMULA A: Subcriteria 1, 2, 7
             // Logic: ((Sub1 + Sub2 + Sub7) / 15) * 5
             // Per Item: (Score / 15) * 5
             if (in_array($sub_id, ['1', '2', '7'])) {
                 $calculated_weight = ($raw_score / 15) * 5;
             }
-            
+
             // FORMULA B: Subcriteria 3, 4, 5, 6
             // Logic: ((Sub3 + Sub4 + Sub5 + Sub6) / 20) * 15
             // Per Item: (Score / 20) * 15
             elseif (in_array($sub_id, ['3', '4', '5', '6'])) {
-                 $calculated_weight = ($raw_score / 20) * 15;
+                $calculated_weight = ($raw_score / 20) * 15;
             }
-            
+
             // FORMULA C: Subcriteria 8 (Thesis Output - inferred based on remainder)
             // Logic: Direct 5 marks
             elseif ($sub_id == '8') {
-                $calculated_weight = $raw_score; 
+                $calculated_weight = $raw_score;
             }
-            
+
             // Fallback for any other ID in Criteria 10
             else {
-                $calculated_weight = $raw_score; 
+                $calculated_weight = $raw_score;
             }
-        } 
-        
+        }
+
         // ======================================================
         // CRITERIA 12: SENSE OF RESPONSIBILITY
         // ======================================================
         // Formula E: (Sub9 + Sub10) / 2
         // Per Item: Score / 2
         elseif ($c_id == 12) {
-             $calculated_weight = $raw_score / 2;
-        } 
-        
+            $calculated_weight = $raw_score / 2;
+        }
+
         // ======================================================
         // CRITERIA 5, 6, 9: DOUBLE WEIGHT
         // ======================================================
         elseif (in_array($c_id, [5, 6, 9])) {
-             $calculated_weight = $raw_score * 2; 
+            $calculated_weight = $raw_score * 2;
         }
-        
+
         // ======================================================
         // STANDARD / DIRECT (Criteria 11, 13, 14, etc.)
         // ======================================================
         else {
-             $calculated_weight = $raw_score; 
+            $calculated_weight = $raw_score;
         }
 
         // Check if evaluation record already exists
@@ -173,7 +189,7 @@ try {
         }
         $stmtChkEval->execute();
         $resultEval = $stmtChkEval->get_result();
-        
+
         if ($resultEval->num_rows > 0) {
             // Update existing evaluation
             if ($currentRole === 'supervisor') {
@@ -204,7 +220,7 @@ try {
             GROUP BY IFNULL(Assessor_ID, Supervisor_ID)
         ) as SubQuery
     ";
-    
+
     $stmtCalc = $conn->prepare($sqlCalc);
     $stmtCalc->bind_param("si", $studentId, $assessmentId);
     $stmtCalc->execute();
@@ -214,7 +230,7 @@ try {
     $stmtRepChk = $conn->prepare("SELECT Report_ID FROM report WHERE Student_ID = ?");
     $stmtRepChk->bind_param("s", $studentId);
     $stmtRepChk->execute();
-    
+
     if ($stmtRepChk->get_result()->num_rows > 0) {
         $stmtRep = $conn->prepare("UPDATE report SET Student_Marks = ? WHERE Student_ID = ?");
         $stmtRep->bind_param("is", $finalScore, $studentId);
@@ -228,7 +244,8 @@ try {
     echo json_encode(['status' => 'success', 'message' => "Saved successfully as $currentRole", 'total_marks' => $finalScore]);
 
 } catch (Exception $e) {
-    if (isset($conn)) $conn->rollback();
+    if (isset($conn))
+        $conn->rollback();
     echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
 }
 ?>

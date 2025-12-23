@@ -4,8 +4,8 @@ include '../db_connect.php';
 
 // 1. CAPTURE ROLE & ID
 $activeRole = isset($_GET['role']) ? $_GET['role'] : 'supervisor';
-if (isset($_SESSION['user_id'])) {
-    $loginID = $_SESSION['user_id'];
+if (isset($_SESSION['upmId'])) {
+    $loginID = $_SESSION['upmId'];
 } else {
     $loginID = 'hazura';
 }
@@ -73,7 +73,7 @@ if ($currentUserID) {
 <body>
 
     <div id="mySidebar" class="sidebar">
-        <button class="menu-icon" onclick="openNav()">☰</button>
+        <button class="menu-icon" onclick="openNav()"><i class="bi bi-list"></i></button>
 
         <div id="sidebarLinks">
             <a href="javascript:void(0)" class="closebtn" id="close" onclick="closeNav()">
@@ -90,28 +90,38 @@ if ($currentUserID) {
             </a>
 
             <div id="supervisorMenu" class="menu-items <?php echo ($activeRole == 'supervisor') ? 'expanded' : ''; ?>">
-                <a href="../dashboard/dashboard.html" id="dashboard"><i class="bi bi-house-fill icon-padding"></i>
-                    Dashboard</a>
-                <a href="../notification/notification.html" id="Notification"><i
-                        class="bi bi-bell-fill icon-padding"></i> Notification</a>
+                <a href="dashboard.php?role=supervisor" id="dashboard"
+                    class="<?php echo ($activeRole == 'supervisor') ?: ''; ?>">
+                    <i class="bi bi-house-fill icon-padding"></i> Dashboard
+                </a>
+                <a href="notification.php?role=supervisor" id="Notification"
+                    class="<?php echo ($activeRole == 'supervisor') ?: ''; ?>">
+                    <i class="bi bi-bell-fill icon-padding"></i> Notification
+                </a>
                 <a href="industry_collaboration.php?role=supervisor" id="industryCollaboration"
                     class="<?php echo ($activeRole == 'supervisor') ? 'active-menu-item active-page' : ''; ?>">
-                    <i class="bi bi-calendar-check-fill icon-padding"></i> Industry Collaboration
+                    <i class="bi bi-file-earmark-text-fill icon-padding"></i> Industry Collaboration
                 </a>
 
                 <a href="../phpAssessor_Supervisor/evaluation_form.php?role=supervisor" id="evaluationForm"
                     class="<?php echo ($activeRole == 'supervisor') ?: ''; ?>">
                     <i class="bi bi-file-earmark-text-fill icon-padding"></i> Evaluation Form
                 </a>
-                <a href="../report/report.html" id="superviseesReport"><i class="bi bi-bar-chart-fill icon-padding"></i>
-                    Supervisees' Report</a>
-                <a href="../logbook/logbookSubmission.html" id="logbookSubmission"><i
-                        class="bi bi-calendar-check-fill icon-padding"></i> Logbook Submission</a>
-                <a href="../signature/signatureSubmission.html" id="signatureSubmission"><i
-                        class="bi bi-calendar-check-fill icon-padding"></i> Signature Submission</a>
+                <a href="report.php?role=supervisor" id="superviseesReport"
+                    class="<?php echo ($activeRole == 'supervisor') ?: ''; ?>">
+                    <i class="bi bi-bar-chart-fill icon-padding"></i> Supervisee's Report
+                </a>
+                <a href="logbook_submission.php?role=supervisor" id="logbookSubmission"
+                    class="<?php echo ($activeRole == 'supervisor') ?: ''; ?>">
+                    <i class="bi bi-calendar-check-fill icon-padding"></i> Logbook Submission
+                </a>
+                <a href="signature_submission.php?role=supervisor" id="signatureSubmission"
+                    class="<?php echo ($activeRole == 'supervisor') ?: ''; ?>">
+                    <i class="bi bi-calendar-check-fill icon-padding"></i> Signature Submission
+                </a>
 
                 <a href="project_title.php?role=supervisor" id="projectTitle"
-                    class="<?php echo ($activeRole == 'supervisor') ? 'active-menu-item active-page' : ''; ?>">
+                    class="<?php echo ($activeRole == 'supervisor') ?: ''; ?>">
                     <i class="bi bi-calendar-check-fill icon-padding"></i> Project Title
                 </a>
             </div>
@@ -124,17 +134,22 @@ if ($currentUserID) {
             </a>
 
             <div id="assessorMenu" class="menu-items <?php echo ($activeRole == 'assessor') ? 'expanded' : ''; ?>">
-                <a href="../dashboard/dashboard.html" id="Dashboard"><i class="bi bi-house-fill icon-padding"></i>
-                    Dashboard</a>
-                <a href="../notification/notification.html" id="Notification"><i
-                        class="bi bi-bell-fill icon-padding"></i> Notification</a>
+                <a href="../phpAssessor/dashboard.php?role=supervisor" id="dashboard"
+                    class="<?php echo ($activeRole == 'assessor') ?: ''; ?>">
+                    <i class="bi bi-house-fill icon-padding"></i> Dashboard
+                </a>
+                <a href="../phpAssessor/notification.php?role=supervisor" id="dashboard"
+                    class="<?php echo ($activeRole == 'assessor') ?: ''; ?>">
+                    <i class="bi bi-house-fill icon-padding"></i> Notification
+                </a>
                 <a href="../phpAssessor_Supervisor/evaluation_form.php?role=assessor" id="AssessorEvaluationForm"
-                    class="<?php echo ($activeRole == 'assessor') ? 'active-menu-item active-page' : ''; ?>">
+                    class="<?php echo ($activeRole == 'assessor') ?: ''; ?>">
                     <i class="bi bi-file-earmark-text-fill icon-padding"></i> Evaluation Form
                 </a>
             </div>
 
-            <a href="#" id="logout"><i class="bi bi-box-arrow-left" style="padding-right: 10px;"></i> Logout</a>
+            <a href="../login.php" id="logout"><i class="bi bi-box-arrow-left" style="padding-right: 10px;"></i>
+                Logout</a>
         </div>
     </div>
 
@@ -154,10 +169,6 @@ if ($currentUserID) {
                 <div id="courseSession">2024/2025 - 2 </div>
             </div>
         </div>
-
-        <!-- <div id="username">NURUL SAIDAHTUL FATIHA BINTI SHAHARUDIN</div> -->
-        <!-- <span id="notificationCircle"><i class="bi bi-bell-fill" style="color: white;"></i></span> -->
-        <!-- <span id="logoutCircle"><i class="bi bi-box-arrow-left"style="color: white;"></i></span> -->
 
     </div>
 

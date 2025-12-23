@@ -65,11 +65,13 @@ $session_result = $conn->query($session_sql);
     <title>Notification_Assessor</title>
     <!-- <link rel="stylesheet" href="../../css/assessor/dashboard.css"> -->
     <link rel="stylesheet" href="../../css/assessor/notification.css?v=<?php echo time(); ?>">
-    <link rel="stylesheet" href="../../css/background.css?v=<?php echo time(); ?>">
+    <link rel="stylesheet" href="../../css/background.css">
     <!-- <link rel="stylesheet" href="../../../css/dashboard.css"> -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat&family=Overlock" rel="stylesheet">
 </head>
 
@@ -137,17 +139,20 @@ $session_result = $conn->query($session_sql);
             </a>
 
             <div id="assessorMenu" class="menu-items <?php echo ($activeRole == 'assessor') ? 'expanded' : ''; ?>">
-                <a href="../dashboard/dashboard.html" id="Dashboard"><i class="bi bi-house-fill icon-padding"></i>
+                <a href="../phpAssessor/dashboard.php?role=supervisor" id="Dashboard"
+                    class="<?php echo ($activeRole == 'supervisor') ?: ''; ?>"><i
+                        class="bi bi-house-fill icon-padding"></i>
                     Dashboard</a>
-                <a href="../notification/notification.html" id="Notification"><i
+                <a href="../phpAssessor/notification.php?role=supervisor" id="Notification"
+                    class="<?php echo ($activeRole == 'supervisor') ?: ''; ?>"><i
                         class="bi bi-bell-fill icon-padding"></i> Notification</a>
                 <a href="../phpAssessor_Supervisor/evaluation_form.php?role=assessor" id="AssessorEvaluationForm"
-                    class="<?php echo ($activeRole == 'assessor') ? 'active-menu-item active-page' : ''; ?>">
+                    class="<?php echo ($activeRole == 'assessor') ? : ''; ?>">
                     <i class="bi bi-file-earmark-text-fill icon-padding"></i> Evaluation Form
                 </a>
             </div>
 
-            <a href="#" id="logout"><i class="bi bi-box-arrow-left" style="padding-right: 10px;"></i> Logout</a>
+            <a href="../login.php" id="logout"><i class="bi bi-box-arrow-left" style="padding-right: 10px;"></i> Logout</a>
         </div>
     </div>
 
@@ -220,143 +225,92 @@ $session_result = $conn->query($session_sql);
     </div>
 
     <script>
-        // --- JAVASCRIPT LOGIC ---
-        function openNav() {
-            var fullWidth = "220px";
-            var sidebar = document.getElementById("mySidebar");
-            var header = document.getElementById("containerAtas");
-            // CRITICAL FIX: Targets the main content area (now with id="main")
-            var mainContent = document.getElementById("main");
-            var menuIcon = document.querySelector(".menu-icon");
+        // ==========================================
+        // SIDEBAR LOGIC
+        // ==========================================
 
-            // 1. Expand the Sidebar
-            document.getElementById("mySidebar").style.width = fullWidth;
+        // 1. Toggle Menu (Accordion)
+        function toggleMenu(menuId, headerElement) {
+            const menu = document.getElementById(menuId);
+            if (!menu) return;
 
-            // 2. Push the main content AND the header container to the right
-            if (mainContent) mainContent.style.marginLeft = fullWidth;
-            if (header) header.style.marginLeft = fullWidth;
-
-            // 3. Show the links
-            document.getElementById("nameSide").style.display = "block";
-
-            var links = document.getElementById("sidebarLinks").getElementsByTagName("a");
-            for (var i = 0; i < links.length; i++) {
-                // Show role headers and other links
-                if (links[i].classList.contains('role-header') || links[i].id === 'logout') {
-                    links[i].style.display = 'flex';
-                } else if (links[i].id === 'close') {
-                    links[i].style.display = 'flex';
+            // Collapse all other menus
+            document.querySelectorAll('.menu-items').forEach(m => {
+                if (m !== menu) {
+                    m.classList.remove('expanded');
+                    // Find header associated with this menu to remove highlighting
+                    const header = document.querySelector(`.role-header[onclick*="${m.id}"]`);
+                    if (header) header.classList.remove('menu-expanded');
                 }
-            }
+            });
 
-            // Show currently expanded menu items
-            document.querySelectorAll('.menu-items.expanded a').forEach(a => a.style.display = 'block');
+            // Toggle current menu
+            menu.classList.toggle('expanded');
+            headerElement.classList.toggle('menu-expanded');
 
-
-            // 4. Hide the open icon
-            if (menuIcon) menuIcon.style.display = "none";
+            updateRoleHeaderHighlighting();
         }
 
-        function closeNav() {
-            var collapsedWidth = "60px";
-            var sidebar = document.getElementById("mySidebar");
-            var header = document.getElementById("containerAtas");
-            // CRITICAL FIX: Targets the main content area (now with id="main")
-            var mainContent = document.getElementById("main");
-            var menuIcon = document.querySelector(".menu-icon");
+        function updateRoleHeaderHighlighting() {
+            document.querySelectorAll('.role-header').forEach(header => {
+                const onclickAttr = header.getAttribute('onclick');
+                if (!onclickAttr) return;
 
-            // 1. Collapse the Sidebar
-            sidebar.style.width = collapsedWidth;
+                // Extract menu ID from onclick attribute
+                const match = onclickAttr.match(/toggleMenu\('(\w+)'/);
+                if (!match) return;
 
-            // 2. Move the main content AND the header container back
-            if (mainContent) mainContent.style.marginLeft = collapsedWidth;
-            if (header) header.style.marginLeft = collapsedWidth;
-
-            // 3. Hide the name and the links (except for the open menu icon)
-            document.getElementById("nameSide").style.display = "none";
-
-            var links = document.getElementById("sidebarLinks").getElementsByTagName("a");
-            for (var i = 0; i < links.length; i++) {
-                links[i].style.display = "none";
-            }
-
-            // 4. Show the open icon
-            if (menuIcon) menuIcon.style.display = "block";
-        }
-
-        // Ensure the collapsed state is set immediately on page load
-        window.onload = function () {
-            closeNav();
-        };
-
-
-        // --- Role Toggle Logic ---
-        document.addEventListener('DOMContentLoaded', () => {
-            const arrowContainers = document.querySelectorAll('.arrow-container');
-
-            // Function to handle the role menu toggle
-            const handleRoleToggle = (header) => {
-                const menuId = header.getAttribute('href');
-                const targetMenu = document.querySelector(menuId);
-                const arrowIcon = header.querySelector('.arrow-icon');
-
+                const menuId = match[1];
+                const targetMenu = document.getElementById(menuId);
                 if (!targetMenu) return;
 
+                // Check if this menu contains the active page
+                const hasActiveLink = targetMenu.querySelector('.active-menu-item') !== null;
+
+                // Check if this menu is currently expanded
                 const isExpanded = targetMenu.classList.contains('expanded');
 
-                // Collapse all other menus and reset their arrows
-                document.querySelectorAll('.menu-items').forEach(menu => {
-                    if (menu !== targetMenu) {
-                        menu.classList.remove('expanded');
-                        menu.querySelectorAll('a').forEach(a => a.style.display = 'none');
-                    }
-                });
-                document.querySelectorAll('.role-header').forEach(h => {
-                    if (h !== header) h.classList.remove('active-role');
-                });
-                document.querySelectorAll('.arrow-icon').forEach(icon => {
-                    if (icon !== arrowIcon) {
-                        icon.classList.remove('bi-chevron-down');
-                        icon.classList.add('bi-chevron-right');
-                    }
-                });
-
-                // Toggle current menu
-                targetMenu.classList.toggle('expanded', !isExpanded);
-                header.classList.toggle('active-role', !isExpanded);
-
-                // Show/hide child links for the current menu (only when sidebar is expanded)
-                const sidebar = document.getElementById("mySidebar");
-                const isSidebarExpanded = sidebar.style.width === "220px";
-
-                targetMenu.querySelectorAll('a').forEach(a => {
-                    if (isSidebarExpanded) {
-                        a.style.display = targetMenu.classList.contains('expanded') ? 'block' : 'none';
-                    } else {
-                        a.style.display = 'none';
-                    }
-                });
-
-                // Toggle arrow direction
-                if (isExpanded) {
-                    arrowIcon.classList.remove('bi-chevron-down');
-                    arrowIcon.classList.add('bi-chevron-right');
+                // Logic: Highlight role header ONLY when it contains active page BUT menu is collapsed
+                if (hasActiveLink && !isExpanded) {
+                    header.classList.add('active-role');
                 } else {
-                    arrowIcon.classList.remove('bi-chevron-right');
-                    arrowIcon.classList.add('bi-chevron-down');
+                    header.classList.remove('active-role');
                 }
-            }
-
-
-            arrowContainers.forEach(container => {
-                // Attach event listener to the role header itself
-                const header = container.closest('.role-header');
-                header.addEventListener('click', (event) => {
-                    event.preventDefault();
-                    handleRoleToggle(header);
-                });
             });
-        });
+        }
+
+        // 2. Open Sidebar
+        function openNav() {
+            document.getElementById("mySidebar").style.width = "250px";
+            document.getElementById("main").style.marginLeft = "250px";
+            document.getElementById("containerAtas").style.marginLeft = "250px";
+
+            document.getElementById("nameSide").style.display = "block";
+            document.getElementById("close").style.display = "block";
+            document.getElementById("logout").style.display = "flex";
+
+            const links = document.querySelectorAll("#sidebarLinks a");
+            links.forEach(l => l.style.display = 'flex');
+
+            document.querySelector(".menu-icon").style.display = "none";
+        }
+
+        // 3. Close Sidebar
+        function closeNav() {
+            document.getElementById("mySidebar").style.width = "60px";
+            document.getElementById("main").style.marginLeft = "60px";
+            document.getElementById("containerAtas").style.marginLeft = "60px";
+
+            document.getElementById("nameSide").style.display = "none";
+            document.getElementById("close").style.display = "none";
+            document.getElementById("logout").style.display = "none";
+
+            const links = document.querySelectorAll("#sidebarLinks a");
+            links.forEach(l => l.style.display = 'none');
+
+            document.querySelector(".menu-icon").style.display = "block";
+        }
+
     </script>
 </body>
 

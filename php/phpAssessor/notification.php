@@ -1,8 +1,48 @@
+<?php
+// Start Session if not already started
+if (session_status() == PHP_SESSION_NONE) {
+    session_start();
+}
+
+include '../db_connect.php';
+
+// 1. CAPTURE ROLE & USER ID
+// Check if loginID is in session, otherwise default to 'GUEST'
+$loginID = isset($_SESSION['loginID']) ? $_SESSION['loginID'] : 'USER';
+$activeRole = isset($_GET['role']) ? $_GET['role'] : 'assessor';
+
+// 2. PREPARE MODULE TITLE
+$moduleTitle = ucfirst($activeRole) . " Module";
+
+// 3. FETCH COURSE INFO
+$courseCode = "SWE4949A";
+$courseSession = "2024/2025 - 2";
+
+$sqlSession = "SELECT fs.FYP_Session, fs.Semester, c.Course_Code 
+               FROM fyp_session fs
+               JOIN course c ON fs.Course_ID = c.Course_ID
+               ORDER BY fs.FYP_Session DESC, fs.Semester DESC
+               LIMIT 1";
+
+$resultSession = $conn->query($sqlSession);
+if ($resultSession && $resultSession->num_rows > 0) {
+    $sessionRow = $resultSession->fetch_assoc();
+    $courseCode = $sessionRow['Course_Code'];
+    $courseSession = $sessionRow['FYP_Session'] . " - " . $sessionRow['Semester'];
+}
+
+// A. Get Login ID 
+if (isset($_SESSION['upmId'])) {
+    $loginID = $_SESSION['upmId'];
+} else {
+    $loginID = 'hazura'; // Fallback
+}
+?>
 <!DOCTYPE html>
 <html>
 
 <head>
-    <title>Notification_Assessor</title>
+    <title>Notification</title>
     <!-- <link rel="stylesheet" href="../../css/assessor/dashboard.css"> -->
     <link rel="stylesheet" href="../../css/assessor/notification.css">
     <link rel="stylesheet" href="../../css/background.css">
@@ -23,51 +63,68 @@
                 Close <span class="x-symbol">x</span>
             </a>
 
-            <span id="nameSide">HI, SAZLINAH BINTI HASSAN</span>
+            <span id="nameSide">HI, <?php echo strtoupper($loginID); ?></span>
 
-            <!-- <a href="#coordinatorMenu" class="role-header" data-role="coordinator">
-                <span class="role-text">Coordinator</span>
-                <span class="arrow-container">
-                    <i class="bi bi-chevron-right arrow-icon"></i>
-                </span>
-            </a> -->
-
-            <a href="#supervisorMenu" class="role-header" data-role="supervisor">
+            <a href="javascript:void(0)"
+                class="role-header <?php echo ($activeRole == 'supervisor') ? 'menu-expanded' : ''; ?>"
+                onclick="toggleMenu('supervisorMenu', this)">
                 <span class="role-text">Supervisor</span>
-                <span class="arrow-container">
-                    <i class="bi bi-chevron-right arrow-icon"></i>
-                </span>
+                <span class="arrow-container"><i class="bi bi-chevron-right arrow-icon"></i></span>
             </a>
 
             <div id="supervisorMenu" class="menu-items">
-                <a href="#" id="dashboard"><i class="bi bi-house-fill icon-padding"></i> Dashboard</a>
-                <a href="#" id="Notification"><i class="bi bi-bell-fill icon-padding"></i> Notification</a>
-                <a href="#" id="industryCollaboration"><i class="bi bi-file-earmark-text-fill icon-padding"></i>
-                    Industry
-                    Collaboration</a>
-                <a href="#" id="evaluationForm"><i class="bi bi-file-earmark-text-fill icon-padding"></i> Evaluation
-                    Form</a>
-                <a href="#" id="superviseesReport"><i class="bi bi-bar-chart-fill icon-padding"></i> Supervisees'
-                    Report</a>
-                <a href="#" id="logbookSubmission"><i class="bi bi-calendar-check-fill icon-padding"></i> Logbook
-                    Submission</a>
+                <a href="../phpSupervisor/dashboard.php?role=supervisor" id="dashboard"
+                    class="<?php echo ($activeRole == 'supervisor') ?: ''; ?>">
+                    <i class="bi bi-house-fill icon-padding"></i> Dashboard
+                </a>
+                <a href="../phpSupervisor/industry_collaboration.php?role=supervisor" id="industryCollaboration"
+                    class="<?php echo ($activeRole == 'supervisor') ?: ''; ?>">
+                    <i class="bi bi-calendar-check-fill icon-padding"></i> Industry Collaboration
+                </a>
+                <a href="../phpAssessor_Supervisor/evaluation_form.php?role=supervisor" id="evaluationForm"
+                    class="<?php echo ($activeRole == 'supervisor') ?: ''; ?>">
+                    <i class="bi bi-file-earmark-text-fill icon-padding"></i> Evaluation Form
+                </a>
+                <a href="../phpSupervisor/report.php?role=supervisor" id="superviseesReport"
+                    class="<?php echo ($activeRole == 'supervisor') ?: ''; ?>">
+                    <i class="bi bi-bar-chart-fill icon-padding"></i> Supervisee's Report
+                </a>
+                <a href="../phpSupervisor/logbook_submission.php?role=supervisor" id="logbookSubmission"
+                    class="<?php echo ($activeRole == 'supervisor') ?: ''; ?>">
+                    <i class="bi bi-calendar-check-fill icon-padding"></i> Logbook Submission
+                </a>
+                <a href="../phpSupervisor/signature_submission.php?role=supervisor" id="signatureSubmission"
+                    class="<?php echo ($activeRole == 'supervisor') ?: ''; ?>">
+                    <i class="bi bi-calendar-check-fill icon-padding"></i> Signature Submission
+                </a>
+
+                <a href="../phpSupervisor/project_title.php?role=supervisor" id="projectTitle"
+                    class="<?php echo ($activeRole == 'supervisor') ?: ''; ?>">
+                    <i class="bi bi-calendar-check-fill icon-padding"></i> Project Title
+                </a>
             </div>
 
-            <a href="#assessorMenu" class="role-header menu-expanded" data-role="assessor">
+            <a href="javascript:void(0)"
+                class="role-header <?php echo ($activeRole == 'assessor') ? 'menu-expanded' : ''; ?>"
+                onclick="toggleMenu('assessorMenu', this)">
                 <span class="role-text">Assessor</span>
-                <span class="arrow-container">
-                    <i class="bi bi-chevron-right arrow-icon"></i>
-                </span>
+                <span class="arrow-container"><i class="bi bi-chevron-right arrow-icon"></i></span>
             </a>
 
             <div id="assessorMenu" class="menu-items expanded">
-                <a href="dashboard.html" id="Dashboard"><i class="bi bi-house-fill icon-padding"></i> Dashboard</a>
-                <a href="notification.html" class="active-menu-item active-page" id="Notification"><i
-                        class="bi bi-bell-fill icon-padding"></i>
-                    Notification</a>
-                <a href="evaluationForm.html" id="EvaluationForm"><i
-                        class="bi bi-file-earmark-text-fill icon-padding"></i> Evaluation
-                    Form</a>
+                <a href="../phpAssessor/dashboard.php?role=assessor" id="Dashboard"
+                    class="<?php echo ($activeRole == 'assessor') ?: ''; ?>">
+                    <i class="bi bi-house-fill icon-padding"></i> Dashboard
+                </a>
+
+                <a href="notification.php?role=assessor" id="Notification"
+                    class="<?php echo ($activeRole == 'assessor') ? 'active-menu-item active-page' : ''; ?>">
+                    <i class="bi bi-bell-fill icon-padding"></i> Notification
+                </a>
+                <a href="../phpAssessor_Supervisor/evaluation_form.php?role=assessor" id="AssessorEvaluationForm"
+                    class="<?php echo ($activeRole == 'assessor') ?: ''; ?>">
+                    <i class="bi bi-file-earmark-text-fill icon-padding"></i> Evaluation Form
+                </a>
             </div>
             <a href="#" id="logout">
                 <i class="bi bi-box-arrow-left" style="padding-right: 10px;"></i> Logout
@@ -76,26 +133,19 @@
     </div>
 
     <div id="containerAtas" class="containerAtas">
-
         <a href="../dashboard/dashboard.html">
             <img src="../../assets/UPMLogo.png" alt="UPM logo" width="100px" id="upm-logo">
         </a>
-
         <div class="header-text-group">
             <div id="module-titles">
-                <div id="containerModule">Assessor Module</div>
+                <div id="containerModule"><?php echo $moduleTitle; ?></div>
                 <div id="containerFYPAssess">FYPAssess</div>
             </div>
             <div id="course-session">
-                <div id="courseCode">SWE4949A</div>
-                <div id="courseSession">2024/2025 - 2 </div>
+                <div id="courseCode"><?php echo $courseCode; ?></div>
+                <div id="courseSession"><?php echo $courseSession; ?></div>
             </div>
         </div>
-
-        <!-- <div id="username">NURUL SAIDAHTUL FATIHA BINTI SHAHARUDIN</div> -->
-        <!-- <span id="notificationCircle"><i class="bi bi-bell-fill" style="color: white;"></i></span> -->
-        <!-- <span id="logoutCircle"><i class="bi bi-box-arrow-left"style="color: white;"></i></span> -->
-
     </div>
 
     </div>

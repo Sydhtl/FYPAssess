@@ -50,8 +50,8 @@ if ($resultSession && $resultSession->num_rows > 0) {
 }
 
 // A. Get Login ID 
-if (isset($_SESSION['user_id'])) {
-    $loginID = $_SESSION['user_id'];
+if (isset($_SESSION['upmId'])) {
+    $loginID = $_SESSION['upmId'];
 } else {
     $loginID = 'hazura'; // Fallback
 }
@@ -170,9 +170,14 @@ if ($supervisorID > 0) {
             </a>
 
             <div id="supervisorMenu" class="menu-items <?php echo ($activeRole == 'supervisor') ? 'expanded' : ''; ?>">
-                <a href="../dashboard/dashboard.html" id="dashboard"><i class="bi bi-house-fill icon-padding"></i>
-                    Dashboard</a>
-                <a href="../notification/notification.html" id="Notification"><i
+                <a href="dashboard.php?role=supervisor" id="dashboard"
+                    class="<?php echo ($activeRole == 'supervisor') ? : ''; ?>">
+                    <i class="bi bi-house-fill icon-padding"></i> Dashboard
+                </a>
+
+
+                <a href="notification.php?role=supervisor" id="Notification"
+                    class="<?php echo ($activeRole == 'supervisor') ?: ''; ?>"><i
                         class="bi bi-bell-fill icon-padding"></i> Notification</a>
                 <a href="industry_collaboration.php?role=supervisor" id="industryCollaboration"
                     class="<?php echo ($activeRole == 'supervisor') ?: ''; ?>">
@@ -210,17 +215,20 @@ if ($supervisorID > 0) {
             </a>
 
             <div id="assessorMenu" class="menu-items <?php echo ($activeRole == 'assessor') ? 'expanded' : ''; ?>">
-                <a href="../dashboard/dashboard.html" id="Dashboard"><i class="bi bi-house-fill icon-padding"></i>
+                <a href="../phpAssessor/dashboard.php?role=supervisor" id="Dashboard"
+                    class="<?php echo ($activeRole == 'supervisor') ?: ''; ?>"><i
+                        class="bi bi-house-fill icon-padding"></i>
                     Dashboard</a>
-                <a href="../notification/notification.html" id="Notification"><i
+                <a href="../phpAssessor/notification.php?role=supervisor" id="Notification"
+                    class="<?php echo ($activeRole == 'supervisor') ?: ''; ?>"><i
                         class="bi bi-bell-fill icon-padding"></i> Notification</a>
                 <a href="../phpAssessor_Supervisor/evaluation_form.php?role=assessor" id="AssessorEvaluationForm"
-                    class="<?php echo ($activeRole == 'assessor') ? 'active-menu-item active-page' : ''; ?>">
+                    class="<?php echo ($activeRole == 'assessor') ? : ''; ?>">
                     <i class="bi bi-file-earmark-text-fill icon-padding"></i> Evaluation Form
                 </a>
             </div>
 
-            <a href="#" id="logout"><i class="bi bi-box-arrow-left" style="padding-right: 10px;"></i> Logout</a>
+            <a href="../login.php" id="logout"><i class="bi bi-box-arrow-left" style="padding-right: 10px;"></i> Logout</a>
         </div>
     </div>
 
