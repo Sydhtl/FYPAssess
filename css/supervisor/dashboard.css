@@ -2,33 +2,16 @@
 /* == Base & Typography Styles == */
 /* ================================================= */
 body {
-  font-family: "Montserrat";
+  font-family: "Montserrat", sans-serif;
   transition: margin-left 0.5s;
-  /* Smooth transition for the main content shift */
 }
 
 #courseCode,
 #courseSession {
   margin-left: auto;
-  font-family: "Montserrat";
+  font-family: "Montserrat", sans-serif;
   text-align: right;
   line-height: 1.2;
-  color: #333;body {
-  font-family: "Montserrat";
-  transition: margin-left 0.5s;
-  /* Smooth transition for the main content shift */
-}
-
-#courseCode,
-#courseSession {
-  margin-left: auto;
-  /* CRITICAL: Pushes this element to the far right of the flex container */
-  /* Text Styles */
-  font-family: "Montserrat";
-  text-align: right;
-  line-height: 1.2;
-  /* padding-left: 10px;  */
-  /* Add padding to prevent text collision */
   color: #333;
   position: static;
   margin: 0;
@@ -36,343 +19,6 @@ body {
 
 #courseCode {
   font-size: 30px;
-}
-
-/* --- DASHBOARD GRID STYLES --- */
-.metrics-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
-  margin-bottom: 30px;
-  min-width: 0; /* Allows grid items to shrink */
-}
-
-.widget {
-  background-color: #fdf0d5;
-  border-radius: 12px;
-  padding: 10px 20px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-  display: flex;
-  align-items: center;
-  gap: 15px;
-  min-width: 0; /* Allows content to shrink */
-}
-
-.widget-icon {
-  font-size: 30px;
-  color: #666;
-  /* background-color: #ffffff; */
-  padding: 1px;
-  border-radius: 8px;
-}
-
-.widget-content {
-  display: flex;
-  flex-direction: column;
-}
-
-.widget-title {
-  font-size: 16px;
-  color: #666;
-  font-weight: 500;
-}
-
-.widget-value {
-  font-size: 23px;
-  font-weight: bold;
-  color: #333;
-}
-
-/* --- TASK & REMINDER SECTION --- */
-.task-reminder-section {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 20px;
-  align-items: start;
-}
-
-.evaluation-area {
-  min-width: 0; /* Allows content to shrink */
-  overflow-x: auto; /* Horizontal scroll for evaluation table */
-}
-
-.reminder-area {
-  min-width: 0; /* Allows content to shrink */
-}
-
-@media (max-width: 1024px) {
-  .task-reminder-section {
-    grid-template-columns: 1fr;
-  }
-}
-
-.card-title {
-  font-size: 16px;
-  font-weight: 700;
-  color: #333;
-  margin-bottom: 15px;
-}
-
-.evaluation-task-card,
-.reminder-card {
-  background-color: #fdf0d5;
-  border-radius: 12px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-  padding: 10px;
-  margin-top: 10px;
-  height: 400px;
-  display: flex;
-  flex-direction: column;
-}
-
-.evaluation-task-card {
-  overflow-x: auto; /* Horizontal scroll for wide content */
-  overflow-y: hidden;
-}
-
-.reminder-card {
-  overflow-y: auto; /* Vertical scroll for reminder content */
-  overflow-x: hidden;
-}
-
-/* Task Tab Styles */
-.tab-buttons {
-  display: flex;
-  border-bottom: 2px solid #e0e0e0;
-  margin-bottom: 15px;
-}
-
-.task-tab {
-  padding: 10px 20px;
-  border: none;
-  background: none;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 600;
-  color: #666;
-  border-bottom: 3px solid transparent;
-  transition: all 0.2s;
-}
-
-/* .task-tab:hover {
-            color: #0077b6;
-        } */
-
-.task-tab.active-tab {
-  color: #780000;
-  border-bottom-color: #780000;
-}
-
-.task-list-area {
-  overflow-x: auto; /* Enable horizontal scrolling */
-  flex: 1;
-  min-height: 0;
-}
-
-/* Task List Styles */
-.task-group {
-  display: none;
-}
-
-.task-group.active {
-  display: block;
-}
-
-.no-tasks {
-  text-align: center;
-  padding: 40px 20px;
-  color: #999;
-  font-style: italic;
-}
-
-.task-group-header {
-  background-color: #780000;
-  color: white;
-  padding: 12px 15px;
-  margin-bottom: 5px;
-  border-radius: 8px;
-  font-size: 16px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-}
-
-.toggle-icon {
-  margin-right: 10px;
-  transition: transform 0.2s;
-}
-
-.task-list-details {
-  max-height: 0;
-  overflow: hidden;
-  transition: max-height 0.3s ease-out;
-  padding: 0 15px 10px;
-}
-
-.task-list-details.expanded {
-  max-height: 1000px; /* Use a large number for smooth expand/collapse */
-}
-
-.task-row {
-  display: grid;
-  grid-template-columns: 2fr 1fr 3fr 0.5fr;
-  gap: 10px;
-  padding: 10px 0;
-  border-bottom: 1px dashed #eee;
-  font-size: 16px;
-  align-items: center;
-}
-
-.task-row.header-row {
-  font-weight: 700;
-  color: #333;
-  border-bottom: 2px solid #ccc;
-  margin-bottom: 5px;
-  padding-top: 5px;
-}
-
-.task-row.data-row {
-  color: #555;
-}
-
-/* Reminder Card Specific Styles */
-.reminder-card-content {
-  background-color: #fdf0d5;
-  padding: 20px;
-  border-radius: 8px;
-  font-size: 14px;
-  line-height: 1.5;
-}
-
-.reminder-date {
-  font-weight: bold;
-  margin-bottom: 10px;
-  font-size: 16px;
-  padding-top: 5px; /* Spacing for the first reminder */
-}
-
-.reminder-item ul {
-  list-style-type: disc;
-  margin: 0;
-  padding-left: 20px;
-}
-
-.reminder-item ul li {
-  margin-bottom: 5px;
-  font-size: 16px;
-}
-
-.reminder-separator {
-  border: 0;
-  height: 1px;
-  background: #333;
-  margin: 20px 0;
-}
-
-/* Responsive adjustments for smaller screens */
-@media (max-width: 600px) {
-  .evaluation-task-card,
-  .reminder-card {
-    flex-direction: column;
-    align-items: stretch;
-  }
-}
-
-/* Accordion headers for "Upcoming" */
-.task-group-header {
-  background-color: #780000;
-  color: white;
-  padding: 12px 15px;
-  margin-bottom: 5px;
-  border-radius: 8px;
-  font-size: 16px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-}
-
-.toggle-icon {
-  margin-right: 10px;
-  transition: transform 0.2s;
-}
-
-.task-list-details {
-  max-height: 0;
-  overflow: hidden;
-  transition: max-height 0.3s ease-out;
-  padding: 0;
-}
-
-.task-list-details.expanded {
-  max-height: 1000px;
-}
-
-/* --- Task Row Grid Layouts --- */
-.task-row {
-  padding: 12px 10px;
-  border-bottom: 1px solid #e0e0e0;
-  font-size: 16px;
-  align-items: start;
-  line-height: 1.5;
-  /* FIX: Set a minimum width for rows to force horizontal scrolling */
-  min-width: 700px;
-}
-
-/* 4-column grid (In-progress, Completed) */
-.task-row.four-col-grid {
-  display: grid;
-  grid-template-columns: 2fr 3fr 1.5fr 1fr;
-  gap: 15px;
-}
-
-/* 5-column grid (Upcoming) */
-.task-row.five-col-grid {
-  display: grid;
-  grid-template-columns: 2fr 1fr 3fr 1.5fr 0.5fr;
-  gap: 10px;
-}
-
-.task-row.header-row {
-  font-weight: 700;
-  color: #333;
-  border-bottom: 2px solid #ccc;
-  margin-bottom: 5px;
-  padding-top: 5px;
-}
-
-/* Remove border from the last item in a list */
-.task-group[data-group="inprogress"] .task-row:last-child,
-.task-group[data-group="completed"] .task-row:last-child,
-.task-list-details .task-row:last-child {
-  border-bottom: none;
-}
-
-.col-assessor {
-  text-align: center;
-}
-
-  position: static;
-  margin: 0;
-}
-
-#courseCode {
-  font-size: 30px;
-}
-
-/* Sidebar styles for role headers [new] */
-.role-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 15px;
-  color: white;
-  text-decoration: none;
-  cursor: pointer;
-  transition: all 0.2s;
-  font-family: 'Montserrat', Arial, sans-serif;
-  font-weight: 600;
-  margin: 5px 10px;
-  border-radius: 8px;
 }
 
 .card-title {
@@ -387,7 +33,7 @@ body {
 /* ================================================= */
 .metrics-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  grid-template-columns: repeat(4, 1fr);
   gap: 20px;
   margin-bottom: 30px;
 }
@@ -429,38 +75,33 @@ body {
 /* ================================================= */
 /* == Row 2: Overview (Charts) & Reminder == */
 /* ================================================= */
-
-/* --- Main Layout Grid for Row 2 --- */
 .overview-reminder-grid {
   display: grid;
-  /* On large screens: 2/3 for charts, 1/3 for reminder */
   grid-template-columns: 2fr 1fr;
   gap: 20px;
   margin-bottom: 20px;
 }
 
-/* --- Overview Card (Charts) --- */
 .overview-section {
   background: #ffffff;
   border-radius: 8px;
   padding: 20px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  min-width: 0; /* Fix for grid overflow */
+  min-width: 0;
 }
 
-/* Grid *inside* the Overview Card (for the 2 charts) */
 .overview-charts-grid {
   display: grid;
-  /* On large screens: two charts side-by-side */
   grid-template-columns: 1fr 1fr;
   gap: 25px;
 }
 
 .chart-container {
   position: relative;
-  width: 80%;
-  /* FIX: Reduced height to make charts less wide/tall */
-  height: 250px;
+  width: 100%;
+  height: 350px;
+  display: flex;
+  flex-direction: column;
 }
 
 .chart-container h3 {
@@ -469,8 +110,14 @@ body {
   font-weight: 600;
   color: #333;
   margin-bottom: 10px;
+  flex-shrink: 0;
 }
-/* Custom HTML Legend */
+
+.chart-container canvas {
+  position: relative;
+  height: 250px !important;
+  width: 100% !important;
+}
 
 .custom-legend {
   display: flex;
@@ -495,19 +142,21 @@ body {
 }
 
 /* --- Reminder Card --- */
+.reminder-area {
+  min-width: 0;
+}
+
 .reminder-card {
   background-color: #fdf0d5;
   border-radius: 12px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-  padding: 10px;
-  margin-top: 10px;
-  height: 100%; /* Makes it match the height of the chart card */
+  padding: 20px;
+  height: 100%;
+  overflow-y: auto;
 }
 
 .reminder-card-content {
   background-color: #fdf0d5;
-  padding: 20px;
-  border-radius: 8px;
   font-size: 14px;
   line-height: 1.5;
 }
@@ -540,8 +189,6 @@ body {
 /* ================================================= */
 /* == Row 3: Evaluation Task == */
 /* ================================================= */
-
-/* This card now sits on its own row */
 .evaluation-area {
   margin-bottom: 30px;
 }
@@ -550,9 +197,7 @@ body {
   background-color: #fdf0d5;
   border-radius: 12px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-  padding: 10px;
-  margin-top: 10px;
-  /* FIX: Allows horizontal scrolling on small screens */
+  padding: 20px;
   overflow-x: auto;
 }
 
@@ -565,163 +210,30 @@ body {
 
 .task-tab {
   padding: 10px 20px;
-  border: none;body {
-  font-family: "Montserrat";
-  transition: margin-left 0.5s;
-  /* Smooth transition for the main content shift */
-}
-
-#courseCode,
-#courseSession {
-  margin-left: auto;
-  /* CRITICAL: Pushes this element to the far right of the flex container */
-  /* Text Styles */
-  font-family: "Montserrat";
-  text-align: right;
-  line-height: 1.2;
-  /* padding-left: 10px;  */
-  /* Add padding to prevent text collision */
-  color: #333;
-  position: static;
-  margin: 0;
-}
-
-#courseCode {
-  font-size: 30px;
-}
-
-/* --- DASHBOARD GRID STYLES --- */
-.metrics-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
-  margin-bottom: 30px;
-  min-width: 0; /* Allows grid items to shrink */
-}
-
-.widget {
-  background-color: #fdf0d5;
-  border-radius: 12px;
-  padding: 10px 20px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-  display: flex;
-  align-items: center;
-  gap: 15px;
-  min-width: 0; /* Allows content to shrink */
-}
-
-.widget-icon {
-  font-size: 30px;
-  color: #666;
-  /* background-color: #ffffff; */
-  padding: 1px;
-  border-radius: 8px;
-}
-
-.widget-content {
-  display: flex;
-  flex-direction: column;
-}
-
-.widget-title {
-  font-size: 16px;
-  color: #666;
-  font-weight: 500;
-}
-
-.widget-value {
-  font-size: 23px;
-  font-weight: bold;
-  color: #333;
-}
-
-/* --- TASK & REMINDER SECTION --- */
-.task-reminder-section {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 20px;
-  align-items: start;
-}
-
-.evaluation-area {
-  min-width: 0; /* Allows content to shrink */
-  overflow-x: auto; /* Horizontal scroll for evaluation table */
-}
-
-.reminder-area {
-  min-width: 0; /* Allows content to shrink */
-}
-
-@media (max-width: 1024px) {
-  .task-reminder-section {
-    grid-template-columns: 1fr;
-  }
-}
-
-.card-title {
-  font-size: 16px;
-  font-weight: 700;
-  color: #333;
-  margin-bottom: 15px;
-}
-
-.evaluation-task-card,
-.reminder-card {
-  background-color: #fdf0d5;
-  border-radius: 12px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-  padding: 10px;
-  margin-top: 10px;
-  height: 400px;
-  display: flex;
-  flex-direction: column;
-}
-
-.evaluation-task-card {
-  overflow-x: auto; /* Horizontal scroll for wide content */
-  overflow-y: hidden;
-}
-
-.reminder-card {
-  overflow-y: auto; /* Vertical scroll for reminder content */
-  overflow-x: hidden;
-}
-
-/* Task Tab Styles */
-.tab-buttons {
-  display: flex;
-  border-bottom: 2px solid #e0e0e0;
-  margin-bottom: 15px;
-}
-
-.task-tab {
-  padding: 10px 20px;
   border: none;
   background: none;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
   color: #666;
   border-bottom: 3px solid transparent;
   transition: all 0.2s;
+  white-space: nowrap;
 }
 
-/* .task-tab:hover {
-            color: #0077b6;
-        } */
 
 .task-tab.active-tab {
   color: #780000;
   border-bottom-color: #780000;
 }
 
+/* --- Task List Container --- */
 .task-list-area {
-  overflow-x: auto; /* Enable horizontal scrolling */
-  flex: 1;
-  min-height: 0;
+  overflow-x: auto;
+  min-height: 200px;
 }
 
-/* Task List Styles */
+/* --- Task Group Styles --- */
 .task-group {
   display: none;
 }
@@ -737,6 +249,7 @@ body {
   font-style: italic;
 }
 
+/* Accordion headers for Upcoming */
 .task-group-header {
   background-color: #780000;
   color: white;
@@ -758,21 +271,36 @@ body {
   max-height: 0;
   overflow: hidden;
   transition: max-height 0.3s ease-out;
-  padding: 0 15px 10px;
+  padding: 0;
 }
 
 .task-list-details.expanded {
-  max-height: 1000px; /* Use a large number for smooth expand/collapse */
+  max-height: 1000px;
+  padding: 0 15px 10px;
 }
 
+/* --- Task Row Grid Layouts --- */
 .task-row {
-  display: grid;
-  grid-template-columns: 2fr 1fr 3fr 0.5fr;
-  gap: 10px;
-  padding: 10px 0;
-  border-bottom: 1px dashed #eee;
+  padding: 12px 10px;
+  border-bottom: 1px solid #e0e0e0;
   font-size: 16px;
-  align-items: center;
+  align-items: start;
+  line-height: 1.5;
+  min-width: 700px;
+}
+
+/* 4-column grid (In-progress, Completed) */
+.task-row.four-col-grid {
+  display: grid;
+  grid-template-columns: 2fr 3fr 1.5fr 1fr;
+  gap: 15px;
+}
+
+/* 5-column grid (Upcoming) */
+.task-row.five-col-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 3fr 1.5fr 0.5fr;
+  gap: 10px;
 }
 
 .task-row.header-row {
@@ -787,573 +315,40 @@ body {
   color: #555;
 }
 
-/* Reminder Card Specific Styles */
-.reminder-card-content {
-  background-color: #fdf0d5;
-  padding: 20px;
-  border-radius: 8px;
-  font-size: 14px;
-  line-height: 1.5;
+/* Remove border from the last item in a list */
+.task-group[data-group="inprogress"] .task-row:last-child,
+.task-group[data-group="completed"] .task-row:last-child,
+.task-list-details .task-row:last-child {
+  border-bottom: none;
 }
 
-.reminder-date {
-  font-weight: bold;
-  margin-bottom: 10px;
-  font-size: 16px;
-  padding-top: 5px; /* Spacing for the first reminder */
+.col-assessor {
+  text-align: center;
 }
 
-.reminder-item ul {
-  list-style-type: disc;
-  margin: 0;
-  padding-left: 20px;
-}
+/* ================================================= */
+/* == Responsive Adjustments == */
+/* ================================================= */
+@media (max-width: 1024px) {
+  .overview-reminder-grid {
+    grid-template-columns: 1fr;
+  }
 
-.reminder-item ul li {
-  margin-bottom: 5px;
-  font-size: 16px;
-}
+  .overview-charts-grid {
+    grid-template-columns: 1fr;
+  }
 
-.reminder-separator {
-  border: 0;
-  height: 1px;
-  background: #333;
-  margin: 20px 0;
-}
-
-/* Responsive adjustments for smaller screens */
-@media (max-width: 600px) {
-  .evaluation-task-card,
-  .reminder-card {
-    flex-direction: column;
-    align-items: stretch;
+  .metrics-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 
-/* Accordion headers for "Upcoming" */
-.task-group-header {
-  background-color: #780000;
-  color: white;
-  padding: 12px 15px;
-  margin-bottom: 5px;
-  border-radius: 8px;
-  font-size: 16px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-}
-
-.toggle-icon {
-  margin-right: 10px;
-  transition: transform 0.2s;
-}
-
-.task-list-details {
-  max-height: 0;
-  overflow: hidden;
-  transition: max-height 0.3s ease-out;
-  padding: 0;
-}
-
-.task-list-details.expanded {
-  max-height: 1000px;
-}
-
-/* --- Task Row Grid Layouts --- */
-.task-row {
-  padding: 12px 10px;
-  border-bottom: 1px solid #e0e0e0;
-  font-size: 16px;
-  align-items: start;
-  line-height: 1.5;
-  /* FIX: Set a minimum width for rows to force horizontal scrolling */
-  min-width: 700px;
-}
-
-/* 4-column grid (In-progress, Completed) */
-.task-row.four-col-grid {
-  display: grid;
-  grid-template-columns: 2fr 3fr 1.5fr 1fr;
-  gap: 15px;
-}
-
-/* 5-column grid (Upcoming) */
-.task-row.five-col-grid {
-  display: grid;
-  grid-template-columns: 2fr 1fr 3fr 1.5fr 0.5fr;
-  gap: 10px;
-}
-/* ================================================= */
-/* == Base & Typography Styles == */
-/* ================================================= */
-body {
-  font-family: "Montserrat";
-  transition: margin-left 0.5s;
-  /* Smooth transition for the main content shift */
-}
-
-#courseCode,
-#courseSession {
-  margin-left: auto;
-  font-family: "Montserrat";
-  text-align: right;
-  line-height: 1.2;
-  color: #333;
-  position: static;
-  margin: 0;
-}
-
-#courseCode {
-  font-size: 30px;
-}
-
-/* Sidebar styles for role headers [new] */
-.role-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 15px;
-  color: white;
-  text-decoration: none;
-  cursor: pointer;
-  transition: all 0.2s;
-  font-family: 'Montserrat', Arial, sans-serif;
-  font-weight: 600;
-  margin: 5px 10px;
-  border-radius: 8px;
-}
-
-.card-title {
-  font-size: 16px;
-  font-weight: 700;
-  color: #333;
-  margin-bottom: 15px;
-}
-
-/* ================================================= */
-/* == Row 1: Metrics Widgets == */
-/* ================================================= */
-.metrics-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-  gap: 20px;
-  margin-bottom: 30px;
-}
-
-.widget {
-  background-color: #fdf0d5;
-  border-radius: 12px;
-  padding: 10px 20px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-  display: flex;
-  align-items: center;
-  gap: 15px;
-}
-
-.widget-icon {
-  font-size: 30px;
-  color: #666;
-  padding: 1px;
-  border-radius: 8px;
-}
-
-.widget-content {
-  display: flex;
-  flex-direction: column;
-}
-
-.widget-title {
-  font-size: 16px;
-  color: #666;
-  font-weight: 500;
-}
-
-.widget-value {
-  font-size: 23px;
-  font-weight: bold;
-  color: #333;
-}
-
-/* ================================================= */
-/* == Row 2: Overview (Charts) & Reminder == */
-/* ================================================= */
-
-/* --- Main Layout Grid for Row 2 --- */
-.overview-reminder-grid {
-  display: grid;
-  /* On large screens: 2/3 for charts, 1/3 for reminder */
-  grid-template-columns: 2fr 1fr;
-  gap: 20px;
-  margin-bottom: 20px;
-}
-
-/* --- Overview Card (Charts) --- */
-.overview-section {
-  background: #ffffff;
-  border-radius: 8px;
-  padding: 20px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  min-width: 0; /* Fix for grid overflow */
-}
-
-/* Grid *inside* the Overview Card (for the 2 charts) */
-.overview-charts-grid {
-  display: grid;
-  /* On large screens: two charts side-by-side */
-  grid-template-columns: 1fr 1fr;
-  gap: 25px;
-}
-
-.chart-container {
-  position: relative;
-  width: 80%;
-  /* FIX: Reduced height to make charts less wide/tall */
-  height: 250px;
-}
-
-.chart-container h3 {
-  text-align: center;
-  font-size: 16px;
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 10px;
-}
-/* Custom HTML Legend */
-
-.custom-legend {
-  display: flex;
-  justify-content: center;
-  gap: 15px;
-  margin-bottom: 10px;
-  font-size: 0.8rem;
-  color: #555;
-}
-
-.custom-legend span {
-  display: flex;
-  align-items: center;
-}
-
-.legend-dot {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  border-radius: 3px;
-  margin-right: 6px;
-}
-
-/* --- Reminder Card --- */
-.reminder-card {
-  background-color: #fdf0d5;
-  border-radius: 12px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-  padding: 10px;
-  margin-top: 10px;
-  height: 100%; /* Makes it match the height of the chart card */
-}
-
-.reminder-card-content {
-  background-color: #fdf0d5;
-  padding: 20px;
-  border-radius: 8px;
-  font-size: 14px;
-  line-height: 1.5;
-}
-
-.reminder-date {
-  font-weight: bold;
-  margin-bottom: 10px;
-  font-size: 16px;
-  padding-top: 5px;
-}
-
-.reminder-item ul {
-  list-style-type: disc;
-  margin: 0;
-  padding-left: 20px;
-}
-
-.reminder-item ul li {
-  margin-bottom: 5px;
-  font-size: 16px;
-}
-
-.reminder-separator {
-  border: 0;
-  height: 1px;
-  background: #333;
-  margin: 20px 0;
-}
-
-/* ================================================= */
-/* == Row 3: Evaluation Task == */
-/* ================================================= */
-
-/* This card now sits on its own row */
-.evaluation-area {
-  margin-bottom: 30px;
-}
-
-.evaluation-task-card {
-  background-color: #fdf0d5;
-  border-radius: 12px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-  padding: 10px;
-  margin-top: 10px;
-  /* FIX: Allows horizontal scrolling on small screens */
-  overflow-x: auto;
-}
-
-/* --- Task Tab Styles --- */
-.tab-buttons {
-  display: flex;
-  border-bottom: 2px solid #e0e0e0;
-  margin-bottom: 15px;
-}
-
-.task-tab {
-  padding: 10px 20px;
-  border: none;
-  background: none;
-  cursor: pointer;
-  font-size: 16px;
-  font-weight: 600;
-  color: #666;
-  border-bottom: 3px solid transparent;
-  transition: all 0.2s;
-  white-space: nowrap; /* Prevents tabs from wrapping */
-}
-
-.task-tab.active-tab {
-  color: #780000;
-  border-bottom-color: #780000;
-}
-
-/* --- Task List Styles --- */
-.task-group {
-  display: none;
-}
-
-.task-group.active {
-  display: block;
-}
-
-.no-tasks {
-  text-align: center;
-  padding: 40px 20px;
-  color: #999;
-  font-style: italic;
-}
-
-/* Accordion headers for "Upcoming" */
-.task-group-header {
-  background-color: #780000;
-  color: white;
-  padding: 12px 15px;
-  margin-bottom: 5px;
-  border-radius: 8px;
-  font-size: 16px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-}
-
-.toggle-icon {
-  margin-right: 10px;
-  transition: transform 0.2s;
-}
-
-.task-list-details {
-  max-height: 0;
-  overflow: hidden;
-  transition: max-height 0.3s ease-out;
-  padding: 0;
-}
-
-.task-list-details.expanded {
-  max-height: 1000px;
-}
-
-/* --- Task Row Grid Layouts --- */
-.task-row {
-  padding: 12px 10px;
-  border-bottom: 1px solid #e0e0e0;
-  font-size: 16px;
-  align-items: start;
-  line-height: 1.5;
-  /* FIX: Set a minimum width for rows to force horizontal scrolling */
-  min-width: 700px;
-}
-
-/* 4-column grid (In-progress, Completed) */
-.task-row.four-col-grid {
-  display: grid;
-  grid-template-columns: 2fr 3fr 1.5fr 1fr;
-  gap: 15px;
-}
-
-/* 5-column grid (Upcoming) */
-.task-row.five-col-grid {
-  display: grid;
-  grid-template-columns: 2fr 1fr 3fr 1.5fr 0.5fr;
-  gap: 10px;
-}
-
-.task-row.header-row {
-  font-weight: 700;
-  color: #333;
-  border-bottom: 2px solid #ccc;
-  margin-bottom: 5px;
-  padding-top: 5px;
-}
-
-/* Remove border from the last item in a list */
-.task-group[data-group="inprogress"] .task-row:last-child,
-.task-group[data-group="completed"] .task-row:last-child,
-.task-list-details .task-row:last-child {
-  border-bottom: none;
-}
-
-.col-assessor {
-  text-align: center;
-}
-
-/* Responsive adjustments for smaller screens */
 @media (max-width: 600px) {
-  .evaluation-task-card,
-.reminder-card {
-    flex-direction: column;
-    align-items: stretch;
+  .metrics-grid {
+    grid-template-columns: 1fr;
   }
-}
 
-.task-row.header-row {
-  font-weight: 700;
-  color: #333;
-  border-bottom: 2px solid #ccc;
-  margin-bottom: 5px;
-  padding-top: 5px;
-}
-
-/* Remove border from the last item in a list */
-.task-group[data-group="inprogress"] .task-row:last-child,
-.task-group[data-group="completed"] .task-row:last-child,
-.task-list-details .task-row:last-child {
-  border-bottom: none;
-}
-
-.col-assessor {
-  text-align: center;
-
-  background: none;
-  cursor: pointer;
-  font-size: 16px;
-  font-weight: 600;
-  color: #666;
-  border-bottom: 3px solid transparent;
-  transition: all 0.2s;
-  white-space: nowrap; /* Prevents tabs from wrapping */
-}
-
-.task-tab.active-tab {
-  color: #780000;
-  border-bottom-color: #780000;
-}
-
-/* --- Task List Styles --- */
-.task-group {
-  display: none;
-}
-
-.task-group.active {
-  display: block;
-}
-
-.no-tasks {
-  text-align: center;
-  padding: 40px 20px;
-  color: #999;
-  font-style: italic;
-}
-
-/* Accordion headers for "Upcoming" */
-.task-group-header {
-  background-color: #780000;
-  color: white;
-  padding: 12px 15px;
-  margin-bottom: 5px;
-  border-radius: 8px;
-  font-size: 16px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-}
-
-.toggle-icon {
-  margin-right: 10px;
-  transition: transform 0.2s;
-}
-
-.task-list-details {
-  max-height: 0;
-  overflow: hidden;
-  transition: max-height 0.3s ease-out;
-  padding: 0;
-}
-
-.task-list-details.expanded {
-  max-height: 1000px;
-}
-
-/* --- Task Row Grid Layouts --- */
-.task-row {
-  padding: 12px 10px;
-  border-bottom: 1px solid #e0e0e0;
-  font-size: 16px;
-  align-items: start;
-  line-height: 1.5;
-  /* FIX: Set a minimum width for rows to force horizontal scrolling */
-  min-width: 700px;
-}
-
-/* 4-column grid (In-progress, Completed) */
-.task-row.four-col-grid {
-  display: grid;
-  grid-template-columns: 2fr 3fr 1.5fr 1fr;
-  gap: 15px;
-}
-
-/* 5-column grid (Upcoming) */
-.task-row.five-col-grid {
-  display: grid;
-  grid-template-columns: 2fr 1fr 3fr 1.5fr 0.5fr;
-  gap: 10px;
-}
-
-.task-row.header-row {
-  font-weight: 700;
-  color: #333;
-  border-bottom: 2px solid #ccc;
-  margin-bottom: 5px;
-  padding-top: 5px;
-}
-
-/* Remove border from the last item in a list */
-.task-group[data-group="inprogress"] .task-row:last-child,
-.task-group[data-group="completed"] .task-row:last-child,
-.task-list-details .task-row:last-child {
-  border-bottom: none;
-}
-
-.col-assessor {
-  text-align: center;
-}
-
-/* Responsive adjustments for smaller screens */
-@media (max-width: 600px) {
-  .evaluation-task-card,
-.reminder-card {
-    flex-direction: column;
-    align-items: stretch;
+  .task-row {
+    min-width: 500px;
   }
 }

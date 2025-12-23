@@ -30,16 +30,16 @@ if ($resultSession && $resultSession->num_rows > 0) {
     $sessionRow = $resultSession->fetch_assoc();
     $courseCode = $sessionRow['Course_Code'];
     $courseSession = $sessionRow['FYP_Session'] . " - " . $sessionRow['Semester'];
-} 
+}
 
 // =================================================================================
 // 4. FETCH DYNAMIC STUDENT DATA (PHP Logic)
 // =================================================================================
-$studentDataPHP = []; 
+$studentDataPHP = [];
 
 // A. Get Login ID 
-if (isset($_SESSION['user_id'])) {
-    $loginID = $_SESSION['user_id'];
+if (isset($_SESSION['upmId'])) {
+    $loginID = $_SESSION['upmId'];
 } else {
     $loginID = 'hazura'; // Fallback
 }
@@ -50,12 +50,14 @@ if ($activeRole === 'supervisor') {
     $stmt = $conn->prepare("SELECT Supervisor_ID FROM supervisor WHERE Lecturer_ID = ?");
     $stmt->bind_param("s", $loginID);
     $stmt->execute();
-    if ($row = $stmt->get_result()->fetch_assoc()) $currentUserID = $row['Supervisor_ID'];
+    if ($row = $stmt->get_result()->fetch_assoc())
+        $currentUserID = $row['Supervisor_ID'];
 } elseif ($activeRole === 'assessor') {
     $stmt = $conn->prepare("SELECT Assessor_ID FROM assessor WHERE Lecturer_ID = ?");
     $stmt->bind_param("s", $loginID);
     $stmt->execute();
-    if ($row = $stmt->get_result()->fetch_assoc()) $currentUserID = $row['Assessor_ID'];
+    if ($row = $stmt->get_result()->fetch_assoc())
+        $currentUserID = $row['Assessor_ID'];
 }
 
 // C. Fetch Students
@@ -94,6 +96,7 @@ if ($currentUserID) {
 ?>
 <!DOCTYPE html>
 <html>
+
 <head>
     <title>FYPAssess</title>
     <link rel="stylesheet" href="../../css/<?php echo $activeRole; ?>/evaluationForm.css?v=<?php echo time(); ?>">
@@ -118,49 +121,75 @@ if ($currentUserID) {
 
             <span id="nameSide">HI, <?php echo strtoupper($loginID); ?></span>
 
-            <a href="javascript:void(0)" class="role-header <?php echo ($activeRole == 'supervisor') ? 'menu-expanded' : ''; ?>" 
-               onclick="toggleMenu('supervisorMenu', this)">
+            <a href="javascript:void(0)"
+                class="role-header <?php echo ($activeRole == 'supervisor') ? 'menu-expanded' : ''; ?>"
+                onclick="toggleMenu('supervisorMenu', this)">
                 <span class="role-text">Supervisor</span>
                 <span class="arrow-container"><i class="bi bi-chevron-right arrow-icon"></i></span>
             </a>
-            
+
             <div id="supervisorMenu" class="menu-items <?php echo ($activeRole == 'supervisor') ? 'expanded' : ''; ?>">
-                <a href="../dashboard/dashboard.html" id="dashboard"><i class="bi bi-house-fill icon-padding"></i> Dashboard</a>
-                <a href="../notification/notification.html" id="Notification"><i class="bi bi-bell-fill icon-padding"></i> Notification</a>
+                <a href="../phpSupervisor/dashboard.php?role=supervisor" id="dashboard"
+                    class="<?php echo ($activeRole == 'supervisor') ?: ''; ?>">
+                    <i class="bi bi-house-fill icon-padding"></i> Dashboard
+                </a>
+                <a href="../phpSupervisor/notification.php?role=supervisor" id="Notification"
+                    class="<?php echo ($activeRole == 'supervisor') ?: ''; ?>">
+                    <i class="bi bi-bell-fill icon-padding"></i> Notification
+                </a>
                 <a href="../phpSupervisor/industry_collaboration.php?role=supervisor" id="industryCollaboration"
-                    class="<?php echo ($activeRole == 'supervisor') ? : ''; ?>">
+                    class="<?php echo ($activeRole == 'supervisor') ?: ''; ?>">
                     <i class="bi bi-calendar-check-fill icon-padding"></i> Industry Collaboration
                 </a>
-                
-                <a href="evaluation_form.php?role=supervisor" id="evaluationForm" class="<?php echo ($activeRole == 'supervisor') ? 'active-menu-item active-page' : ''; ?>">
+
+                <a href="../phpAssessor_Supervisor/evaluation_form.php?role=supervisor" id="evaluationForm"
+                    class="<?php echo ($activeRole == 'supervisor') ? 'active-menu-item active-page' : ''; ?>">
                     <i class="bi bi-file-earmark-text-fill icon-padding"></i> Evaluation Form
                 </a>
 
-                <a href="../report/report.html" id="superviseesReport"><i class="bi bi-bar-chart-fill icon-padding"></i> Supervisees' Report</a>
+                <a href="../phpSupervisor/report.php?role=supervisor" id="superviseesReport"
+                    class="<?php echo ($activeRole == 'supervisor') ?: ''; ?>">
+                    <i class="bi bi-bar-chart-fill icon-padding"></i> Supervisee's Report
+                </a>
                 <a href="../phpSupervisor/logbook_submission.php?role=supervisor" id="logbookSubmission"
-                    class="<?php echo ($activeRole == 'supervisor') ? : ''; ?>">
+                    class="<?php echo ($activeRole == 'supervisor') ?: ''; ?>">
                     <i class="bi bi-calendar-check-fill icon-padding"></i> Logbook Submission
                 </a>
-                <a href="../signature/signatureSubmission.html" id="signatureSubmission"><i class="bi bi-calendar-check-fill icon-padding"></i> Signature Submission</a>
-                <a href="../phpSupervisor/project_title.php" id="projectTitle"><i class="bi bi-calendar-check-fill icon-padding"></i> Project Title</a>
+                <a href="../phpSupervisor/signature_submission.php?role=supervisor" id="signatureSubmission"
+                    class="<?php echo ($activeRole == 'supervisor') ?: ''; ?>">
+                    <i class="bi bi-calendar-check-fill icon-padding"></i> Signature Submission
+                </a>
+
+                <a href="../phpSupervisor/project_title.php?role=supervisor" id="projectTitle"
+                    class="<?php echo ($activeRole == 'supervisor') ?: ''; ?>">
+                    <i class="bi bi-calendar-check-fill icon-padding"></i> Project Title
+                </a>
             </div>
 
-            <a href="javascript:void(0)" class="role-header <?php echo ($activeRole == 'assessor') ? 'menu-expanded' : ''; ?>" 
-               onclick="toggleMenu('assessorMenu', this)">
+            <a href="javascript:void(0)"
+                class="role-header <?php echo ($activeRole == 'assessor') ? 'menu-expanded' : ''; ?>"
+                onclick="toggleMenu('assessorMenu', this)">
                 <span class="role-text">Assessor</span>
                 <span class="arrow-container"><i class="bi bi-chevron-right arrow-icon"></i></span>
             </a>
 
             <div id="assessorMenu" class="menu-items <?php echo ($activeRole == 'assessor') ? 'expanded' : ''; ?>">
-                <a href="../dashboard/dashboard.html" id="Dashboard"><i class="bi bi-house-fill icon-padding"></i> Dashboard</a>
-                <a href="../notification/notification.html" id="Notification"><i class="bi bi-bell-fill icon-padding"></i> Notification</a>
-                
-                <a href="evaluation_form.php?role=assessor" id="AssessorEvaluationForm" class="<?php echo ($activeRole == 'assessor') ? 'active-menu-item active-page' : ''; ?>">
+                <a href="../phpAssessor/dashboard.php?role=supervisor" id="dashboard"
+                    class="<?php echo ($activeRole == 'assessor') ?: ''; ?>">
+                    <i class="bi bi-house-fill icon-padding"></i> Dashboard
+                </a>
+                <a href="../phpAssessor/notification.php?role=supervisor" id="dashboard"
+                    class="<?php echo ($activeRole == 'assessor') ?: ''; ?>">
+                    <i class="bi bi-house-fill icon-padding"></i> Notification
+                </a>
+                <a href="../phpAssessor_Supervisor/evaluation_form.php?role=assessor" id="AssessorEvaluationForm"
+                    class="<?php echo ($activeRole == 'assessor') ? 'active-menu-item active-page' : ''; ?>">
                     <i class="bi bi-file-earmark-text-fill icon-padding"></i> Evaluation Form
                 </a>
             </div>
-            
-            <a href="#" id="logout"><i class="bi bi-box-arrow-left" style="padding-right: 10px;"></i> Logout</a>
+
+            <a href="../login.php" id="logout"><i class="bi bi-box-arrow-left" style="padding-right: 10px;"></i>
+                Logout</a>
         </div>
     </div>
     <div id="containerAtas" class="containerAtas">
@@ -240,16 +269,16 @@ if ($currentUserID) {
     <script>
         const currentActiveRole = "<?php echo $activeRole; ?>";
         const studentData = <?php echo json_encode($studentDataPHP); ?>;
-        
+
         let rubrics = {};
-        let assessmentMeta = {}; 
+        let assessmentMeta = {};
         let selectedStudentId = null;
         let selectedAssessmentKey = null;
 
         // ==========================================
         // SIDEBAR LOGIC START
         // ==========================================
-        
+
         // 1. Toggle Menu (Accordion)
         function toggleMenu(menuId, headerElement) {
             const menu = document.getElementById(menuId);
@@ -313,7 +342,7 @@ if ($currentUserID) {
             // Show Text Elements
             document.getElementById("nameSide").style.display = "block";
             document.getElementById("close").style.display = "block";
-            
+
             // Show Logout
             document.getElementById("logout").style.display = "flex";
 
@@ -338,7 +367,7 @@ if ($currentUserID) {
 
             // HIDE LOGOUT SPECIFICALLY
             document.getElementById("logout").style.display = "none";
-            
+
             // Hide all links (Icons will be handled by CSS or specific logic if needed, 
             // but for 'Backup' style often links hide completely except for hamburger)
             const links = document.querySelectorAll("#sidebarLinks a");
@@ -352,8 +381,8 @@ if ($currentUserID) {
         document.addEventListener('DOMContentLoaded', () => {
             closeNav(); // Start closed
             updateRoleHeaderHighlighting(); // Set initial highlighting state
-            initStudentDropdown(); 
-            loadRubricsFromDB(); 
+            initStudentDropdown();
+            loadRubricsFromDB();
         });
         // ==========================================
         // SIDEBAR LOGIC END
@@ -362,7 +391,7 @@ if ($currentUserID) {
         function initStudentDropdown() {
             const select = document.getElementById('studentSelect');
             const keys = Object.keys(studentData);
-            
+
             if (keys.length === 0) {
                 select.innerHTML = '<option value="" disabled selected>No students found.</option>';
                 return;
@@ -375,7 +404,7 @@ if ($currentUserID) {
                 option.textContent = `${matric} - ${s.name}`;
                 select.appendChild(option);
             });
-            select.addEventListener('change', function() {
+            select.addEventListener('change', function () {
                 selectedStudentId = this.value;
                 updateStudentDetails(selectedStudentId);
                 checkFormVisibility();
@@ -397,7 +426,7 @@ if ($currentUserID) {
                 <p><strong>Project title</strong>: ${student.projectTitle}</p>
             `;
         }
-        
+
         function checkFormVisibility() {
             const content = document.getElementById('dynamicFormContent');
             if (selectedStudentId && selectedAssessmentKey) {
@@ -418,10 +447,10 @@ if ($currentUserID) {
                 rubrics = data;
 
                 const select = document.getElementById('assessmentSelect');
-                
+
                 // Check if any assessments are available
                 const availableAssessments = Object.keys(assessmentMeta);
-                
+
                 if (availableAssessments.length === 0) {
                     // =======================================================================
                     // NOTE: This will trigger when due date checking is enabled
@@ -429,13 +458,13 @@ if ($currentUserID) {
                     select.innerHTML = '<option value="" disabled selected>No assessments available at this time</option>';
                     return;
                 }
-                
+
                 select.innerHTML = '<option value="" disabled selected>Select an assessment type...</option>';
                 for (const [slug, details] of Object.entries(assessmentMeta)) {
                     const option = document.createElement('option');
                     option.value = slug;
                     option.textContent = details.name;
-                    
+
                     // =======================================================================
                     // NOTE: When due_date is enabled, uncomment to show due date info:
                     /*
@@ -445,10 +474,10 @@ if ($currentUserID) {
                     }
                     */
                     // =======================================================================
-                    
+
                     select.appendChild(option);
                 }
-                select.addEventListener('change', function() {
+                select.addEventListener('change', function () {
                     selectedAssessmentKey = this.value;
                     generateEvaluationTable(selectedAssessmentKey);
                     checkFormVisibility();
@@ -485,7 +514,7 @@ if ($currentUserID) {
                                 // Find criteria dropdown
                                 selector = `.mark-selector[data-criteria-id="${mark.criteria_id}"][data-type="criteria"]`;
                             }
-                            
+
                             const dropdown = document.querySelector(selector);
                             if (dropdown) {
                                 dropdown.value = mark.given_marks;
@@ -543,15 +572,15 @@ if ($currentUserID) {
 
             for (const [cID, dropdowns] of Object.entries(criteriaGroups)) {
                 let criteriaTotal = 0;
-                
+
                 // ======================================================
                 // CRITERIA 10: REPORT ASSESSMENT (Per-Item Calculation)
                 // ======================================================
-                if (cID == '10') { 
+                if (cID == '10') {
                     dropdowns.forEach(d => {
                         const subId = d.getAttribute('data-element-id');
                         const val = parseFloat(d.value) || 0;
-                        
+
                         // Formula A: Sub 1,2,7 -> (Score / 15) * 5
                         if (['1', '2', '7'].includes(subId)) {
                             criteriaTotal += (val / 15) * 5;
@@ -565,7 +594,7 @@ if ($currentUserID) {
                             criteriaTotal += val;
                         }
                     });
-                } 
+                }
                 // ======================================================
                 // CRITERIA 12: SENSE OF RESPONSIBILITY (Per-Item /2)
                 // ======================================================
@@ -574,7 +603,7 @@ if ($currentUserID) {
                         const val = parseFloat(d.value) || 0;
                         criteriaTotal += val / 2; // Each item divided by 2
                     });
-                } 
+                }
                 // ======================================================
                 // CRITERIA 5, 6, 9: DOUBLE WEIGHT (Per-Item *2)
                 // ======================================================
@@ -590,7 +619,7 @@ if ($currentUserID) {
                 else {
                     dropdowns.forEach(d => criteriaTotal += parseFloat(d.value) || 0);
                 }
-                
+
                 const displayEl = document.getElementById(`display-total-${cID}`);
                 if (displayEl) displayEl.value = criteriaTotal.toFixed(2);
                 grandTotal += criteriaTotal;
@@ -600,26 +629,26 @@ if ($currentUserID) {
         }
 
         function generateEvaluationTable(assessmentKey) {
-    const tableBody = document.getElementById('evaluationTableBody');
-    const assessmentRubric = rubrics[assessmentKey];
+            const tableBody = document.getElementById('evaluationTableBody');
+            const assessmentRubric = rubrics[assessmentKey];
 
-    if (!assessmentRubric || assessmentRubric.length === 0) {
-        tableBody.innerHTML = `<div class="p-4 text-center">No criteria found.</div>`;
-        return;
-    }
+            if (!assessmentRubric || assessmentRubric.length === 0) {
+                tableBody.innerHTML = `<div class="p-4 text-center">No criteria found.</div>`;
+                return;
+            }
 
-    let htmlContent = `
+            let htmlContent = `
         <div class="grid-cell header-row1">Evaluation Criteria</div>
         <div class="grid-cell header-row">Learning Objective</div>
         <div class="grid-cell header-row">Marks (%)</div>`;
 
-    assessmentRubric.forEach((criterion, index) => {
-        // Calculate the number (Index starts at 0, so we add 1)
-        const criteriaNumber = index + 1;
+            assessmentRubric.forEach((criterion, index) => {
+                // Calculate the number (Index starts at 0, so we add 1)
+                const criteriaNumber = index + 1;
 
-        if (criterion.sub_criteria && criterion.sub_criteria.length > 0) {
-            // --- SCENARIO A: HAS SUB-CRITERIA (e.g. Thesis) ---
-            htmlContent += `
+                if (criterion.sub_criteria && criterion.sub_criteria.length > 0) {
+                    // --- SCENARIO A: HAS SUB-CRITERIA (e.g. Thesis) ---
+                    htmlContent += `
             <div class="grid-cell criteria-cell" style="background-color: #FFFFFFFF; border-bottom: none;">
                 <h5 class="criteria-title" style="margin:0; color:#333;">${criteriaNumber}. ${criterion.title}</h5>
             </div>
@@ -630,20 +659,20 @@ if ($currentUserID) {
                 <input type="text" class="form-control marks-input main-score-display" id="display-total-${criterion.id}" disabled readonly value="0.00" style="font-weight:bold;">
             </div>`;
 
-            criterion.sub_criteria.forEach((sub) => {
-                const subPoints = sub.description.map(p => `<li>${p}</li>`).join('');
-                let options = `<option value="" disabled selected>Select...</option>`;
-                if (sub.marks_options && sub.marks_options.length > 0) {
-                    sub.marks_options.forEach(opt => {
-                        const val = opt.split(' - ')[0];
-                        options += `<option value="${val}">${opt}</option>`;
-                    });
-                } else {
-                    for (let i = 0; i <= sub.max_marks; i++) {
-                        options += `<option value="${i}">${i}</option>`;
-                    }
-                }
-                htmlContent += `
+                    criterion.sub_criteria.forEach((sub) => {
+                        const subPoints = sub.description.map(p => `<li>${p}</li>`).join('');
+                        let options = `<option value="" disabled selected>Select...</option>`;
+                        if (sub.marks_options && sub.marks_options.length > 0) {
+                            sub.marks_options.forEach(opt => {
+                                const val = opt.split(' - ')[0];
+                                options += `<option value="${val}">${opt}</option>`;
+                            });
+                        } else {
+                            for (let i = 0; i <= sub.max_marks; i++) {
+                                options += `<option value="${i}">${i}</option>`;
+                            }
+                        }
+                        htmlContent += `
                 <div class="grid-cell criteria-cell" style="padding-left: 60px; padding-bottom: 15px; border-bottom: none;">
                     <h6 style="color:#333; margin-bottom: 5px;">${sub.name}</h6>
                     <ul class="criteria-list small text-muted">${subPoints}</ul>
@@ -658,16 +687,16 @@ if ($currentUserID) {
                 </div>
                 <div class="grid-cell lo-cell"; style="border-bottom: none";></div>
                 <div class="grid-cell mark-cell"; style="border-bottom: none";></div>`;
-            });
-        } else {
-            // --- SCENARIO B: STANDARD CRITERIA ---
-            const dropdownOptions = criterion.marks.map((mark) => {
-                const markValue = mark.split(' - ')[0];
-                return `<option value="${markValue}">${mark}</option>`;
-            }).join('');
-            const criteriaList = criterion.criteria_points.map(c => `<li>${c}</li>`).join('');
+                    });
+                } else {
+                    // --- SCENARIO B: STANDARD CRITERIA ---
+                    const dropdownOptions = criterion.marks.map((mark) => {
+                        const markValue = mark.split(' - ')[0];
+                        return `<option value="${markValue}">${mark}</option>`;
+                    }).join('');
+                    const criteriaList = criterion.criteria_points.map(c => `<li>${c}</li>`).join('');
 
-            htmlContent += `
+                    htmlContent += `
             <div class="grid-cell criteria-cell" style="border-top: 1px solid #e9ecef;">
                 <h4 class="criteria-title">${criteriaNumber}. ${criterion.title}</h4>
                 <ul class="criteria-list">${criteriaList}</ul>
@@ -685,26 +714,26 @@ if ($currentUserID) {
             <div class="grid-cell mark-cell" style="border-top: 1px solid #e9ecef;">
                 <input type="text" class="form-control marks-input" id="display-total-${criterion.id}" disabled readonly value="0.00">
             </div>`;
-        }
-    });
-    // #e9ecef
+                }
+            });
+            // #e9ecef
 
-    htmlContent += `
+            htmlContent += `
                 <div class="grid-cell criteria-cell" style="background-color: #FFFFFFFF; border-top: 7px solid #780000; font-weight: bold; text-align: right; padding-right: 20px;">Total Marks (%)</div>
                 <div class="grid-cell lo-cell" style="background-color: #FFFFFFFF; border-top: 7px solid #780000;"></div>
                 <div class="grid-cell mark-cell" style="background-color: #FFFFFFFF; border-top: 7px solid #780000;">
                     <input type="text" id="grand-total-display" class="form-control text-center" disabled readonly value="0.00" style="font-weight:bold;">
                 </div>`;
             tableBody.innerHTML = htmlContent;
-    
-    document.querySelectorAll('.mark-selector').forEach(select => {
-        select.addEventListener('change', calculateLiveScore);
-    });
-}
+
+            document.querySelectorAll('.mark-selector').forEach(select => {
+                select.addEventListener('change', calculateLiveScore);
+            });
+        }
 
         const submitBtn = document.querySelector('.submit-container button');
         submitBtn.addEventListener('click', function () {
-             if (!selectedStudentId || !selectedAssessmentKey) {
+            if (!selectedStudentId || !selectedAssessmentKey) {
                 alert("Please select student and assessment.");
                 return;
             }
@@ -718,7 +747,7 @@ if ($currentUserID) {
                 } else {
                     select.style.border = "";
                     marksData.push({
-                        criteria_id: select.getAttribute('data-criteria-id'), 
+                        criteria_id: select.getAttribute('data-criteria-id'),
                         score: select.value,
                         type: select.getAttribute('data-type'),
                         element_id: select.getAttribute('data-element-id')
@@ -742,24 +771,24 @@ if ($currentUserID) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             })
-            .then(res => res.json())
-            .then(data => {
-                if (data.status === 'success') {
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        submitBtn.innerText = "Submit";
+                        submitBtn.disabled = false;
+                        showAcknowledgementModal();
+                    } else {
+                        alert("Error: " + data.message);
+                        submitBtn.innerText = "Submit";
+                        submitBtn.disabled = false;
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    alert("Server connection failed.");
                     submitBtn.innerText = "Submit";
                     submitBtn.disabled = false;
-                    showAcknowledgementModal();
-                } else {
-                    alert("Error: " + data.message);
-                    submitBtn.innerText = "Submit";
-                    submitBtn.disabled = false;
-                }
-            })
-            .catch(err => {
-                console.error(err);
-                alert("Server connection failed.");
-                submitBtn.innerText = "Submit";
-                submitBtn.disabled = false;
-            });
+                });
         });
 
         // Acknowledgement Modal Functions
@@ -783,4 +812,5 @@ if ($currentUserID) {
         });
     </script>
 </body>
+
 </html>
