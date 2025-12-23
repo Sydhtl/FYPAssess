@@ -49,6 +49,21 @@ if ($currentYear === null) {
     $currentYear = '2024/2025';
     $currentSemester = 2;
 }
+
+// Derive base course code for header (strip trailing section letter)
+$baseCourseCode = '';
+if ($departmentId !== null) {
+    if ($codeStmt = $conn->prepare("SELECT Course_Code FROM course WHERE Department_ID = ? ORDER BY Course_Code LIMIT 1")) {
+        $codeStmt->bind_param('i', $departmentId);
+        if ($codeStmt->execute()) {
+            $codeRes = $codeStmt->get_result();
+            if ($codeRow = $codeRes->fetch_assoc()) {
+                $baseCourseCode = preg_replace('/[-_ ]?[A-Za-z]$/', '', $codeRow['Course_Code']);
+            }
+        }
+        $codeStmt->close();
+    }
+}
 ?>
 <!DOCTYPE html>
 <html>
@@ -134,8 +149,8 @@ if ($currentYear === null) {
                 <div id="containerFYPAssess">FYPAssess</div>
             </div>
             <div id="course-session">
-                <div id="courseCode">SWE4949</div>
-                <div id="courseSession">2024/2025 - 2</div>
+                <div id="courseCode"><?php echo htmlspecialchars($baseCourseCode); ?></div>
+                <div id="courseSession"><?php echo htmlspecialchars($currentYear . ' - ' . $currentSemester); ?></div>
             </div>
         </div>
     </div>

@@ -2,10 +2,48 @@
 include '../../../php/mysqlConnect.php';
 session_start();
 
+// Prevent caching to avoid back button access after logout
+header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+header("Cache-Control: post-check=0, pre-check=0", false);
+header("Pragma: no-cache");
+header("Expires: Sat, 26 Jul 1997 05:00:00 GMT");
+
 if (!isset($_SESSION['upmId']) || !isset($_SESSION['role']) || $_SESSION['role'] !== 'Coordinator') {
     header("Location: ../../login/Login.php");
     exit();
 }
+?>
+<script>
+// Prevent back button after logout
+window.history.pushState(null, "", window.location.href);
+window.onpopstate = function() {
+    window.history.pushState(null, "", window.location.href);
+};
+
+// Check session validity on page load and periodically
+function validateSession() {
+    fetch('../../../php/check_session_alive.php')
+        .then(function(resp){ return resp.json(); })
+        .then(function(data){
+            if (!data.valid) {
+                // Session is invalid, redirect to login
+                window.location.href = '../../login/Login.php';
+            }
+        })
+        .catch(function(err){
+            // If we can't reach the server, assume session is invalid
+            console.warn('Session validation failed:', err);
+            window.location.href = '../../login/Login.php';
+        });
+}
+
+// Validate session on page load
+window.addEventListener('load', validateSession);
+
+// Also check every 10 seconds
+setInterval(validateSession, 10000);
+</script>
+<?php
 
 $userId = $_SESSION['upmId'];
 $coordinatorName = 'Coordinator';
@@ -20,6 +58,34 @@ if ($stmt = $conn->prepare("SELECT Lecturer_Name FROM lecturer WHERE Lecturer_ID
         }
     }
     $stmt->close();
+}
+
+// Get coordinator department and base course code (strip trailing section letter)
+$departmentId = null;
+if ($stmt = $conn->prepare("SELECT Department_ID FROM lecturer WHERE Lecturer_ID = ? LIMIT 1")) {
+    $stmt->bind_param("s", $userId);
+    if ($stmt->execute()) {
+        $res = $stmt->get_result();
+        if ($row = $res->fetch_assoc()) {
+            $departmentId = $row['Department_ID'];
+        }
+    }
+    $stmt->close();
+}
+
+$baseCourseCode = '';
+if ($departmentId) {
+    if ($stmt = $conn->prepare("SELECT Course_Code FROM course WHERE Department_ID = ? ORDER BY Course_Code LIMIT 1")) {
+        $stmt->bind_param("i", $departmentId);
+        if ($stmt->execute()) {
+            $res = $stmt->get_result();
+            if ($row = $res->fetch_assoc()) {
+                $firstCourseCode = $row['Course_Code'];
+                $baseCourseCode = preg_replace('/[-_ ]?[A-Za-z]$/', '', $firstCourseCode);
+            }
+        }
+        $stmt->close();
+    }
 }
 
 // Get filter values from URL or set defaults
@@ -271,6 +337,13 @@ $assessorDataJson = json_encode($assessorData);
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <script>
+    // Prevent back button after logout
+    window.history.pushState(null, "", window.location.href);
+    window.onpopstate = function() {
+        window.history.pushState(null, "", window.location.href);
+    };
+    </script>
 </head>
 <body class="student-assignation-page">
 
@@ -330,7 +403,7 @@ $assessorDataJson = json_encode($assessorData);
                 <a href="../dateTimeAllocation/dateTimeAllocation.php" id="dateTimeAllocation"><i class="bi bi-calendar-event-fill icon-padding"></i> Date and Time Allocation</a>
             </div>
 
-            <a href="../../login/login.php" id="logout">
+            <a href="../../logout.php" id="logout">
                 <i class="bi bi-box-arrow-left" style="padding-right: 10px;"></i> Logout
             </a>
         </div>
@@ -347,8 +420,8 @@ $assessorDataJson = json_encode($assessorData);
                 <div id="containerFYPAssess">FYPAssess</div>
             </div>
             <div id="course-session">
-                <div id="courseCode">SWE4949</div>
-                <div id="courseSession">2024/2025 - 2</div>
+                <div id="courseCode"><?php echo htmlspecialchars($baseCourseCode); ?></div>
+                <div id="courseSession"><?php echo htmlspecialchars(($selectedYear ?? '') . ' - ' . ($selectedSemester ?? '')); ?></div>
             </div>
         </div>
     </div>
@@ -360,7 +433,7 @@ $assessorDataJson = json_encode($assessorData);
         <div class="filters-section">
             <div class="filter-group">
                 <label for="yearFilter">Year</label>
-                <select id="yearFilter" onchange="reloadPageWithFilters()">
+                <select id="yearFilter" class="filter-select" onchange="reloadPageWithFilters()">
                     <?php foreach ($yearOptions as $year): ?>
                         <option value="<?php echo htmlspecialchars($year); ?>" 
                                 <?php echo ($year == $selectedYear) ? 'selected' : ''; ?>>
@@ -371,7 +444,7 @@ $assessorDataJson = json_encode($assessorData);
             </div>
             <div class="filter-group">
                 <label for="semesterFilter">Semester</label>
-                <select id="semesterFilter" onchange="reloadPageWithFilters()">
+                <select id="semesterFilter" class="filter-select" onchange="reloadPageWithFilters()">
                     <?php foreach ($semesterOptions as $semester): ?>
                         <option value="<?php echo htmlspecialchars($semester); ?>" 
                                 <?php echo ($semester == $selectedSemester) ? 'selected' : ''; ?>>
@@ -433,14 +506,15 @@ $assessorDataJson = json_encode($assessorData);
                                     <i class="bi bi-plus-circle"></i>
                                     <span>Assign Remaining Quota</span>
                                 </button>
-                                <button class="btn btn-outline-dark" onclick="followPastQuota()" style="background-color: white; color: black; border-color: black;" onmouseover="this.style.backgroundColor='white'; this.style.color='black';" onmouseout="this.style.backgroundColor='white'; this.style.color='black';">Follow Past Quota</button>
-                                <div class="download-dropdown">
-                                    <button class="btn-download" onclick="toggleDownloadDropdown()">
-                                        <i class="bi bi-download"></i>
-                                        <span>Download as...</span>
-                                        <i class="bi bi-chevron-down dropdown-arrow"></i>
-                                    </button>
-                                    <div class="download-dropdown-menu" id="downloadDropdown">
+                                <div class="button-group">
+                                    <button class="btn btn-outline-dark follow-quota-btn" onclick="followPastQuota()" style="background-color: white; color: black; border-color: black;" onmouseover="this.style.backgroundColor='white'; this.style.color='black';" onmouseout="this.style.backgroundColor='white'; this.style.color='black';">Follow Past Quota</button>
+                                    <div class="download-dropdown">
+                                        <button class="btn-download" onclick="toggleDownloadDropdown()">
+                                            <i class="bi bi-download"></i>
+                                            <span>Download as...</span>
+                                            <i class="bi bi-chevron-down dropdown-arrow"></i>
+                                        </button>
+                                        <div class="download-dropdown-menu" id="downloadDropdown">
                                         <a href="javascript:void(0)" onclick="downloadAsPDF(); closeDownloadDropdown();" class="download-option">
                                             <i class="bi bi-file-earmark-pdf"></i>
                                             <span>Download as PDF</span>
@@ -450,6 +524,7 @@ $assessorDataJson = json_encode($assessorData);
                                             <span>Download as Excel</span>
                                         </a>
                                     </div>
+                                </div>
                                 </div>
                             </div>
                         </div>
@@ -834,10 +909,13 @@ $assessorDataJson = json_encode($assessorData);
                     lecturer_ids: (lecturers || []).map(l => l.id)
                 };
 
-                // Optional: simple loading state
-                const saveMsg = document.getElementById('remainingStudent');
-                const oldText = saveMsg ? saveMsg.textContent : '';
-                if (saveMsg) saveMsg.textContent = 'Loading past quotas...';
+                // Show loading state
+                const remainingStudentEl = document.getElementById('remainingStudent');
+                const oldText = remainingStudentEl ? remainingStudentEl.textContent : '';
+                if (remainingStudentEl) {
+                    remainingStudentEl.textContent = 'Loading...';
+                    remainingStudentEl.style.opacity = '0.6';
+                }
 
                 fetch('../../../php/phpCoordinator/fetch_past_quotas.php', {
                     method: 'POST',
@@ -848,6 +926,11 @@ $assessorDataJson = json_encode($assessorData);
                 .then(data => {
                     if (!data || !data.success) {
                         console.error('Failed to fetch past quotas:', data && data.message);
+                        // Restore on error
+                        if (remainingStudentEl) {
+                            remainingStudentEl.textContent = oldText;
+                            remainingStudentEl.style.opacity = '1';
+                        }
                         return;
                     }
                     const map = new Map();
@@ -861,16 +944,33 @@ $assessorDataJson = json_encode($assessorData);
                         }
                     });
 
-                    // Refresh UI and remaining counts
+                    // Refresh UI and remaining counts in real-time
                     updateAllRemainingQuotas();
                     renderLecturerTable();
+                    
+                    // Update remaining student count with animation
                     updateRemainingStudent();
+                    if (remainingStudentEl) {
+                        remainingStudentEl.style.opacity = '1';
+                        remainingStudentEl.style.transition = 'opacity 0.3s ease-in-out';
+                    }
+                    
+                    // Log the update for confirmation
+                    console.log('Past quotas applied successfully. Remaining students: ' + (remainingStudentEl ? remainingStudentEl.textContent : 'N/A'));
                 })
                 .catch(err => {
                     console.error('Error fetching past quotas:', err);
+                    // Restore on error
+                    if (remainingStudentEl) {
+                        remainingStudentEl.textContent = oldText;
+                        remainingStudentEl.style.opacity = '1';
+                    }
                 })
                 .finally(() => {
-                    if (saveMsg) saveMsg.textContent = oldText || saveMsg.textContent;
+                    // Ensure opacity is reset
+                    if (remainingStudentEl) {
+                        remainingStudentEl.style.opacity = '1';
+                    }
                 });
             } catch (e) {
                 console.error('followPastQuota() error:', e);
@@ -2636,8 +2736,16 @@ $assessorDataJson = json_encode($assessorData);
 
         // Helper: get supervisor ID by lecturer name from lecturers array
         function getSupervisorIdByName(lecturerName) {
-            if (!lecturerName || !lecturers || lecturers.length === 0) return null;
+            if (!lecturerName || !lecturers || lecturers.length === 0) {
+                console.warn('getSupervisorIdByName: Missing lecturer name or lecturers array');
+                return null;
+            }
             const match = lecturers.find(l => l && l.name === lecturerName);
+            if (!match) {
+                console.warn(`getSupervisorIdByName: No match found for "${lecturerName}". Available lecturers: ${lecturers.map(l => l.name).join(', ')}`);
+                return null;
+            }
+            console.log(`getSupervisorIdByName: Found "${lecturerName}" -> Supervisor_ID: ${match.id}`);
             return match ? match.id : null;
         }
 
@@ -2657,6 +2765,11 @@ $assessorDataJson = json_encode($assessorData);
                 const assessor1Id = getAssessorIdByName(student.assessor1);
                 const assessor2Id = getAssessorIdByName(student.assessor2);
 
+                // Debug logging
+                if (student.supervisor) {
+                    console.log(`Student: ${student.id}, Supervisor: ${student.supervisor}, Supervisor_ID: ${supervisorId}`);
+                }
+
                 return {
                     id: student.id,
                     name: student.name,
@@ -2671,6 +2784,9 @@ $assessorDataJson = json_encode($assessorData);
 
             // Show loading modal
             showLoadingModal('Saving assignments and sending emails. Please wait.');
+
+            // Debug: log the full assignment payload
+            console.log('Assignment payload:', JSON.stringify(assignmentData, null, 2));
 
             // Make AJAX call to save assignments to backend
             fetch('../../../php/phpCoordinator/save_assignments.php', {
@@ -2729,9 +2845,9 @@ $assessorDataJson = json_encode($assessorData);
                 // Add title
                 doc.setFontSize(18);
                 doc.setTextColor(120, 0, 0);
-                doc.text('Student Distribution Report', 14, 20);
+                doc.text('Student Distribution Report (Grouped by Supervisor)', 14, 20);
                 
-                // Add year, semester, and course summary (follow current page filter)
+                // Add year, semester, and course summary
                 const courseLabel = getCurrentCourseLabel();
                 doc.setFontSize(11);
                 doc.setTextColor(0, 0, 0);
@@ -2739,39 +2855,84 @@ $assessorDataJson = json_encode($assessorData);
                 doc.text(`Course: ${courseLabel}`, 14, 38);
                 doc.text(`Total Students (current view): ${filteredStudents.length}`, 14, 44);
                 
-                // Prepare table data from currently visible students (filteredStudents)
-                const tableData = filteredStudents.map((student, index) => [
-                    index + 1,
-                    student.name,
-                    student.supervisor || '-',
-                    student.assessor1 || '-',
-                    student.assessor2 || '-'
-                ]);
-                
-                // Add table
-                doc.autoTable({
-                    startY: 52,
-                    head: [['No.', 'Name', 'Supervisor', 'Assessor 1', 'Assessor 2']],
-                    body: tableData,
-                    theme: 'striped',
-                    headStyles: {
-                        fillColor: [120, 0, 0],
-                        textColor: [255, 255, 255],
-                        fontStyle: 'bold',
-                        fontSize: 11
-                    },
-                    bodyStyles: {
-                        fontSize: 9
-                    },
-                    alternateRowStyles: {
-                        fillColor: [253, 240, 213]
-                    },
-                    styles: {
-                        cellPadding: 4,
-                        fontSize: 9
+                // Group students by supervisor
+                const studentsBySupervisor = {};
+                filteredStudents.forEach(student => {
+                    const supervisorName = student.supervisor || 'Unassigned';
+                    if (!studentsBySupervisor[supervisorName]) {
+                        studentsBySupervisor[supervisorName] = [];
                     }
+                    studentsBySupervisor[supervisorName].push(student);
                 });
                 
+                // Sort supervisors alphabetically
+                const supervisorNames = Object.keys(studentsBySupervisor).sort();
+                
+                let currentY = 52;
+                let studentCounter = 1;
+                
+                // Generate table for each supervisor
+                supervisorNames.forEach((supervisorName, supervisorIndex) => {
+                    const students = studentsBySupervisor[supervisorName];
+                    
+                    // Check if we need a new page
+                    if (currentY > 240) {
+                        doc.addPage();
+                        currentY = 20;
+                    }
+                    
+                    // Add supervisor header
+                    doc.setFontSize(12);
+                    doc.setTextColor(120, 0, 0);
+                    doc.setFont('helvetica', 'bold');
+                    doc.text(`Supervisor: ${supervisorName}`, 14, currentY);
+                    doc.setFont('helvetica', 'normal');
+                    currentY += 2;
+                    
+                    // Prepare table data for this supervisor's students
+                    const tableData = students.map(student => [
+                        studentCounter++,
+                        student.name,
+                        student.assessor1 || '-',
+                        student.assessor2 || '-'
+                    ]);
+                    
+                    // Add table
+                    doc.autoTable({
+                        startY: currentY,
+                        head: [['No.', 'Student Name', 'Assessor 1', 'Assessor 2']],
+                        body: tableData,
+                        theme: 'striped',
+                        headStyles: {
+                            fillColor: [120, 0, 0],
+                            textColor: [255, 255, 255],
+                            fontStyle: 'bold',
+                            fontSize: 10
+                        },
+                        bodyStyles: {
+                            fontSize: 9
+                        },
+                        alternateRowStyles: {
+                            fillColor: [253, 240, 213]
+                        },
+                        styles: {
+                            cellPadding: 3,
+                            fontSize: 9
+                        },
+                        columnStyles: {
+                            0: { cellWidth: 15, halign: 'center' },
+                            1: { cellWidth: 'auto', halign: 'left' },
+                            2: { cellWidth: 50, halign: 'left' },
+                            3: { cellWidth: 50, halign: 'left' }
+                        },
+                        margin: { left: 14, right: 14 }
+                    });
+                    
+                    // Update currentY for next supervisor section
+                    currentY = doc.lastAutoTable.finalY + 10;
+                });
+                
+                // Add date and time at the bottom of the last page
                 const finalY = doc.lastAutoTable.finalY;
                 doc.setFontSize(9);
                 doc.setTextColor(128, 128, 128);
@@ -2783,9 +2944,16 @@ $assessorDataJson = json_encode($assessorData);
                     hour: '2-digit',
                     minute: '2-digit'
                 });
-                doc.text(`Generated on: ${dateTime}`, 14, finalY + 15);
                 
-                doc.save('student-distribution.pdf');
+                // Check if we need space for the footer
+                if (finalY > 270) {
+                    doc.addPage();
+                    doc.text(`Generated on: ${dateTime}`, 14, 20);
+                } else {
+                    doc.text(`Generated on: ${dateTime}`, 14, finalY + 10);
+                }
+                
+                doc.save('student-distribution-by-supervisor.pdf');
 
                 // Show success modal
                 downloadModal.innerHTML = `
@@ -2828,24 +2996,44 @@ $assessorDataJson = json_encode($assessorData);
 
         // Download Distribution as Excel
         function downloadDistributionAsExcel() {
-            // Create CSV content based on current view (filteredStudents)
+            // Create CSV content grouped by supervisor
             const courseLabel = getCurrentCourseLabel();
             let csvContent = '';
+            
             // Header info
             csvContent += `Year,${selectedYear}\n`;
             csvContent += `Semester,${selectedSemester}\n`;
             csvContent += `Course,${courseLabel}\n`;
             csvContent += `Total Students (current view),${filteredStudents.length}\n\n`;
 
-            // Table header
-            csvContent += 'No.,Name,Supervisor,Assessor 1,Assessor 2\n';
+            // Group students by supervisor
+            const studentsBySupervisor = {};
+            filteredStudents.forEach(student => {
+                const supervisorName = student.supervisor || 'Unassigned';
+                if (!studentsBySupervisor[supervisorName]) {
+                    studentsBySupervisor[supervisorName] = [];
+                }
+                studentsBySupervisor[supervisorName].push(student);
+            });
             
-            filteredStudents.forEach((student, index) => {
-                const sup = student.supervisor || '-';
-                const a1  = student.assessor1 || '-';
-                const a2  = student.assessor2 || '-';
-                // Quote the text fields to be safe
-                csvContent += `${index + 1},"${student.name || ''}","${sup}","${a1}","${a2}"\n`;
+            // Sort supervisors alphabetically
+            const supervisorNames = Object.keys(studentsBySupervisor).sort();
+            
+            let studentCounter = 1;
+            
+            // Generate data for each supervisor
+            supervisorNames.forEach(supervisorName => {
+                const students = studentsBySupervisor[supervisorName];
+                
+                // Supervisor header
+                csvContent += `\nSupervisor: ${supervisorName}\n`;
+                csvContent += 'No.,Student Name,Assessor 1,Assessor 2\n';
+                
+                students.forEach(student => {
+                    const a1 = student.assessor1 || '-';
+                    const a2 = student.assessor2 || '-';
+                    csvContent += `${studentCounter++},"${student.name || ''}","${a1}","${a2}"\n`;
+                });
             });
 
             // Create blob and download
@@ -2853,7 +3041,7 @@ $assessorDataJson = json_encode($assessorData);
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = 'student-distribution.csv';
+            a.download = 'student-distribution-by-supervisor.csv';
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -3736,330 +3924,190 @@ $assessorDataJson = json_encode($assessorData);
             const datesWithStudents = new Set();
             
             // Fairly distribute groups across days, ensuring even distribution AND every date gets at least one student
-            assessmentGroups.forEach((assessmentGroup, groupIndex) => {
-                if (assessmentGroup.students.length === 0) return;
-                
-                const { students, studentsBySupervisor, supervisors } = assessmentGroup;
-                
-                // Find the day with the least students assigned so far
-                // Prioritize dates that have zero students to ensure every date gets at least one
-                let minDayIndex = 0;
-                let minCount = studentsPerDayCount[0];
-                let hasZeroStudents = studentsPerDayCount[0] === 0;
-                
-                for (let d = 0; d < daysDiff; d++) {
-                    // If this date has zero students, prioritize it
-                    if (studentsPerDayCount[d] === 0 && !hasZeroStudents) {
-                        minDayIndex = d;
-                        minCount = 0;
-                        hasZeroStudents = true;
-                    } else if (!hasZeroStudents && studentsPerDayCount[d] < minCount) {
-                        minCount = studentsPerDayCount[d];
-                        minDayIndex = d;
-                    }
-                }
-                
-                // Use the day with least students (prioritizing dates with zero students)
-                // This ensures every date gets at least one student
-                const dayIndex = minDayIndex;
-                const currentDate = new Date(start);
-                currentDate.setDate(start.getDate() + dayIndex);
-                const targetDate = currentDate.toISOString().split('T')[0];
-                
-                // Update count for this day
-                studentsPerDayCount[dayIndex] += students.length;
-                datesWithStudents.add(targetDate);
-                
-                // Try to find a slot for this entire group on the target date
-                let groupSlot = null;
-                const timeSlotsForDate = getTimeSlotsForDate(targetDate);
-                
-                // Try each venue
-                for (let v = 0; v < venueOptions.length && !groupSlot; v++) {
-                    const venue = venueOptions[v];
+            // Enforce max 10 students per day (globally)
+            const maxStudentsPerDay = 10;
+            
+            // Flatten all assessment groups and sort by assessor pair to blend them
+            const allStudentsToAssign = [];
+            assessmentGroups.forEach(group => {
+                group.students.forEach(student => {
+                    allStudentsToAssign.push(student);
+                });
+            });
+            
+            // Sort by assessor pair to group same assessors, but will blend across venues
+            allStudentsToAssign.sort((a, b) => {
+                const aKey = `${a.assessor1 || ''}|${a.assessor2 || ''}`;
+                const bKey = `${b.assessor1 || ''}|${b.assessor2 || ''}`;
+                if (aKey !== bKey) return aKey.localeCompare(bKey);
+                return (a.name || '').localeCompare(b.name || '');
+            });
+            
+            // Distribute students: 10 per day, blending different assessor groups in venues
+            // Cycle through days as needed to ensure ALL students are scheduled
+            let studentIndexGlobal = 0;
+            let cycleCount = 0;
+            const maxCycles = 10; // Prevent infinite loops
+            
+            while (studentIndexGlobal < allStudentsToAssign.length && cycleCount < maxCycles) {
+                for (let dayOffsetInCycle = 0; dayOffsetInCycle < daysDiff && studentIndexGlobal < allStudentsToAssign.length; dayOffsetInCycle++) {
+                    const currentDate = new Date(start);
+                    currentDate.setDate(start.getDate() + dayOffsetInCycle);
+                    const targetDate = currentDate.toISOString().split('T')[0];
+                    datesWithStudents.add(targetDate);
                     
-                    // Try to find a starting time that can accommodate ALL students from this group
-                    // Need consecutive time slots for all students in the group
-                    for (let startTimeIndex = 0; startTimeIndex <= timeSlotsForDate.length - students.length && !groupSlot; startTimeIndex++) {
-                        // Check if we can assign consecutive slots starting from this index
-                        let canAssign = true;
-                        const tempAssessorSchedule = {};
-                        
-                        // Check each student from this group
-                        for (let i = 0; i < students.length; i++) {
-                            const student = students[i];
-                            const timeIndex = startTimeIndex + i;
-                            
-                            if (timeIndex >= timeSlotsForDate.length) {
-                                canAssign = false;
-                                break;
-                            }
-                            
-                            const time = timeSlotsForDate[timeIndex];
-                            
-                            // Use assessors already assigned from student_enrollment table
+                    const timeSlotsForDate = getTimeSlotsForDate(targetDate);
+                    const studentsOnThisDay = Math.min(maxStudentsPerDay, allStudentsToAssign.length - studentIndexGlobal);
+                    const dayStudents = allStudentsToAssign.slice(studentIndexGlobal, studentIndexGlobal + studentsOnThisDay);
+
+                    // Track per-day venue usage so rooms stay balanced
+                    const venueUsageToday = {};
+                    venueOptions.forEach(venue => {
+                        const existing = venueSchedule[venue] || {};
+                        const countForDate = Object.keys(existing).filter(key => key.startsWith(`${targetDate}_`)).length;
+                        venueUsageToday[venue] = countForDate;
+                    });
+
+                    const getVenuesByLoad = () => [...venueOptions].sort((a, b) => {
+                        const diff = (venueUsageToday[a] || 0) - (venueUsageToday[b] || 0);
+                        return diff !== 0 ? diff : a.localeCompare(b);
+                    });
+
+                    // Pick how many rooms to use today (not every room must be used)
+                    const roomsNeeded = Math.max(1, Math.min(venueOptions.length, Math.ceil(dayStudents.length / timeSlotsForDate.length)));
+                    const activeVenues = getVenuesByLoad().slice(0, roomsNeeded);
+
+                    // Group students by assessor pair so each pair stays in one room, back-to-back
+                    const studentsByAssessorPair = {};
+                    dayStudents.forEach(student => {
+                        const key = `${student.assessor1 || ''}|${student.assessor2 || ''}`;
+                        if (!studentsByAssessorPair[key]) studentsByAssessorPair[key] = [];
+                        studentsByAssessorPair[key].push(student);
+                    });
+
+                    // Sort groups to keep deterministic order
+                    const assessorPairKeys = Object.keys(studentsByAssessorPair).sort();
+
+                    // Track next available slot index per active venue to keep sequences continuous
+                    const nextSlotIndexByVenue = {};
+                    activeVenues.forEach(v => { nextSlotIndexByVenue[v] = 0; });
+
+                    let assignedCountThisDay = 0;
+
+                    assessorPairKeys.forEach(pairKey => {
+                        const groupStudents = studentsByAssessorPair[pairKey];
+
+                        // Choose the least-used active venue for this assessor pair
+                        const venuesByLoad = [...activeVenues].sort((a, b) => {
+                            const diff = (venueUsageToday[a] || 0) - (venueUsageToday[b] || 0);
+                            return diff !== 0 ? diff : a.localeCompare(b);
+                        });
+                        const targetVenue = venuesByLoad[0] || activeVenues[0];
+
+                        groupStudents.forEach(student => {
                             const assessor1 = student.assessor1;
                             const assessor2 = student.assessor2;
-                            
-                            // Check conflicts with existing schedule (from other groups or already assigned sessions)
-                            if (hasConflict(targetDate, time, assessor1, assessor2, venue)) {
-                                canAssign = false;
-                                break;
-                            }
-                            
-                            // Check conflicts within this group's students (assessors can't have overlapping times)
-                            // This ensures no assessor is in two places at once
-                            if (assessor1 && tempAssessorSchedule[assessor1]) {
-                                for (const existingTimeKey in tempAssessorSchedule[assessor1]) {
-                                    const [existingDate, existingTime] = existingTimeKey.split('_');
-                                    if (existingDate === targetDate && timesOverlap(time, existingTime)) {
-                                        canAssign = false;
-                                        break;
-                                    }
+                            let assigned = false;
+
+                            // Try to keep this assessor pair continuous in the chosen room
+                            for (let t = nextSlotIndexByVenue[targetVenue]; t < timeSlotsForDate.length && !assigned; t++) {
+                                const time = timeSlotsForDate[t];
+                                if (!hasConflict(targetDate, time, assessor1, assessor2, targetVenue)) {
+                                    student.date = targetDate;
+                                    student.time = time;
+                                    student.venue = targetVenue;
+                                    reserveSlot(targetDate, time, assessor1, assessor2, targetVenue);
+                                    venueUsageToday[targetVenue] = (venueUsageToday[targetVenue] || 0) + 1;
+                                    nextSlotIndexByVenue[targetVenue] = t + 1;
+                                    assigned = true;
+                                    break;
                                 }
-                                if (!canAssign) break;
                             }
-                            if (assessor2 && tempAssessorSchedule[assessor2]) {
-                                for (const existingTimeKey in tempAssessorSchedule[assessor2]) {
-                                    const [existingDate, existingTime] = existingTimeKey.split('_');
-                                    if (existingDate === targetDate && timesOverlap(time, existingTime)) {
-                                        canAssign = false;
-                                        break;
+
+                            // Fallback: try other active venues if continuity slot not found
+                            if (!assigned) {
+                                for (const venue of activeVenues) {
+                                    for (let t = nextSlotIndexByVenue[venue] || 0; t < timeSlotsForDate.length && !assigned; t++) {
+                                        const time = timeSlotsForDate[t];
+                                        if (!hasConflict(targetDate, time, assessor1, assessor2, venue)) {
+                                            student.date = targetDate;
+                                            student.time = time;
+                                            student.venue = venue;
+                                            reserveSlot(targetDate, time, assessor1, assessor2, venue);
+                                            venueUsageToday[venue] = (venueUsageToday[venue] || 0) + 1;
+                                            nextSlotIndexByVenue[venue] = t + 1;
+                                            assigned = true;
+                                            break;
+                                        }
                                     }
+                                    if (assigned) break;
                                 }
-                                if (!canAssign) break;
                             }
-                            
-                            // Reserve in temp schedule
-                            const dateTimeKey = `${targetDate}_${time}`;
-                            if (assessor1) {
-                                if (!tempAssessorSchedule[assessor1]) tempAssessorSchedule[assessor1] = {};
-                                tempAssessorSchedule[assessor1][dateTimeKey] = time;
+
+                            // Force assign if still unassigned
+                            if (!assigned) {
+                                const venue = targetVenue || activeVenues[0] || venueOptions[0];
+                                const time = timeSlotsForDate[nextSlotIndexByVenue[venue]] || timeSlotsForDate[0] || '09:00';
+                                student.date = targetDate;
+                                student.time = time;
+                                student.venue = venue;
+                                reserveSlot(targetDate, time, assessor1, assessor2, venue);
+                                venueUsageToday[venue] = (venueUsageToday[venue] || 0) + 1;
+                                nextSlotIndexByVenue[venue] = (nextSlotIndexByVenue[venue] || 0) + 1;
                             }
-                            if (assessor2) {
-                                if (!tempAssessorSchedule[assessor2]) tempAssessorSchedule[assessor2] = {};
-                                tempAssessorSchedule[assessor2][dateTimeKey] = time;
-                            }
-                        }
-                        
-                        if (canAssign) {
-                            groupSlot = {
-                                date: targetDate,
-                                venue: venue,
-                                startTimeIndex: startTimeIndex
-                            };
-                        }
+
+                            assignedCountThisDay++;
+                        });
+                    });
+
+                    studentIndexGlobal += studentsOnThisDay;
+                    if (!studentsPerDayCount[dayOffsetInCycle]) {
+                        studentsPerDayCount[dayOffsetInCycle] = 0;
                     }
+                    studentsPerDayCount[dayOffsetInCycle] += assignedCountThisDay;
                 }
                 
-                // If no slot found on target date, try other dates (fallback)
-                if (!groupSlot) {
-                    for (let d = 0; d < daysDiff && !groupSlot; d++) {
+                cycleCount++;
+            }
+
+            // Safety fallback: if anything remains unscheduled, force assign sequentially
+            if (studentIndexGlobal < allStudentsToAssign.length) {
+                const remaining = allStudentsToAssign.slice(studentIndexGlobal);
+                remaining.forEach(student => {
+                    let assigned = false;
+                    for (let d = 0; d < daysDiff && !assigned; d++) {
                         const currentDate = new Date(start);
                         currentDate.setDate(start.getDate() + d);
                         const dateStr = currentDate.toISOString().split('T')[0];
                         const timeSlotsForDate = getTimeSlotsForDate(dateStr);
-                        
-                        for (let v = 0; v < venueOptions.length && !groupSlot; v++) {
+                        for (let v = 0; v < venueOptions.length && !assigned; v++) {
                             const venue = venueOptions[v];
-                            
-                            for (let startTimeIndex = 0; startTimeIndex <= timeSlotsForDate.length - students.length && !groupSlot; startTimeIndex++) {
-                                let canAssign = true;
-                                const tempAssessorSchedule = {};
-                                
-                                for (let i = 0; i < students.length; i++) {
-                                    const student = students[i];
-                                    const timeIndex = startTimeIndex + i;
-                                    
-                                    if (timeIndex >= timeSlotsForDate.length) {
-                                        canAssign = false;
-                                        break;
-                                    }
-                                    
-                                    const time = timeSlotsForDate[timeIndex];
-                                    // Use assessors already assigned from student_enrollment table
-                                    const assessor1 = student.assessor1;
-                                    const assessor2 = student.assessor2;
-                                    
-                                    if (hasConflict(dateStr, time, assessor1, assessor2, venue)) {
-                                        canAssign = false;
-                                        break;
-                                    }
-                                    
-                                    if (assessor1 && tempAssessorSchedule[assessor1]) {
-                                        for (const existingTimeKey in tempAssessorSchedule[assessor1]) {
-                                            const [existingDate, existingTime] = existingTimeKey.split('_');
-                                            if (existingDate === dateStr && timesOverlap(time, existingTime)) {
-                                                canAssign = false;
-                                                break;
-                                            }
-                                        }
-                                        if (!canAssign) break;
-                                    }
-                                    if (assessor2 && tempAssessorSchedule[assessor2]) {
-                                        for (const existingTimeKey in tempAssessorSchedule[assessor2]) {
-                                            const [existingDate, existingTime] = existingTimeKey.split('_');
-                                            if (existingDate === dateStr && timesOverlap(time, existingTime)) {
-                                                canAssign = false;
-                                                break;
-                                            }
-                                        }
-                                        if (!canAssign) break;
-                                    }
-                                    
-                                    const dateTimeKey = `${dateStr}_${time}`;
-                                    if (assessor1) {
-                                        if (!tempAssessorSchedule[assessor1]) tempAssessorSchedule[assessor1] = {};
-                                        tempAssessorSchedule[assessor1][dateTimeKey] = time;
-                                    }
-                                    if (assessor2) {
-                                        if (!tempAssessorSchedule[assessor2]) tempAssessorSchedule[assessor2] = {};
-                                        tempAssessorSchedule[assessor2][dateTimeKey] = time;
-                                    }
-                                }
-                                
-                                if (canAssign) {
-                                    groupSlot = {
-                                        date: dateStr,
-                                        venue: venue,
-                                        startTimeIndex: startTimeIndex
-                                    };
-                                }
-                            }
-                        }
-                    }
-                }
-                
-                // Assign consecutive time slots to ALL students from this distribution group
-                // Students with the same supervisor are grouped together and present one after another
-                if (groupSlot) {
-                    const timeSlotsForDate = getTimeSlotsForDate(groupSlot.date);
-                    
-                    // Sort students by supervisor so students with same supervisor are together
-                    const sortedStudents = [...students].sort((a, b) => {
-                        const supA = a.supervisor || '';
-                        const supB = b.supervisor || '';
-                        return supA.localeCompare(supB);
-                    });
-                    
-                    sortedStudents.forEach((student, studentIndex) => {
-                        // Use assessors already assigned from student_enrollment table
-                        const assessor1 = student.assessor1;
-                        const assessor2 = student.assessor2;
-                        
-                        const timeIndex = groupSlot.startTimeIndex + studentIndex;
-                        const time = timeSlotsForDate[timeIndex];
-                        
-                        // ALL students from this distribution group have same date and venue
-                        // Students with same supervisor are consecutive (one after another)
-                        student.date = groupSlot.date;
-                        student.time = time;
-                        student.venue = groupSlot.venue;
-                        
-                        // Reserve the slot (assessors are already assigned from student_enrollment)
-                        reserveSlot(groupSlot.date, time, assessor1, assessor2, groupSlot.venue);
-                    });
-                } else {
-                    // If no group slot found, assign individually (fallback)
-                    // Still try to keep students with same supervisor together
-                    students.forEach((student, studentIndexInGroup) => {
-                        // Use assessors already assigned from student_enrollment table
-                        const assessor1 = student.assessor1;
-                        const assessor2 = student.assessor2;
-                        
-                        // Try to find a non-conflicting slot
-                        let assigned = false;
-                        for (let d = 0; d < daysDiff && !assigned; d++) {
-                            const currentDate = new Date(start);
-                            currentDate.setDate(start.getDate() + d);
-                            const dateStr = currentDate.toISOString().split('T')[0];
-                            const timeSlotsForDate = getTimeSlotsForDate(dateStr);
-                            
                             for (let t = 0; t < timeSlotsForDate.length && !assigned; t++) {
                                 const time = timeSlotsForDate[t];
-                                
-                                for (let v = 0; v < venueOptions.length && !assigned; v++) {
-                                    const venue = venueOptions[v];
-                                    
-                                    if (!hasConflict(dateStr, time, assessor1, assessor2, venue)) {
-                                        student.date = dateStr;
-                                        student.time = time;
-                                        student.venue = venue;
-                                        
-                                        // Reserve the slot (assessors are already assigned from student_enrollment)
-                                        reserveSlot(dateStr, time, assessor1, assessor2, venue);
-                                        assigned = true;
-                                    }
-                                }
-                            }
-                        }
-                        
-                        // If still not assigned, assign the first available slot from first day
-                        if (!assigned) {
-                            const currentDate = new Date(start);
-                            const dateStr = currentDate.toISOString().split('T')[0];
-                            const timeSlotsForDate = getTimeSlotsForDate(dateStr);
-                            student.date = dateStr;
-                            student.time = timeSlotsForDate.length > 0 ? timeSlotsForDate[0] : '09:00';
-                            student.venue = venueOptions[0];
-                            
-                            // Reserve the slot (assessors are already assigned from student_enrollment)
-                            reserveSlot(dateStr, student.time, assessor1, assessor2, venueOptions[0]);
-                        }
-                    });
-                }
-            });
-
-            // Final check: Ensure every date in the range has at least one student assigned
-            // If any date has zero students, assign at least one student to it
-            for (let d = 0; d < daysDiff; d++) {
-                const currentDate = new Date(start);
-                currentDate.setDate(start.getDate() + d);
-                const dateStr = currentDate.toISOString().split('T')[0];
-                
-                // Check if this date has any students assigned
-                const studentsOnThisDate = assessmentSessionData.filter(s => s.date === dateStr && s.time && s.venue);
-                
-                if (studentsOnThisDate.length === 0) {
-                    // This date has no students - find an unassigned student and assign them to this date
-                    const unassignedStudent = assessmentSessionData.find(s => !s.date || !s.time || !s.venue);
-                    
-                    if (unassignedStudent) {
-                        const timeSlotsForDate = getTimeSlotsForDate(dateStr);
-                        const assessor1 = unassignedStudent.assessor1;
-                        const assessor2 = unassignedStudent.assessor2;
-                        
-                        // Try to find a slot for this student on this date
-                        let assigned = false;
-                        for (let t = 0; t < timeSlotsForDate.length && !assigned; t++) {
-                            const time = timeSlotsForDate[t];
-                            
-                            for (let v = 0; v < venueOptions.length && !assigned; v++) {
-                                const venue = venueOptions[v];
-                                
+                                const assessor1 = student.assessor1;
+                                const assessor2 = student.assessor2;
                                 if (!hasConflict(dateStr, time, assessor1, assessor2, venue)) {
-                                    unassignedStudent.date = dateStr;
-                                    unassignedStudent.time = time;
-                                    unassignedStudent.venue = venue;
-                                    
-                                    // Reserve the slot
+                                    student.date = dateStr;
+                                    student.time = time;
+                                    student.venue = venue;
                                     reserveSlot(dateStr, time, assessor1, assessor2, venue);
                                     assigned = true;
                                 }
                             }
                         }
-                        
-                        // If still not assigned, assign to first available slot (force assignment)
-                        if (!assigned && timeSlotsForDate.length > 0) {
-                            unassignedStudent.date = dateStr;
-                            unassignedStudent.time = timeSlotsForDate[0];
-                            unassignedStudent.venue = venueOptions[0];
-                            
-                            // Reserve the slot
-                            reserveSlot(dateStr, unassignedStudent.time, assessor1, assessor2, venueOptions[0]);
-                        }
                     }
-                }
+                    if (!assigned) {
+                        // Force first slot/venue
+                        const dateStr = start.toISOString().split('T')[0];
+                        const timeSlotsForDate = getTimeSlotsForDate(dateStr);
+                        const time = timeSlotsForDate[0] || '09:00';
+                        const venue = venueOptions[0];
+                        student.date = dateStr;
+                        student.time = time;
+                        student.venue = venue;
+                        reserveSlot(dateStr, time, student.assessor1, student.assessor2, venue);
+                    }
+                });
             }
 
             // Repopulate date dropdown after assignment
@@ -4229,74 +4277,223 @@ $assessorDataJson = json_encode($assessorData);
             });
         }
 
-        // Download Assessment as PDF
+        // Download Assessment as PDF (Grouped by Date -> Room)
         function downloadAssessmentAsPDF() {
             try {
                 const { jsPDF } = window.jspdf;
-                
-                const doc = new jsPDF();
+                const doc = new jsPDF('p', 'mm', 'a4');
                 doc.setFont('helvetica');
                 
-                // Add title
+                const pageWidth = doc.internal.pageSize.getWidth();
+                const pageHeight = doc.internal.pageSize.getHeight();
+                const margin = 14;
+                const usableWidth = pageWidth - (margin * 2);
+
+                // Header
                 doc.setFontSize(18);
                 doc.setTextColor(120, 0, 0);
-                doc.text('Assessment Session Report', 14, 20);
-                
-                // Add year, semester, and course summary
+                doc.setFont('helvetica', 'bold');
+                doc.text('Assessment Session Report', margin, 20);
+
                 const courseLabel = getAssessmentCourseLabel();
+                doc.setFont('helvetica', 'normal');
                 doc.setFontSize(11);
                 doc.setTextColor(0, 0, 0);
-                doc.text(`Year: ${selectedYear}    Semester: ${selectedSemester}`, 14, 32);
-                doc.text(`Course: ${courseLabel}`, 14, 38);
-                doc.text(`Total Students (current view): ${filteredAssessmentStudents.length}`, 14, 44);
-                
-                // Prepare table data
-                const tableData = filteredAssessmentStudents.map((student, index) => [
-                    index + 1,
-                    student.name,
-                    student.date || '-',
-                    student.time || '-',
-                    student.venue || '-'
-                ]);
-                
-                // Add table
-                doc.autoTable({
-                    startY: 52,
-                    head: [['No.', 'Student Name', 'Date', 'Time', 'Venue']],
-                    body: tableData,
-                    theme: 'striped',
-                    headStyles: {
-                        fillColor: [120, 0, 0],
-                        textColor: [255, 255, 255],
-                        fontStyle: 'bold',
-                        fontSize: 11
-                    },
-                    bodyStyles: {
-                        fontSize: 9
-                    },
-                    alternateRowStyles: {
-                        fillColor: [253, 240, 213]
-                    },
-                    styles: {
-                        cellPadding: 4,
-                        fontSize: 9
+                doc.text(`Year: ${selectedYear}`, margin, 32);
+                doc.text(`Semester: ${selectedSemester}`, margin, 38);
+                doc.text(`Course: ${courseLabel}`, margin, 44);
+
+                // Group data by date, then by room
+                const sessions = [...filteredAssessmentStudents];
+                const byDate = {};
+                sessions.forEach(s => {
+                    const dateKey = s.date && s.date.trim() !== '' ? s.date : 'Unscheduled';
+                    if (!byDate[dateKey]) byDate[dateKey] = [];
+                    byDate[dateKey].push(s);
+                });
+
+                // Sort dates (Unscheduled last)
+                const dates = Object.keys(byDate).sort((a, b) => {
+                    if (a === 'Unscheduled') return 1;
+                    if (b === 'Unscheduled') return -1;
+                    return a.localeCompare(b);
+                });
+
+                let currentY = 54;
+
+                dates.forEach((dateKey, dateIndex) => {
+                    // Check if we need a new page for date header
+                    if (currentY > pageHeight - 40) {
+                        doc.addPage();
+                        currentY = 20;
                     }
+                    
+                    // Date header with background
+                    doc.setFillColor(240, 240, 240);
+                    doc.rect(margin, currentY - 6, usableWidth, 10, 'F');
+                    doc.setFontSize(14);
+                    doc.setFont('helvetica', 'bold');
+                    doc.setTextColor(0, 0, 0);
+                    
+                    // Format date nicely
+                    let displayDate = dateKey;
+                    if (dateKey !== 'Unscheduled') {
+                        try {
+                            const d = new Date(dateKey);
+                            displayDate = d.toLocaleDateString('en-US', { 
+                                weekday: 'long', 
+                                year: 'numeric', 
+                                month: 'long', 
+                                day: 'numeric' 
+                            });
+                        } catch (e) {
+                            displayDate = dateKey;
+                        }
+                    }
+                    doc.text(`Date: ${displayDate}`, margin + 2, currentY);
+                    currentY += 10;
+
+                    // Group by room within this date
+                    const byRoom = {};
+                    byDate[dateKey].forEach(s => {
+                        const roomKey = s.venue && s.venue.trim() !== '' ? s.venue : 'Not Assigned';
+                        if (!byRoom[roomKey]) byRoom[roomKey] = [];
+                        byRoom[roomKey].push(s);
+                    });
+
+                    const rooms = Object.keys(byRoom).sort((a, b) => a.localeCompare(b));
+                    
+                    rooms.forEach((roomKey, roomIndex) => {
+                        // Check if we need a new page before room section
+                        if (currentY > pageHeight - 50) {
+                            doc.addPage();
+                            currentY = 20;
+                        }
+                        
+                        // Room subheader with styling
+                        currentY += 6;
+                        doc.setFontSize(12);
+                        doc.setFont('helvetica', 'bold');
+                        doc.setTextColor(80, 80, 80);
+                        doc.text(`   Room: ${roomKey}`, margin, currentY);
+                        currentY += 2;
+
+                        // Sort by time first (chronological), then assessor pair, then name
+                        const roomStudents = byRoom[roomKey].slice().sort((a, b) => {
+                            const ta = (a.time || '').toString();
+                            const tb = (b.time || '').toString();
+                            if (ta === '' && tb !== '') return 1;
+                            if (tb === '' && ta !== '') return -1;
+                            const timeCompare = ta.localeCompare(tb);
+                            if (timeCompare !== 0) return timeCompare;
+                            const ga = `${a.assessor1 || ''}|${a.assessor2 || ''}`;
+                            const gb = `${b.assessor1 || ''}|${b.assessor2 || ''}`;
+                            if (ga !== gb) return ga.localeCompare(gb);
+                            return (a.name || '').localeCompare(b.name || '');
+                        });
+                        
+                        const tableData = roomStudents.map((s, idx) => [
+                            idx + 1,
+                            s.name || '-',
+                            s.supervisor || '-',
+                            s.time || '-',
+                            s.assessor1 || '-',
+                            s.assessor2 || '-'
+                        ]);
+
+                        // Render table per room with proper spacing
+                        doc.autoTable({
+                            startY: currentY + 2,
+                            head: [['No.', 'Student Name', 'Supervisor', 'Time', 'Assessor 1', 'Assessor 2']],
+                            body: tableData,
+                            theme: 'striped',
+                            margin: { left: margin, right: margin },
+                            headStyles: {
+                                fillColor: [120, 0, 0],
+                                textColor: [255, 255, 255],
+                                fontStyle: 'bold',
+                                fontSize: 10,
+                                halign: 'left',
+                                cellPadding: { top: 3, right: 4, bottom: 3, left: 4 }
+                            },
+                            bodyStyles: {
+                                fontSize: 9,
+                                cellPadding: { top: 3, right: 4, bottom: 3, left: 4 },
+                                halign: 'left'
+                            },
+                            alternateRowStyles: {
+                                fillColor: [253, 240, 213]
+                            },
+                            columnStyles: {
+                                0: { cellWidth: 12, halign: 'center' },
+                                1: { cellWidth: 'auto', halign: 'left' },
+                                2: { cellWidth: 'auto', halign: 'left' },
+                                3: { cellWidth: 20, halign: 'center' },
+                                4: { cellWidth: 'auto', halign: 'left' },
+                                5: { cellWidth: 'auto', halign: 'left' }
+                            },
+                            styles: {
+                                overflow: 'linebreak',
+                                cellWidth: 'wrap',
+                                minCellHeight: 8,
+                                lineColor: [200, 200, 200],
+                                lineWidth: 0.1
+                            },
+                            didDrawPage: function(data) {
+                                // Footer on each page
+                                doc.setFontSize(8);
+                                doc.setFont('helvetica', 'normal');
+                                doc.setTextColor(128, 128, 128);
+                                doc.text(
+                                    `Page ${doc.internal.getNumberOfPages()}`, 
+                                    pageWidth / 2, 
+                                    pageHeight - 10, 
+                                    { align: 'center' }
+                                );
+                            }
+                        });
+
+                        currentY = doc.lastAutoTable.finalY + 6;
+                    });
+                    
+                    // Add spacing between dates
+                    currentY += 4;
                 });
+
+                // Final timestamp
+                const finalY = doc.lastAutoTable ? doc.lastAutoTable.finalY : currentY + 10;
                 
-                const finalY = doc.lastAutoTable.finalY;
-                doc.setFontSize(9);
-                doc.setTextColor(128, 128, 128);
-                const now = new Date();
-                const dateTime = now.toLocaleString('en-US', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                });
-                doc.text(`Generated on: ${dateTime}`, 14, finalY + 15);
-                
-                doc.save('assessment-session.pdf');
+                // Check if we need space for timestamp
+                if (finalY > pageHeight - 25) {
+                    doc.addPage();
+                    doc.setFontSize(9);
+                    doc.setFont('helvetica', 'italic');
+                    doc.setTextColor(128, 128, 128);
+                    const now = new Date();
+                    const dateTime = now.toLocaleString('en-US', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                    doc.text(`Generated on: ${dateTime}`, margin, 20);
+                } else {
+                    doc.setFontSize(9);
+                    doc.setFont('helvetica', 'italic');
+                    doc.setTextColor(128, 128, 128);
+                    const now = new Date();
+                    const dateTime = now.toLocaleString('en-US', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                    doc.text(`Generated on: ${dateTime}`, margin, finalY + 12);
+                }
+
+                doc.save('assessment-session-report.pdf');
 
                 // Show success modal
                 downloadModal.innerHTML = `

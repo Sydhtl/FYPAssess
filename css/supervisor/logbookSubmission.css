@@ -72,6 +72,7 @@
 .grid-header.meeting-col {
   text-align: left;
   padding-left: 15px;
+
 }
 
 /* Wrapper for "display: contents" to handle row spans */
@@ -168,4 +169,5 @@
 .status-pending {
   color: #d68c0b;
   border-color: #ffc107;
+
 }

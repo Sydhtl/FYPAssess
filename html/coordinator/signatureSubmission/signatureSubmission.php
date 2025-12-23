@@ -1,4 +1,41 @@
 <?php include '../../../php/coordinator_bootstrap.php'; ?>
+<?php
+// Derive base course code (strip trailing section letter if present)
+$baseCourseCode = '';
+if (!empty($displayCourseCode)) {
+    $baseCourseCode = preg_replace('/[-_ ]?[A-Za-z]$/', '', $displayCourseCode);
+}
+?>
+<script>
+// Prevent back button after logout
+window.history.pushState(null, "", window.location.href);
+window.onpopstate = function() {
+    window.history.pushState(null, "", window.location.href);
+};
+
+// Check session validity on page load and periodically
+function validateSession() {
+    fetch('../../../php/check_session_alive.php')
+        .then(function(resp){ return resp.json(); })
+        .then(function(data){
+            if (!data.valid) {
+                // Session is invalid, redirect to login
+                window.location.href = '../../login/Login.php';
+            }
+        })
+        .catch(function(err){
+            // If we can't reach the server, assume session is invalid
+            console.warn('Session validation failed:', err);
+            window.location.href = '../../login/Login.php';
+        });
+}
+
+// Validate session on page load
+window.addEventListener('load', validateSession);
+
+// Also check every 10 seconds
+setInterval(validateSession, 10000);
+</script>
 <!DOCTYPE html>
 <html>
 <head>
@@ -58,7 +95,7 @@
 
             <div id="coordinatorMenu" class="menu-items expanded">
                 <a href="../dashboard/dashboardCoordinator.php" id="coordinatorDashboard"><i class="bi bi-house-fill icon-padding"></i> Dashboard</a>
-                <a href="../studentAssignation/studentAssignation.php" id="studentAssignation"><i class="bi bi-people-fill icon-padding"></i> Student Assignment</a>
+                <a href="../studentAssignation/studentAssignation.php" id="studentAssignation"><i class="bi bi-people-fill icon-padding"></i> Student Assignation</a>
                 <a href="../learningObjective/learningObjective.php" id="learningObjective"><i class="bi bi-book-fill icon-padding"></i> Learning Objective</a>
                 <a href="../markSubmission/markSubmission.php" id="markSubmission"><i class="bi bi-clipboard-check-fill icon-padding"></i> Progress Submission</a>
                 <a href="../notification/notification.php" id="coordinatorNotification"><i class="bi bi-bell-fill icon-padding"></i> Notification</a>
@@ -66,7 +103,7 @@
                 <a href="../dateTimeAllocation/dateTimeAllocation.php" id="dateTimeAllocation"><i class="bi bi-calendar-event-fill icon-padding"></i> Date and Time Allocation</a>
             </div>
 
-            <a href="../../login/login.php" id="logout">
+            <a href="../../logout.php" id="logout">
                 <i class="bi bi-box-arrow-left" style="padding-right: 10px;"></i> Logout
             </a>
         </div>
@@ -83,8 +120,8 @@
                 <div id="containerFYPAssess">FYPAssess</div>
             </div>
             <div id="course-session">
-                <div id="courseCode">SWE4949</div>
-                <div id="courseSession">2024/2025 - 2</div>
+                <div id="courseCode"><?php echo htmlspecialchars($baseCourseCode ?: $displayCourseCode); ?></div>
+                <div id="courseSession"><?php echo htmlspecialchars($selectedYear . ' - ' . $selectedSemester); ?></div>
             </div>
         </div>
     </div>

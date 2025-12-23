@@ -1,4 +1,9 @@
 <?php
+// Prevent caching to stop back button access
+header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+header("Cache-Control: post-check=0, pre-check=0", false);
+header("Pragma: no-cache");
+
 include '../../php/mysqlConnect.php';
 session_start();
 
@@ -140,6 +145,11 @@ if ($lecturerResult->num_rows > 0) {
     <style>
         body{ background-color:#780000; }
         .disabled-link { pointer-events: none; opacity: 0.6; cursor: not-allowed; }
+        
+        /* Prevent layout shifts when switching between containers */
+        #courseInfo, #Studinfo {
+            transition: none !important;
+        }
     </style>
 </head>
 <body>
@@ -159,8 +169,6 @@ if ($lecturerResult->num_rows > 0) {
             <form action="../../php/phpStudent/save_information.php" method="post">
             <input type="hidden" name="upmId" value="<?php echo $_SESSION['signup_upmId'] ?? ($_SESSION['upmId'] ?? ''); ?>">
             <input type="hidden" name="existingStudent" value="<?php echo $existingStudent ? '1' : '0'; ?>">
-            <input type="hidden" name="assessor1" value="<?php echo htmlspecialchars($previousAssessor1 ?? '', ENT_QUOTES); ?>">
-            <input type="hidden" name="assessor2" value="<?php echo htmlspecialchars($previousAssessor2 ?? '', ENT_QUOTES); ?>">
 
             <?php if (isset($_SESSION['error'])): ?>
                 <div style="background-color: #ffebee; color: #c62828; padding: 15px; margin-bottom: 20px; border-radius: 5px; border: 1px solid #ef5350;">
@@ -249,30 +257,6 @@ if ($lecturerResult->num_rows > 0) {
                 <input type="text" id="cgpa" name="cgpa" placeholder="CGPA" value="<?php echo $student_cgpa; ?>" required>
             
                 <a href="#courseInfo" id="previous" style="text-decoration: none; display: inline-block; margin-right: 20px;">Previous</a>
-                <a href="#FYPinfo" id="continue1" style="text-decoration: none; display: inline-block;">Continue</a>   
-            </div>
-
-            <div class="container2" id="FYPinfo" style="display: none;">
-                <p id="welcomeBack">FYP Information</p>
-                <p id="desc">Enter the details</p>
-                
-                <p id="UsernamePassword">Supervisor Name <span class="info-tooltip">ⓘ<span class="tooltip-text">Select a supervisor.</span></span></p>
-                <select class="input-field" id="supervisor" name="supervisor" required <?php echo ($existingStudent && $previousSupervisorId) ? 'disabled' : ''; ?>>
-                    <option value="" disabled <?php echo ($existingStudent && $previousSupervisorId) ? '' : 'selected'; ?>>Select your supervisor</option>
-                </select>
-                <?php if ($existingStudent && $previousSupervisorId): ?>
-                    <input type="hidden" name="supervisor_locked" value="<?php echo htmlspecialchars($previousSupervisorId, ENT_QUOTES); ?>">
-                <?php endif; ?>
-                
-                <p id="UsernamePassword"><?php echo htmlspecialchars($titleLabel); ?>  <span class="info-tooltip">ⓘ<span class="tooltip-text">Required.</span></span></p>
-                <textarea id="fypTitle1" name="title1" placeholder="<?php echo $existingStudent ? 'FYP Title' : 'Title 1'; ?>" class="input-field" style="height: 60px; resize: none;" required <?php echo $lockedProjectTitle ? 'readonly' : ''; ?>><?php echo $student_title1; ?></textarea>
-                <?php if ($lockedProjectTitle): ?>
-                    <p style="font-size:12px;color:#555;margin-top:4px;">Title locked from previous session (<?php echo htmlspecialchars($lockedTitleStatus, ENT_QUOTES); ?>).</p>
-                <?php endif; ?>
-                
-                <!-- Only one suggested FYP title is allowed; remove extra fields -->
-                
-                <a href="#Studinfo" id="previous" style="text-decoration: none; display: inline-block; margin-right: 20px;">Previous</a>
                 <button type="submit" id="submitButton" style="display: inline-block;">Submit</button>
             </div>
         </form>
@@ -324,18 +308,10 @@ document.addEventListener('DOMContentLoaded', function() {
             cgpa: document.querySelector('#cgpa'),
             minor: document.querySelector('#minor')
         },
-        continue: document.querySelector('#Studinfo #continue1')
-    };
-
-    const fypInfo = {
-        fields: {
-            supervisor: document.querySelector('#supervisor'),
-            fypTitle1: document.querySelector('#fypTitle1'),
-            fypTitle2: document.querySelector('#fypTitle2'),
-            fypTitle3: document.querySelector('#fypTitle3')
-        },
         submit: document.querySelector('#submitButton')
     };
+
+
 
     // --- 2. DYNAMIC LOGIC (Course & Supervisor) ---
 
@@ -362,57 +338,17 @@ document.addEventListener('DOMContentLoaded', function() {
         updateButton(courseInfo.continue, isValid);
     }
 
-   // --- Build supervisors grouped by programme ---
-function buildSupervisorsByProgramme() {
-    const grouped = {};
-    allLecturers.forEach(lecturer => {
-        const deptID = lecturer.Department_ID;
-        if (!grouped[deptID]) grouped[deptID] = [];
-        
-        grouped[deptID].push({
-            value: lecturer.Supervisor_ID, // <-- send Supervisor_ID
-            text: lecturer.Lecturer_Name
-        });
-    });
-    return grouped;
-}
 
-const supervisorsByProgramme = buildSupervisorsByProgramme();
-
-function populateSupervisors(progValue) {
-    const supervisorSelect = fypInfo.fields.supervisor;
-    supervisorSelect.innerHTML = '<option value="" disabled selected>Select your supervisor</option>';
-
-    const list = supervisorsByProgramme[progValue] || [];
-    list.forEach(s => {
-        const opt = document.createElement('option');
-        opt.value = s.value;  // now using Supervisor_ID
-        opt.textContent = s.text;
-        if (savedSupervisorID && s.value == savedSupervisorID) opt.selected = true;
-        supervisorSelect.appendChild(opt);
-    });
-
-    if (existingStudent && savedSupervisorID) {
-        supervisorSelect.setAttribute('disabled', 'disabled');
-    } else {
-        supervisorSelect.removeAttribute('disabled');
-    }
-
-    const isValid = validateFields(fypInfo);
-    updateSubmitButton(fypInfo.submit, isValid);
-}
 
     // C. Listeners for Programme Change
     if (courseInfo.fields.programme) {
         courseInfo.fields.programme.addEventListener('change', function() {
             updateCourseOptions(this.value);
-            populateSupervisors(this.value);
         });
         
         // Run on Load
         if (courseInfo.fields.programme.value) {
             updateCourseOptions(courseInfo.fields.programme.value);
-            populateSupervisors(courseInfo.fields.programme.value);
         }
     }
 
@@ -461,11 +397,6 @@ function populateSupervisors(progValue) {
                    isStringValid(fields.currentAddress.value) &&
                    isCGPA(fields.cgpa.value);
         }
-        if (sectionObject === fypInfo) {
-             const hasSupervisor = isStringValid(fields.supervisor.value) || document.querySelector('input[name="supervisor_locked"]');
-             return hasSupervisor &&
-                 isStringValid(fields.fypTitle1.value);
-        }
         return false;
     }
 
@@ -477,7 +408,7 @@ function populateSupervisors(progValue) {
     }
 
     // --- 4. GENERIC EVENT LISTENERS ---
-    [courseInfo, studentInfo, fypInfo].forEach(section => {
+    [courseInfo, studentInfo].forEach(section => {
         Object.values(section.fields).forEach(field => {
             if (!field) return;
             const eventType = field.tagName === 'SELECT' ? 'change' : 'input';
@@ -501,7 +432,7 @@ function populateSupervisors(progValue) {
                 otherInput.required = false;
                 otherInput.value = '';
             }
-            updateButton(studentInfo.continue, validateFields(studentInfo));
+            updateSubmitButton(studentInfo.submit, validateFields(studentInfo));
         });
     }
 
@@ -514,7 +445,6 @@ function populateSupervisors(progValue) {
             if (this.closest('#courseInfo') && isDuplicateSelection()) {
                 e.preventDefault();
                 renderDuplicateWarning(true);
-                alert('You are already registered for this course, semester, and session. Please choose a different combination.');
                 return;
             }
             
@@ -534,10 +464,10 @@ function populateSupervisors(progValue) {
         });
     });
 
-    // --- 6. MODAL ---
-    const modal = document.getElementById('submissionSuccessModal');
-    if (fypInfo.submit) {
-        fypInfo.submit.addEventListener('click', function(e) {
+    // --- 6. SUBMIT BUTTON ---
+    const submitBtn = document.querySelector('#submitButton');
+    if (submitBtn) {
+        submitBtn.addEventListener('click', function(e) {
             if (this.disabled) { e.preventDefault(); return; }
             // Valid form: Let PHP handle the submission.
         });
@@ -545,8 +475,7 @@ function populateSupervisors(progValue) {
     
     // Initial Validation
     updateButton(courseInfo.continue, validateFields(courseInfo));
-    updateButton(studentInfo.continue, validateFields(studentInfo));
-    updateSubmitButton(fypInfo.submit, validateFields(fypInfo));
+    updateSubmitButton(submitBtn, validateFields(studentInfo));
 });
 </script>
 </body>
