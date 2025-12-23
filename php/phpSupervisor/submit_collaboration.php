@@ -137,7 +137,7 @@ try {
         // --- INSERT ---
         $sql = "INSERT INTO collaboration (
                 Collaboration_Status, Company_Name, Company_Address, Postcode, City, State,
-                Company_Email, Student_Quota, Acadmeic_Qualification, Supervisor_Title, Company_Title, 
+                Company_Email, Student_Quota, Academic_Qualification, Supervisor_Title, Company_Title, 
                 Required_Skills, Company_Supervisor_Name, Company_Supervisor_Email, Company_Supervisor_Phone, Company_Supervisor_Role,
                 Supervisor_ID, FYP_Session_ID
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
