@@ -31,12 +31,16 @@ if ($resultSession && $resultSession->num_rows > 0) {
     $courseSession = $sessionRow['FYP_Session'] . " - " . $sessionRow['Semester'];
 }
 
-// A. Get Login ID 
-if (isset($_SESSION['user_id'])) {
-    $loginID = $_SESSION['user_id'];
+// A. Get Login ID and Role
+if (isset($_SESSION['upmId'])) {
+    $loginID = $_SESSION['upmId'];
 } else {
     $loginID = 'hazura'; // Fallback
 }
+
+// Check if user has Coordinator role
+$userRole = isset($_SESSION['role']) ? $_SESSION['role'] : '';
+$isCoordinator = ($userRole === 'Coordinator');
 
 // B. Lookup Numeric ID
 $currentUserID = null;
@@ -57,6 +61,266 @@ if ($activeRole === 'supervisor') {
 // Fetch distinct FYP Sessions for the Sidebar Filter
 $session_sql = "SELECT DISTINCT FYP_Session FROM fyp_session ORDER BY FYP_Session DESC";
 $session_result = $conn->query($session_sql);
+
+// ========== FETCH DASHBOARD DATA ==========
+
+// Initialize variables
+$superviseeCount = 0;
+$inProgressCount = 0;
+$approvalRequestCount = 0;
+$nearestDueDays = 0;
+
+// 1. COUNT SUPERVISEES (from student_enrollment table)
+if ($currentUserID) {
+    $stmt = $conn->prepare("SELECT COUNT(DISTINCT Student_ID) as count FROM student_enrollment WHERE Supervisor_ID = ?");
+    $stmt->bind_param("i", $currentUserID);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    if ($row = $result->fetch_assoc()) {
+        $superviseeCount = $row['count'];
+    }
+    $stmt->close();
+
+    // 2. COUNT IN-PROGRESS TASKS (evaluations not submitted by supervisor)
+    // Assessment IDs: 1 for Course 1, and 4,5 for Course 2
+    $stmt = $conn->prepare("
+        SELECT COUNT(DISTINCT se.Student_ID, a.Assessment_ID) as count 
+        FROM student_enrollment se
+        JOIN student s ON se.Student_ID = s.Student_ID
+        JOIN course c ON s.Course_ID = c.Course_ID
+        JOIN assessment a ON c.Course_ID = a.Course_ID
+        LEFT JOIN evaluation e ON se.Student_ID = e.Student_ID 
+            AND e.Supervisor_ID = ? 
+            AND e.Assessment_ID = a.Assessment_ID
+        WHERE se.Supervisor_ID = ?
+        AND (
+            (c.Course_ID = 1 AND a.Assessment_ID = 1) OR
+            (c.Course_ID = 2 AND a.Assessment_ID IN (4, 5))
+        )
+        AND e.Evaluation_ID IS NULL
+    ");
+    $stmt->bind_param("ii", $currentUserID, $currentUserID);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    if ($row = $result->fetch_assoc()) {
+        $inProgressCount = $row['count'];
+    }
+    $stmt->close();
+
+    // 3. COUNT APPROVAL REQUESTS (logbook + project title not approved)
+    // Logbook with status 'Waiting for Approval'
+    $stmt = $conn->prepare("
+        SELECT COUNT(*) as count 
+        FROM logbook l
+        JOIN student_enrollment se ON l.Student_ID = se.Student_ID
+        WHERE se.Supervisor_ID = ? 
+        AND l.Logbook_Status = 'Waiting for Approval'
+    ");
+    $stmt->bind_param("i", $currentUserID);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    if ($row = $result->fetch_assoc()) {
+        $approvalRequestCount += $row['count'];
+    }
+    $stmt->close();
+
+    // Project title not approved
+    $stmt = $conn->prepare("
+        SELECT COUNT(*) as count 
+        FROM fyp_project pt
+        JOIN student_enrollment se ON pt.Student_ID = se.Student_ID
+        WHERE se.Supervisor_ID = ? 
+        AND (pt.Title_Status = 'Waiting For Approval')
+    ");
+    $stmt->bind_param("i", $currentUserID);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    if ($row = $result->fetch_assoc()) {
+        $approvalRequestCount += $row['count'];
+    }
+    $stmt->close();
+
+    // 4. GET NEAREST EVALUATION DUE DATE
+    $stmt = $conn->prepare("
+        SELECT DATEDIFF(End_Date, CURDATE()) as days_left
+        FROM due_date
+        WHERE Role = 'Supervisor' 
+        AND End_Date >= CURDATE()
+        ORDER BY End_Date ASC
+        LIMIT 1
+    ");
+    $stmt->execute();
+    $result = $stmt->get_result();
+    if ($row = $result->fetch_assoc()) {
+        $nearestDueDays = $row['days_left'] . ' days';
+    }
+    $stmt->close();
+}
+
+// 5. FETCH CHART DATA - Supervisee's Marks
+$marksData = [];
+if ($currentUserID) {
+    $stmt = $conn->prepare("
+        SELECT 
+            s.Student_ID,
+            s.Student_Name,
+            c.Course_Code,
+            COALESCE(SUM(e.Evaluation_Percentage), 0) as total_marks
+        FROM student_enrollment se
+        JOIN student s ON se.Student_ID = s.Student_ID
+        JOIN course c ON s.Course_ID = c.Course_ID
+        LEFT JOIN evaluation e ON s.Student_ID = e.Student_ID AND e.Supervisor_ID = ?
+        WHERE se.Supervisor_ID = ?
+        GROUP BY s.Student_ID, s.Student_Name, c.Course_Code
+        ORDER BY s.Student_Name
+    ");
+    $stmt->bind_param("ii", $currentUserID, $currentUserID);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    while ($row = $result->fetch_assoc()) {
+        $marksData[] = $row;
+    }
+    $stmt->close();
+}
+
+// 6. FETCH CHART DATA - Logbook Submissions
+$logbookData = [];
+if ($currentUserID) {
+    $stmt = $conn->prepare("
+        SELECT 
+            s.Student_ID,
+            s.Student_Name,
+            c.Course_Code,
+            COUNT(CASE WHEN l.Course_ID = 1 THEN 1 END) as submitted_A,
+            COUNT(CASE WHEN l.Course_ID = 2 THEN 1 END) as submitted_B,
+            6 as required
+        FROM student_enrollment se
+        JOIN student s ON se.Student_ID = s.Student_ID
+        JOIN course c ON s.Course_ID = c.Course_ID
+        LEFT JOIN logbook l ON s.Student_ID = l.Student_ID
+        WHERE se.Supervisor_ID = ?
+        GROUP BY s.Student_ID, s.Student_Name, c.Course_Code
+        ORDER BY s.Student_Name
+    ");
+    $stmt->bind_param("i", $currentUserID);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    while ($row = $result->fetch_assoc()) {
+        $logbookData[] = $row;
+    }
+    $stmt->close();
+}
+
+// 7. FETCH IN-PROGRESS EVALUATION TASKS
+// Assessments that supervisor needs to evaluate (Assessment 1 for Course 1, Assessment 4,5 for Course 2)
+$inProgressTasks = [];
+if ($currentUserID) {
+    $stmt = $conn->prepare("
+        SELECT 
+            s.Student_ID,
+            s.Student_Name,
+            pt.Project_Title,
+            a.Assessment_Name,
+            a.Assessment_ID,
+            c.Course_ID,
+            dd.End_Date
+        FROM student_enrollment se
+        JOIN student s ON se.Student_ID = s.Student_ID
+        JOIN course c ON s.Course_ID = c.Course_ID
+        JOIN assessment a ON c.Course_ID = a.Course_ID
+        LEFT JOIN fyp_project pt ON s.Student_ID = pt.Student_ID
+        LEFT JOIN due_date dd ON a.Due_ID = dd.Due_ID
+        LEFT JOIN evaluation e ON s.Student_ID = e.Student_ID 
+            AND a.Assessment_ID = e.Assessment_ID 
+            AND e.Supervisor_ID = ?
+        WHERE se.Supervisor_ID = ?
+        AND (
+            (c.Course_ID = 1 AND a.Assessment_ID = 1) OR
+            (c.Course_ID = 2 AND a.Assessment_ID IN (4, 5))
+        )
+        AND e.Evaluation_ID IS NULL
+        ORDER BY s.Student_Name, a.Assessment_ID
+    ");
+    $stmt->bind_param("ii", $currentUserID, $currentUserID);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    while ($row = $result->fetch_assoc()) {
+        $inProgressTasks[] = $row;
+    }
+    $stmt->close();
+}
+
+// 8. FETCH UPCOMING TASKS (Assessor evaluations - Assessment 2 for Course 1, Assessment 3 for Course 2)
+$upcomingTasks = [];
+if ($currentUserID) {
+    $stmt = $conn->prepare("
+        SELECT 
+            s.Student_ID,
+            s.Student_Name,
+            pt.Project_Title,
+            a.Assessment_Name,
+            a.Assessment_ID,
+            asess.Date,
+            asess.Time,
+            asess.Venue,
+            asess.Session_ID
+        FROM student_enrollment se
+        JOIN student s ON se.Student_ID = s.Student_ID
+        JOIN course c ON s.Course_ID = c.Course_ID
+        JOIN assessment a ON c.Course_ID = a.Course_ID
+        LEFT JOIN fyp_project pt ON s.Student_ID = pt.Student_ID
+        LEFT JOIN student_session ss ON s.Student_ID = ss.Student_ID
+        LEFT JOIN assessment_session asess ON ss.Session_ID = asess.Session_ID
+        WHERE se.Supervisor_ID = ?
+        AND (
+            (c.Course_ID = 1 AND a.Assessment_ID = 2) OR
+            (c.Course_ID = 2 AND a.Assessment_ID = 3)
+        )
+        AND asess.Date >= CURDATE()
+        ORDER BY asess.Date, asess.Time
+    ");
+    $stmt->bind_param("i", $currentUserID);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    while ($row = $result->fetch_assoc()) {
+        $upcomingTasks[] = $row;
+    }
+    $stmt->close();
+}
+
+// 9. FETCH COMPLETED TASKS (Supervisor evaluations already submitted)
+$completedTasks = [];
+if ($currentUserID) {
+    $stmt = $conn->prepare("
+        SELECT 
+            s.Student_ID,
+            s.Student_Name,
+            pt.Project_Title,
+            a.Assessment_Name,
+            SUM(e.Evaluation_Percentage) as Total_Marks,
+            MAX(e.Evaluation_ID) as latest_eval
+        FROM evaluation e
+        JOIN student s ON e.Student_ID = s.Student_ID
+        JOIN assessment a ON e.Assessment_ID = a.Assessment_ID
+        JOIN course c ON a.Course_ID = c.Course_ID
+        LEFT JOIN fyp_project pt ON s.Student_ID = pt.Student_ID
+        WHERE e.Supervisor_ID = ?
+        AND (
+            (c.Course_ID = 1 AND a.Assessment_ID = 1) OR
+            (c.Course_ID = 2 AND a.Assessment_ID IN (4, 5))
+        )
+        GROUP BY s.Student_ID, s.Student_Name, pt.Project_Title, a.Assessment_Name
+        ORDER BY latest_eval DESC
+    ");
+    $stmt->bind_param("i", $currentUserID);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    while ($row = $result->fetch_assoc()) {
+        $completedTasks[] = $row;
+    }
+    $stmt->close();
+}
+
 ?>
 
 <!DOCTYPE html>
@@ -64,7 +328,7 @@ $session_result = $conn->query($session_sql);
 
 <head>
     <title>Dashboard_Supervisor</title>
-    <link rel="stylesheet" href="../../css/supervisor/dashboard.css">
+    <link rel="stylesheet" href="../../css/supervisor/dashboard.css?v=<?php echo time(); ?>">
     <link rel="stylesheet" href="../../css/background.css">
     <!-- <link rel="stylesheet" href="../../css/dashboard.css"> -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -90,7 +354,7 @@ $session_result = $conn->query($session_sql);
 
             <a href="javascript:void(0)"
                 class="role-header <?php echo ($activeRole == 'supervisor') ? 'menu-expanded' : ''; ?>"
-                onclick="toggleMenu('supervisorMenu', this)">
+                data-target="supervisorMenu" onclick="toggleMenu('supervisorMenu', this)">
                 <span class="role-text">Supervisor</span>
                 <span class="arrow-container"><i class="bi bi-chevron-right arrow-icon"></i></span>
             </a>
@@ -100,11 +364,15 @@ $session_result = $conn->query($session_sql);
                     class="<?php echo ($activeRole == 'supervisor') ? 'active-menu-item active-page' : ''; ?>">
                     <i class="bi bi-house-fill icon-padding"></i> Dashboard
                 </a>
-    
-                <a href="../notification/notification.html" id="Notification"><i
+
+
+                <a href="notification.php?role=supervisor" id="Notification"
+                    class="<?php echo ($activeRole == 'supervisor') ?: ''; ?>"><i
                         class="bi bi-bell-fill icon-padding"></i> Notification</a>
+
+
                 <a href="industry_collaboration.php?role=supervisor" id="industryCollaboration"
-                    class="<?php echo ($activeRole == 'supervisor') ? : ''; ?>">
+                    class="<?php echo ($activeRole == 'supervisor') ?: ''; ?>">
                     <i class="bi bi-calendar-check-fill icon-padding"></i> Industry Collaboration
                 </a>
                 <a href="../phpAssessor_Supervisor/evaluation_form.php?role=supervisor" id="evaluationForm"
@@ -112,43 +380,82 @@ $session_result = $conn->query($session_sql);
                     <i class="bi bi-file-earmark-text-fill icon-padding"></i> Evaluation Form
                 </a>
                 <a href="report.php?role=supervisor" id="superviseesReport"
-                    class="<?php echo ($activeRole == 'supervisor') ? : ''; ?>">
+                    class="<?php echo ($activeRole == 'supervisor') ?: ''; ?>">
                     <i class="bi bi-bar-chart-fill icon-padding"></i> Supervisee's Report
                 </a>
                 <a href="logbook_submission.php?role=supervisor" id="logbookSubmission"
-                    class="<?php echo ($activeRole == 'supervisor') ? : ''; ?>">
+                    class="<?php echo ($activeRole == 'supervisor') ?: ''; ?>">
                     <i class="bi bi-calendar-check-fill icon-padding"></i> Logbook Submission
                 </a>
                 <a href="signature_submission.php?role=supervisor" id="signatureSubmission"
-                    class="<?php echo ($activeRole == 'supervisor') ? : ''; ?>">
+                    class="<?php echo ($activeRole == 'supervisor') ?: ''; ?>">
                     <i class="bi bi-calendar-check-fill icon-padding"></i> Signature Submission
                 </a>
 
                 <a href="project_title.php?role=supervisor" id="projectTitle"
-                    class="<?php echo ($activeRole == 'supervisor') ? : ''; ?>">
+                    class="<?php echo ($activeRole == 'supervisor') ?: ''; ?>">
                     <i class="bi bi-calendar-check-fill icon-padding"></i> Project Title
                 </a>
             </div>
 
             <a href="javascript:void(0)"
                 class="role-header <?php echo ($activeRole == 'assessor') ? 'menu-expanded' : ''; ?>"
-                onclick="toggleMenu('assessorMenu', this)">
+                data-target="assessorMenu" onclick="toggleMenu('assessorMenu', this)">
                 <span class="role-text">Assessor</span>
                 <span class="arrow-container"><i class="bi bi-chevron-right arrow-icon"></i></span>
             </a>
 
             <div id="assessorMenu" class="menu-items <?php echo ($activeRole == 'assessor') ? 'expanded' : ''; ?>">
-                <a href="../dashboard/dashboard.html" id="Dashboard"><i class="bi bi-house-fill icon-padding"></i>
+                <a href="../phpAssessor/dashboard.php?role=supervisor" id="Dashboard"
+                    class="<?php echo ($activeRole == 'supervisor') ?: ''; ?>"><i
+                        class="bi bi-house-fill icon-padding"></i>
                     Dashboard</a>
-                <a href="../notification/notification.html" id="Notification"><i
+                <a href="../phpAssessor/notification.php?role=supervisor" id="Notification"
+                    class="<?php echo ($activeRole == 'supervisor') ?: ''; ?>"><i
                         class="bi bi-bell-fill icon-padding"></i> Notification</a>
                 <a href="../phpAssessor_Supervisor/evaluation_form.php?role=assessor" id="AssessorEvaluationForm"
-                    class="<?php echo ($activeRole == 'assessor') ? 'active-menu-item active-page' : ''; ?>">
+                    class="<?php echo ($activeRole == 'assessor') ?: ''; ?>">
                     <i class="bi bi-file-earmark-text-fill icon-padding"></i> Evaluation Form
                 </a>
             </div>
 
-            <a href="#" id="logout"><i class="bi bi-box-arrow-left" style="padding-right: 10px;"></i> Logout</a>
+            <?php if ($isCoordinator): ?>
+                <a href="javascript:void(0)"
+                    class="role-header <?php echo ($activeRole == 'coordinator') ? 'menu-expanded' : ''; ?>"
+                    data-target="coordinatorMenu" onclick="toggleMenu('coordinatorMenu', this)">
+                    <span class="role-text">Coordinator</span>
+                    <span class="arrow-container"><i class="bi bi-chevron-right arrow-icon"></i></span>
+                </a>
+
+                <div id="coordinatorMenu"
+                    class="menu-items <?php echo ($activeRole == 'coordinator') ? 'expanded' : ''; ?>">
+                    <a href="../../html/coordinator/dashboard/dashboardCoordinator.php" id="CoordinatorDashboard">
+                        <i class="bi bi-house-fill icon-padding"></i> Dashboard
+                    </a>
+                    <a href="../../html/coordinator/notification/notification.php" id="CoordinatorNotification">
+                        <i class="bi bi-bell-fill icon-padding"></i> Notification
+                    </a>
+                    <a href="../../html/coordinator/studentAssignation/studentAssignation.php" id="StudentAssignation">
+                        <i class="bi bi-people-fill icon-padding"></i> Student Assignation
+                    </a>
+                    <a href="../../html/coordinator/dateTimeAllocation/dateTimeAllocation.php" id="DateTimeAllocation">
+                        <i class="bi bi-calendar-check-fill icon-padding"></i> Date & Time Allocation
+                    </a>
+                    <a href="../../html/coordinator/learningObjective/learningObjective.php" id="LearningObjective">
+                        <i class="bi bi-book-fill icon-padding"></i> Learning Objective
+                    </a>
+                    <a href="../../html/coordinator/markSubmission/markSubmission.php" id="MarkSubmission">
+                        <i class="bi bi-file-earmark-check-fill icon-padding"></i> Mark Submission
+                    </a>
+                    <a href="../../html/coordinator/signatureSubmission/signatureSubmission.php"
+                        id="CoordinatorSignatureSubmission">
+                        <i class="bi bi-pen-fill icon-padding"></i> Signature Submission
+                    </a>
+                </div>
+            <?php endif; ?>
+
+            <a href="../login.php" id="logout"><i class="bi bi-box-arrow-left" style="padding-right: 10px;"></i>
+                Logout</a>
         </div>
     </div>
 
@@ -175,28 +482,28 @@ $session_result = $conn->query($session_sql);
                 <span class="widget-icon"><i class="fa-solid fa-user-group"></i></span>
                 <div class="widget-content">
                     <span class="widget-title">Supervisee</span>
-                    <span id="in-progress-count" class="widget-value">0</span>
+                    <span id="supervisee-count" class="widget-value"><?php echo $superviseeCount; ?></span>
                 </div>
             </div>
             <div class="widget">
                 <span class="widget-icon"><i class="fa-solid fa-bars-progress"></i></span>
                 <div class="widget-content">
                     <span class="widget-title">In-progress task</span>
-                    <span id="in-progress-count" class="widget-value">0</span>
+                    <span id="in-progress-count" class="widget-value"><?php echo $inProgressCount; ?></span>
                 </div>
             </div>
             <div class="widget due-widget">
                 <span class="widget-icon"><i class="fa-solid fa-bell"></i></span>
                 <div class="widget-content">
                     <span class="widget-title">Approval request</span>
-                    <span id="due-soon-count" class="widget-value">2</span>
+                    <span id="approval-request-count" class="widget-value"><?php echo $approvalRequestCount; ?></span>
                 </div>
             </div>
             <div class="widget">
                 <span class="widget-icon"><i class="fa-solid fa-clock"></i></span>
                 <div class="widget-content">
                     <span class="widget-title">Evaluation due</span>
-                    <span id="completed-count" class="widget-value">10 days</span>
+                    <span id="evaluation-due" class="widget-value"><?php echo $nearestDueDays; ?></span>
                 </div>
             </div>
         </div>
@@ -212,7 +519,9 @@ $session_result = $conn->query($session_sql);
                             <span><span class="legend-dot" style="background-color: #F8C9D4;"></span> SWE4949A</span>
                             <span><span class="legend-dot" style="background-color: #2E86C1;"></span> SWE4949B</span>
                         </div>
-                        <canvas id="marksChart"></canvas>
+                        <div style="position: relative; height: 250px; width: 100%;">
+                            <canvas id="marksChart"></canvas>
+                        </div>
                     </div>
                     <div class="chart-container">
                         <h3>Logbook submission</h3>
@@ -220,7 +529,9 @@ $session_result = $conn->query($session_sql);
                             <span><span class="legend-dot" style="background-color: #F8C9D4;"></span> SWE4949A</span>
                             <span><span class="legend-dot" style="background-color: #2E86C1;"></span> SWE4949B</span>
                         </div>
-                        <canvas id="logbookChart"></canvas>
+                        <div style="position: relative; height: 250px; width: 100%;">
+                            <canvas id="logbookChart"></canvas>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -258,6 +569,7 @@ $session_result = $conn->query($session_sql);
                 </div>
                 <div class="task-list-area">
 
+                    <!-- IN-PROGRESS TAB -->
                     <div class="task-group active" data-group="inprogress">
                         <div class="task-row header-row four-col-grid">
                             <span class="col-supervisee">Supervisee</span>
@@ -265,68 +577,116 @@ $session_result = $conn->query($session_sql);
                             <span class="col-assessment-type">Assessment type</span>
                             <span class="col-due-date">Due date</span>
                         </div>
-                        <div class="task-row data-row four-col-grid">
-                            <span class="col-supervisee">Amirul Afiq Bin Muhammad</span>
-                            <span class="col-project-title">Development of an Automated Assessment and Evaluation for
-                                Bachelor Projects</span>
-                            <span class="col-assessment-type">Demonstration<br>Thesis and logbook</span>
-                            <span class="col-due-date">24 Nov 2025<br>3 Jan 2026</span>
-                        </div>
-                        <div class="task-row data-row four-col-grid">
-                            <span class="col-supervisee">Harraz Firdaus Bin Hisyam</span>
-                            <span class="col-project-title">Virtual Reality Mobile Application for Interactive Museum
-                                Viewing Experience</span>
-                            <span class="col-assessment-type">Proposal report<br>Thesis and logbook</span>
-                            <span class="col-due-date">24 Aug 2025<br>3 Jan 2026</span>
-                        </div>
+                        <?php
+                        // Group tasks by student
+                        $groupedInProgress = [];
+                        foreach ($inProgressTasks as $task) {
+                            $studentId = $task['Student_ID'];
+                            if (!isset($groupedInProgress[$studentId])) {
+                                $groupedInProgress[$studentId] = [
+                                    'student_id' => $task['Student_ID'],
+                                    'name' => $task['Student_Name'],
+                                    'title' => $task['Project_Title'] ?: 'No title submitted',
+                                    'assessments' => []
+                                ];
+                            }
+                            $groupedInProgress[$studentId]['assessments'][] = [
+                                'name' => $task['Assessment_Name'],
+                                'due' => $task['End_Date'] ? date('d M Y', strtotime($task['End_Date'])) : 'TBA'
+                            ];
+                        }
+
+                        if (empty($groupedInProgress)): ?>
+                            <div class="task-row data-row four-col-grid">
+                                <span class="col-supervisee"
+                                    style="grid-column: 1 / -1; text-align: center; color: #999;">No in-progress
+                                    tasks</span>
+                            </div>
+                        <?php else:
+                            foreach ($groupedInProgress as $studentData):
+                                $assessmentNames = array_column($studentData['assessments'], 'name');
+                                $dueDates = array_column($studentData['assessments'], 'due');
+                                ?>
+                                <div class="task-row data-row four-col-grid">
+                                    <span
+                                        class="col-supervisee"><?php echo htmlspecialchars($studentData['name']); ?><br><small><?php echo htmlspecialchars($studentData['student_id']); ?></small></span>
+                                    <span
+                                        class="col-project-title"><?php echo htmlspecialchars($studentData['title']); ?></span>
+                                    <span
+                                        class="col-assessment-type"><?php echo implode('<br>', array_map('htmlspecialchars', $assessmentNames)); ?></span>
+                                    <span
+                                        class="col-due-date"><?php echo implode('<br>', array_map('htmlspecialchars', $dueDates)); ?></span>
+                                </div>
+                                <?php
+                            endforeach;
+                        endif;
+                        ?>
                     </div>
 
+                    <!-- UPCOMING TAB -->
                     <div class="task-group" data-group="upcoming">
-                        <div class="task-group-header" data-target="#list-aug-9">
-                            <i class="fas fa-chevron-down toggle-icon"></i>
-                            9 Aug 2025, Wed - Bilik Kuliah A
-                        </div>
-                        <div id="list-aug-9" class="task-list-details">
-                            <div class="task-row header-row five-col-grid">
-                                <span class="col-student">Student</span>
-                                <span class="col-time">Time</span>
-                                <span class="col-project-title">Project title</span>
-                                <span class="col-assessment-type">Assessment type</span>
-                                <span class="col-assessor">Assessor</span>
-                            </div>
-                            <div class="task-row data-row five-col-grid">
-                                <span class="col-student">Siti Athirah Binti Othman</span>
-                                <span class="col-time">9.00 am</span>
-                                <span class="col-project-title">Development of an Automated Assessment and Evaluation
-                                    for Bachelor Projects</span>
-                                <span class="col-assessment-type">Seminar Proposal</span>
-                                <span class="col-assessor"><i class="fas fa-user-tie"></i></span>
-                            </div>
-                        </div>
+                        <?php
+                        // Group upcoming tasks by date and venue
+                        $groupedUpcoming = [];
+                        foreach ($upcomingTasks as $task) {
+                            if ($task['Date']) {
+                                $dateKey = $task['Date'] . '_' . $task['Venue'];
+                                if (!isset($groupedUpcoming[$dateKey])) {
+                                    $groupedUpcoming[$dateKey] = [
+                                        'date' => $task['Date'],
+                                        'venue' => $task['Venue'] ?: 'TBA',
+                                        'tasks' => []
+                                    ];
+                                }
+                                $groupedUpcoming[$dateKey]['tasks'][] = $task;
+                            }
+                        }
 
-                        <div class="task-group-header" data-target="#list-aug-10">
-                            <i class="fas fa-chevron-down toggle-icon"></i>
-                            10 Aug 2025, Thu - Bilik Kuliah A
-                        </div>
-                        <div id="list-aug-10" class="task-list-details">
-                            <div class="task-row header-row five-col-grid">
-                                <span class="col-student">Student</span>
-                                <span class="col-time">Time</span>
-                                <span class="col-project-title">Project title</span>
-                                <span class="col-assessment-type">Assessment type</span>
-                                <span class="col-assessor">Assessor</span>
+                        if (empty($groupedUpcoming)): ?>
+                            <div style="padding: 20px; text-align: center; color: #999;">No upcoming assessment sessions
                             </div>
-                            <div class="task-row data-row five-col-grid">
-                                <span class="col-student">Atiya Aisya Binti Aiman</span>
-                                <span class="col-time">9.30 am</span>
-                                <span class="col-project-title">Virtual Reality Mobile Application for Interactive
-                                    Museum Viewing Experience</span>
-                                <span class="col-assessment-type">Seminar Proposal</span>
-                                <span class="col-assessor"><i class="fas fa-user-tie"></i></span>
-                            </div>
-                        </div>
+                        <?php else:
+                            $sessionIndex = 0;
+                            foreach ($groupedUpcoming as $dateGroup):
+                                $sessionIndex++;
+                                $sessionId = 'list-' . $sessionIndex;
+                                $dateObj = new DateTime($dateGroup['date']);
+                                $formattedDate = $dateObj->format('d M Y, D');
+                                ?>
+                                <div class="task-group-header" data-target="#<?php echo $sessionId; ?>">
+                                    <i class="fas fa-chevron-down toggle-icon"></i>
+                                    <?php echo $formattedDate . ' - ' . htmlspecialchars($dateGroup['venue']); ?>
+                                </div>
+                                <div id="<?php echo $sessionId; ?>" class="task-list-details">
+                                    <div class="task-row header-row five-col-grid">
+                                        <span class="col-student">Student</span>
+                                        <span class="col-time">Time</span>
+                                        <span class="col-project-title">Project title</span>
+                                        <span class="col-assessment-type">Assessment type</span>
+                                        <span class="col-assessor">Assessor</span>
+                                    </div>
+                                    <?php foreach ($dateGroup['tasks'] as $task):
+                                        $timeFormatted = $task['Time'] ? date('g.i a', strtotime($task['Time'])) : 'TBA';
+                                        ?>
+                                        <div class="task-row data-row five-col-grid">
+                                            <span
+                                                class="col-student"><?php echo htmlspecialchars($task['Student_Name']); ?><br><small><?php echo htmlspecialchars($task['Student_ID']); ?></small></span>
+                                            <span class="col-time"><?php echo $timeFormatted; ?></span>
+                                            <span
+                                                class="col-project-title"><?php echo htmlspecialchars($task['Project_Title'] ?: 'No title submitted'); ?></span>
+                                            <span
+                                                class="col-assessment-type"><?php echo htmlspecialchars($task['Assessment_Name']); ?></span>
+                                            <span class="col-assessor"><i class="fas fa-user-tie"></i></span>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </div>
+                                <?php
+                            endforeach;
+                        endif;
+                        ?>
                     </div>
 
+                    <!-- COMPLETED TAB -->
                     <div class="task-group" data-group="completed">
                         <div class="task-row header-row four-col-grid">
                             <span class="col-student">Student</span>
@@ -334,12 +694,27 @@ $session_result = $conn->query($session_sql);
                             <span class="col-assessment-type">Assessment type</span>
                             <span class="col-marks">Marks</span>
                         </div>
-                        <div class="task-row data-row four-col-grid">
-                            <span class="col-student">Siti Amirah Binti Othman</span>
-                            <span class="col-project-title">Development of a AI integrated Learning Platform</span>
-                            <span class="col-assessment-type">Seminar Proposal</span>
-                            <span class="col-marks">85 / 100</span>
-                        </div>
+                        <?php if (empty($completedTasks)): ?>
+                            <div class="task-row data-row four-col-grid">
+                                <span class="col-student" style="grid-column: 1 / -1; text-align: center; color: #999;">No
+                                    completed evaluations</span>
+                            </div>
+                        <?php else:
+                            foreach ($completedTasks as $task):
+                                ?>
+                                <div class="task-row data-row four-col-grid">
+                                    <span
+                                        class="col-student"><?php echo htmlspecialchars($task['Student_Name']); ?><br><small><?php echo htmlspecialchars($task['Student_ID']); ?></small></span>
+                                    <span
+                                        class="col-project-title"><?php echo htmlspecialchars($task['Project_Title'] ?: 'No title submitted'); ?></span>
+                                    <span
+                                        class="col-assessment-type"><?php echo htmlspecialchars($task['Assessment_Name']); ?></span>
+                                    <span class="col-marks"><?php echo htmlspecialchars($task['Total_Marks']); ?></span>
+                                </div>
+                                <?php
+                            endforeach;
+                        endif;
+                        ?>
                     </div>
 
                 </div>
@@ -431,8 +806,9 @@ $session_result = $conn->query($session_sql);
             // Function to update role header highlighting based on active menu items and expansion state
             const updateRoleHeaderHighlighting = () => {
                 document.querySelectorAll('.role-header').forEach(header => {
-                    const menuId = header.getAttribute('href');
-                    const targetMenu = document.querySelector(menuId);
+                    const menuId = header.getAttribute('data-target');
+                    if (!menuId) return;
+                    const targetMenu = document.getElementById(menuId);
 
                     if (!targetMenu) return;
 
@@ -455,8 +831,9 @@ $session_result = $conn->query($session_sql);
 
             // Function to handle the role menu toggle
             const handleRoleToggle = (header) => {
-                const menuId = header.getAttribute('href');
-                const targetMenu = document.querySelector(menuId);
+                const menuId = header.getAttribute('data-target');
+                if (!menuId) return;
+                const targetMenu = document.getElementById(menuId);
                 const arrowIcon = header.querySelector('.arrow-icon');
 
                 if (!targetMenu) return;
@@ -498,8 +875,9 @@ $session_result = $conn->query($session_sql);
                 });
 
                 // Initial arrow state based on 'expanded' class in HTML
-                const menuId = header.getAttribute('href');
-                const targetMenu = document.querySelector(menuId);
+                const menuId = header.getAttribute('data-target');
+                if (!menuId) return;
+                const targetMenu = document.getElementById(menuId);
                 if (targetMenu && targetMenu.classList.contains('expanded')) {
                     const arrowIcon = header.querySelector('.arrow-icon');
                     arrowIcon.classList.remove('bi-chevron-right');
@@ -515,12 +893,15 @@ $session_result = $conn->query($session_sql);
 
             // --- Tab Switching Logic (Client-side simulation) ---
             tabs.forEach(tab => {
-                tab.addEventListener('click', (e) => {
-                    const tabName = e.target.getAttribute('data-tab');
+                tab.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    const tabName = this.getAttribute('data-tab');
+
+                    console.log('Tab clicked:', tabName); // Debug log
 
                     // 1. Update active tab style
                     tabs.forEach(t => t.classList.remove('active-tab'));
-                    e.target.classList.add('active-tab');
+                    this.classList.add('active-tab');
 
                     // 2. Switch active task group
                     taskGroups.forEach(group => {
@@ -554,119 +935,191 @@ $session_result = $conn->query($session_sql);
             // Default to 'inprogress' tab view on load
             document.querySelector('.task-group[data-group="inprogress"]').classList.add('active');
 
-            // Ensure the collapsed state is set immediately on page load
-            window.onload = function () {
-                closeNav();
-            };
+            console.log('DOM loaded, initializing charts...');
 
+            // Prepare PHP data for charts
+            <?php
+            // Prepare marks data for JavaScript
+            $marksLabels = [];
+            $marksCourseA = [];
+            $marksCourseB = [];
+
+            foreach ($marksData as $mark) {
+                $firstName = explode(' ', $mark['Student_Name'])[0];
+                $labelKey = $firstName;
+                $displayLabel = [$firstName, '(' . $mark['Student_ID'] . ')'];
+
+                if (!isset($marksLabels[$labelKey])) {
+                    $marksLabels[$labelKey] = $displayLabel;
+                }
+
+                if (strpos($mark['Course_Code'], 'A') !== false) {
+                    $marksCourseA[$labelKey] = $mark['total_marks'];
+                } else if (strpos($mark['Course_Code'], 'B') !== false) {
+                    $marksCourseB[$labelKey] = $mark['total_marks'];
+                }
+            }
+
+            // Ensure all students have entries for both courses
+            $marksDataA = [];
+            $marksDataB = [];
+            $marksLabelsDisplay = [];
+            foreach ($marksLabels as $key => $label) {
+                $marksLabelsDisplay[] = $label;
+                $marksDataA[] = isset($marksCourseA[$key]) ? $marksCourseA[$key] : 0;
+                $marksDataB[] = isset($marksCourseB[$key]) ? $marksCourseB[$key] : 0;
+            }
+
+            // Prepare logbook data for JavaScript
+            $logbookLabels = [];
+            $logbookSubmittedA = [];
+            $logbookSubmittedB = [];
+
+            foreach ($logbookData as $log) {
+                $firstName = explode(' ', $log['Student_Name'])[0];
+                $displayLabel = [$firstName, '(' . $log['Student_ID'] . ')'];
+
+                if (!in_array($displayLabel, $logbookLabels)) {
+                    $logbookLabels[] = $displayLabel;
+                    $logbookSubmittedA[] = (int) $log['submitted_A'];
+                    $logbookSubmittedB[] = (int) $log['submitted_B'];
+                }
+            }
+            ?>
+
+            const marksLabels = <?php echo json_encode($marksLabelsDisplay); ?>;
+            const marksDataA = <?php echo json_encode($marksDataA); ?>;
+            const marksDataB = <?php echo json_encode($marksDataB); ?>;
+
+            const logbookLabels = <?php echo json_encode($logbookLabels); ?>;
+            const logbookSubmittedA = <?php echo json_encode($logbookSubmittedA); ?>;
+            const logbookSubmittedB = <?php echo json_encode($logbookSubmittedB); ?>;
 
             // Chart 1: Supervisee's Marks (Stacked Bar)
             const ctxMarks = document.getElementById('marksChart');
+            console.log('Canvas element marksChart:', ctxMarks);
+
             if (ctxMarks) {
-                new Chart(ctxMarks, {
-                    type: 'bar',
-                    data: {
-                        labels: ['Amirul', 'Harraz'],
-                        datasets: [{
-                            label: 'SWE4949A',
-                            data: [20, 20], // Data from UI
-                            backgroundColor: '#F8C9D4',
-                            borderRadius: 4
-                        },
-                        {
-                            label: 'SWE4949B',
-                            data: [20, 20], // Data from UI
-                            backgroundColor: '#2E86C1',
-                            borderRadius: 4
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false, // Relies on container height
-                        plugins: {
-                            legend: {
-                                display: false // Using custom HTML legend
+                try {
+                    const marksChart = new Chart(ctxMarks, {
+                        type: 'bar',
+                        data: {
+                            labels: marksLabels,
+                            datasets: [{
+                                label: 'SWE4949A',
+                                data: marksDataA,
+                                backgroundColor: '#F8C9D4',
+                                borderRadius: 4
                             },
-                            tooltip: {
-                                callbacks: {
-                                    label: function (context) {
-                                        let label = context.dataset.label || '';
-                                        if (label) {
-                                            label += ': ';
+                            {
+                                label: 'SWE4949B',
+                                data: marksDataB,
+                                backgroundColor: '#2E86C1',
+                                borderRadius: 4
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    display: false
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function (context) {
+                                            let label = context.dataset.label || '';
+                                            if (label) {
+                                                label += ': ';
+                                            }
+                                            label += context.parsed.y + '%';
+                                            return label;
                                         }
-                                        label += context.parsed.y + '%';
-                                        return label;
                                     }
                                 }
-                            }
-                        },
-                        scales: {
-                            x: {
-                                stacked: true,
-                                grid: { display: false }
                             },
-                            y: {
-                                stacked: true,
-                                beginAtZero: true,
-                                title: {
-                                    display: true,
-                                    text: 'Total (%)'
+                            scales: {
+                                x: {
+                                    stacked: true,
+                                    grid: { display: false }
                                 },
-                                max: 100 // Set max to give space
+                                y: {
+                                    stacked: true,
+                                    beginAtZero: true,
+                                    title: {
+                                        display: true,
+                                        text: 'Total (%)'
+                                    },
+                                    max: 100
+                                }
                             }
                         }
-                    }
-                });
+                    });
+                    console.log('Marks chart created successfully:', marksChart);
+                } catch (error) {
+                    console.error('Error creating marks chart:', error);
+                }
+            } else {
+                console.error('Canvas element marksChart not found!');
             }
 
             // Chart 2: Logbook Submission (Grouped Bar)
             const ctxLogbook = document.getElementById('logbookChart');
+            console.log('Canvas element logbookChart:', ctxLogbook);
+
             if (ctxLogbook) {
-                new Chart(ctxLogbook, {
-                    type: 'bar',
-                    data: {
-                        labels: ['Amirul', 'Harraz'],
-                        datasets: [{
-                            label: 'Submitted',
-                            data: [5, 6], // Data from UI
-                            backgroundColor: '#F8C9D4',
-                            borderRadius: 4
-                        },
-                        {
-                            label: 'Approved',
-                            data: [4, 6], // Data from UI
-                            backgroundColor: '#2E86C1',
-                            borderRadius: 4
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false, // Relies on container height
-                        plugins: {
-                            legend: {
-                                display: false // Using custom HTML legend
-                            }
-                        },
-                        scales: {
-                            x: {
-                                stacked: false,
-                                grid: { display: false }
+                try {
+                    const logbookChart = new Chart(ctxLogbook, {
+                        type: 'bar',
+                        data: {
+                            labels: logbookLabels,
+                            datasets: [{
+                                label: 'SWE4949A',
+                                data: logbookSubmittedA,
+                                backgroundColor: '#F8C9D4',
+                                borderRadius: 4
                             },
-                            y: {
-                                stacked: false,
-                                beginAtZero: true,
-                                title: {
-                                    display: true,
-                                    text: 'Total'
+                            {
+                                label: 'SWE4949B',
+                                data: logbookSubmittedB,
+                                backgroundColor: '#2E86C1',
+                                borderRadius: 4
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    display: false
+                                }
+                            },
+                            scales: {
+                                x: {
+                                    stacked: false,
+                                    grid: { display: false }
                                 },
-                                ticks: {
-                                    stepSize: 1 // Show 1, 2, 3...
-                                },
-                                max: 7 // Set max to give space
+                                y: {
+                                    stacked: false,
+                                    beginAtZero: true,
+                                    title: {
+                                        display: true,
+                                        text: 'Total'
+                                    },
+                                    ticks: {
+                                        stepSize: 1
+                                    },
+                                    max: 7
+                                }
                             }
                         }
-                    }
-                });
+                    });
+                    console.log('Logbook chart created successfully:', logbookChart);
+                } catch (error) {
+                    console.error('Error creating logbook chart:', error);
+                }
+            } else {
+                console.error('Canvas element logbookChart not found!');
             }
 
         });

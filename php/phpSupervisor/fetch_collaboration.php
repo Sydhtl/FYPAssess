@@ -9,7 +9,7 @@ header('Content-Type: application/json');
 include '../db_connect.php';
 
 $sessionID = isset($_GET['session_id']) ? $_GET['session_id'] : null;
-$loginID = $_SESSION['user_id'] ?? 'hazura';
+$loginID = $_SESSION['upmId'] ?? 'hazura';
 
 if (!$sessionID) {
     echo json_encode(['status' => 'error', 'message' => 'Missing Session ID']);

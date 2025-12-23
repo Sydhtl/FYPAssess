@@ -15,8 +15,8 @@ try {
     }
 
     // Get current user ID
-    if (isset($_SESSION['user_id'])) {
-        $lecturerUPM = $_SESSION['user_id'];
+    if (isset($_SESSION['upmId'])) {
+        $lecturerUPM = $_SESSION['upmId'];
     } else {
         $lecturerUPM = 'hazura'; // Fallback for testing
     }
@@ -79,9 +79,17 @@ try {
     $stmtComment->bind_param("sii", $studentId, $assessmentId, $currentUserID);
     $stmtComment->execute();
     $commentResult = $stmtComment->get_result();
-    
+
     if ($commentRow = $commentResult->fetch_assoc()) {
-        $comment = $commentRow['Given_Comment'];
+        $storedComment = $commentRow['Given_Comment'];
+
+        // Strip assessment name prefix if it exists (format: "Assessment Name: comment")
+        if (strpos($storedComment, ':') !== false) {
+            $parts = explode(':', $storedComment, 2);
+            $comment = trim($parts[1]);
+        } else {
+            $comment = $storedComment;
+        }
     }
 
     echo json_encode([

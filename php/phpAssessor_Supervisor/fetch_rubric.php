@@ -2,7 +2,7 @@
 // fetchRubric2.php
 
 // 1. START SESSION
-session_start(); 
+session_start();
 
 include '../db_connect.php';
 header('Content-Type: application/json');
@@ -12,7 +12,7 @@ header('Content-Type: application/json');
 // =======================================================================
 // We verify the user is logged in, but we DON'T check their specific role here
 // because a Lecturer can be both.
-if (!isset($_SESSION['user_id'])) {
+if (!isset($_SESSION['upmId'])) {
     // For testing locally without login, you can comment these 3 lines out.
     // But for production, keep them!
     //http_response_code(401); 
@@ -40,9 +40,9 @@ if (isset($_GET['role']) && $_GET['role'] === 'assessor') {
 $allowedIDs = [];
 
 if ($currentRole === 'supervisor') {
-    $allowedIDs = [1, 4, 5]; 
+    $allowedIDs = [1, 4, 5];
 } elseif ($currentRole === 'assessor') {
-    $allowedIDs = [2, 3];    
+    $allowedIDs = [2, 3];
 }
 
 if (empty($allowedIDs)) {
@@ -88,9 +88,9 @@ if ($resultAssessments) {
     while ($row = $resultAssessments->fetch_assoc()) {
         $assessmentId = $row['Assessment_ID'];
         $assessmentName = $row['Assessment_Name'];
-        
+
         $slug = strtolower(str_replace(' ', '-', $assessmentName));
-        
+
         // =======================================================================
         // NOTE: Due Date Metadata (Currently Commented Out - No due_date data exists yet)
         // =======================================================================
@@ -116,7 +116,7 @@ if ($resultAssessments) {
         if ($resCriteria) {
             while ($crit = $resCriteria->fetch_assoc()) {
                 $critId = $crit['Criteria_ID'];
-                
+
                 // A. Fetch Learning Objectives (Specific to Criteria)
                 $specificLoList = [];
                 $sqlSpecificLO = "SELECT LearningObjective_Code FROM learning_objective_allocation 
@@ -151,24 +151,24 @@ if ($resultAssessments) {
                 // We peek at Subcriteria #1 to get a master scale if needed, or you can query by Criteria_ID only
                 // This logic mirrors your original flow:
                 if ($resSub && $resSub->num_rows > 0) {
-                     $sqlMasterScale = "SELECT Scale_Description FROM mark_scale 
+                    $sqlMasterScale = "SELECT Scale_Description FROM mark_scale 
                                         WHERE Criteria_ID = $critId AND Subcriteria_ID = '1' 
                                         ORDER BY Scale_Value ASC";
-                     $resMaster = $conn->query($sqlMasterScale);
-                     if ($resMaster) {
-                         while ($m = $resMaster->fetch_assoc()) {
-                             $sharedScales[] = $m['Scale_Description'];
-                         }
-                     }
-                     // Reset pointer so we can loop through subcriteria again
-                     $resSub->data_seek(0); 
+                    $resMaster = $conn->query($sqlMasterScale);
+                    if ($resMaster) {
+                        while ($m = $resMaster->fetch_assoc()) {
+                            $sharedScales[] = $m['Scale_Description'];
+                        }
+                    }
+                    // Reset pointer so we can loop through subcriteria again
+                    $resSub->data_seek(0);
                 }
 
                 // 2. Loop Subcriteria (If they exist)
                 if ($resSub && $resSub->num_rows > 0) {
                     while ($sub = $resSub->fetch_assoc()) {
                         $subId = $sub['Subcriteria_ID'];
-                        
+
                         // Fetch Specific Scales for this Subcriteria
                         $specificScales = [];
                         $sqlSpecific = "SELECT Scale_Description FROM mark_scale 
@@ -180,26 +180,25 @@ if ($resultAssessments) {
                                 $specificScales[] = $s['Scale_Description'];
                             }
                         }
-                        
+
                         // Use specific if found, else shared
                         $finalScales = !empty($specificScales) ? $specificScales : $sharedScales;
-                        
+
                         // Subcriteria Description
                         $subPoints = [];
                         if (!empty($sub['Subcriteria_Description'])) {
                             $subPoints = explode('|', $sub['Subcriteria_Description']);
                         }
-                        
+
                         $subCriteriaData[] = [
                             "id" => $subId,
                             "name" => $sub['SubCriteria_Name'],
                             "max_marks" => $sub['Subscriteria_Fullmarks'],
                             "description" => $subPoints,
-                            "marks_options" => $finalScales 
+                            "marks_options" => $finalScales
                         ];
                     }
-                } 
-                else {
+                } else {
                     // 3. No Subcriteria? Fetch Scales for the Main Criteria
                     $sqlScales = "SELECT Scale_Description FROM mark_scale 
                                   WHERE Criteria_ID = $critId 
@@ -207,7 +206,7 @@ if ($resultAssessments) {
                     $resScales = $conn->query($sqlScales);
                     if ($resScales) {
                         while ($scale = $resScales->fetch_assoc()) {
-                            $marksData[] = $scale['Scale_Description']; 
+                            $marksData[] = $scale['Scale_Description'];
                         }
                     }
                 }
@@ -219,17 +218,17 @@ if ($resultAssessments) {
                     "id" => $crit['Criteria_ID'],
                     "title" => $crit['Criteria_Name'],
                     "max_marks" => $crit['Criteria_Fullmarks'],
-                    "formula" => $crit['Formula_Type'], 
-                    "outcomes" => $specificLoString, 
+                    "formula" => $crit['Formula_Type'],
+                    "outcomes" => $specificLoString,
                     "marks" => $marksData,          // Populated if no subcriteria
-                    "criteria_points" => $pointsArray, 
+                    "criteria_points" => $pointsArray,
                     "sub_criteria" => $subCriteriaData // Populated if subcriteria exist
                 ];
             }
         }
         $response[$slug] = $criteriaData;
         $_meta[$slug] = ['id' => $assessmentId, 'name' => $assessmentName];
-        
+
         // =======================================================================
         // NOTE: Uncomment when due_date is ready:
         // $_meta[$slug]['due_date_info'] = $dueInfo;

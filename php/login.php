@@ -1,5 +1,5 @@
 <?php
-include 'mysqlConnect.php';
+include 'db_connect.php';
 
 session_start();
 
@@ -21,7 +21,7 @@ if($result->num_rows>0){
     }
     
     elseif($_SESSION['role']=='Supervisor'){
-        header("Location: ../html/supervisor/dashboard.html");
+        header("Location: ../php/phpSupervisor/dashboard.php?role=supervisor");
         exit();
     }
     
