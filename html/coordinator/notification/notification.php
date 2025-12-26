@@ -490,8 +490,8 @@ if ($departmentId !== null) {
         
         // Start polling for updates every 5 seconds
         function startNotificationPolling() {
-            // Set up interval to check every 5 seconds
-            notificationUpdateInterval = setInterval(fetchNotifications, 5000);
+            // Set up interval to check every 2 seconds
+            notificationUpdateInterval = setInterval(fetchNotifications, 1000);
         }
         
         // Stop polling when page is hidden (to save resources)

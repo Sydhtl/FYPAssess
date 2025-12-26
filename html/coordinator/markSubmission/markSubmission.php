@@ -1749,7 +1749,7 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
         // Real-time polling for marks and progress
         let pollingInterval = null;
         let pollingPaused = false;
-        const POLLING_INTERVAL = 5000; // Poll every 5 seconds
+        const POLLING_INTERVAL = 1000; // Poll every second
         
         // Store hash of current data for comparison
         const dataHashes = {};
@@ -1852,7 +1852,7 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
         // Real-time polling for FYP Title Submissions
         let fypTitlePollingInterval = null;
         let fypTitlePollingPaused = false;
-        const FYPTITLE_POLLING_INTERVAL = 5000; // Poll every 5 seconds
+        const FYPTITLE_POLLING_INTERVAL = 1000; // Poll every second
         let currentFYPTitleHash = '';
         
         // Helper function to transform backend data to frontend format

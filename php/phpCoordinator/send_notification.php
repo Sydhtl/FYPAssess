@@ -54,31 +54,7 @@ function getEmailTemplate($page, $lecturerName, $courseCode, $year, $semester) {
                         "Saya yang menjalankan amanah,<br><br>" .
                         "<b>Nurul Saidahtul Fatiha binti Shaharudin</b><br>" .
                         "<b>Pembangun Sistem FYPAssess</b><br>" .
-                        "<b>PutraAssess System</b><br>" .
-                        "Universiti Putra Malaysia"
-        ],
-        'student_assignation' => [
-            'subject' => "FYPAssess Notification - Student Assignment Update for {$courseCode} ({$year}/{$semester})",
-            'message' => "Dear {$lecturerName},\n\n" .
-                        "There has been an update to student assignments for {$courseCode} ({$year}/{$semester}).\n\n" .
-                        "Please log in to the FYPAssess system to review your assigned students.\n\n" .
-                        "Thank you."
-        ],
-        'title_change' => [
-            'subject' => "Permohonan Pertukaran Tajuk FYP - {$courseCode}",
-            'message' => "<b>Assalamualaikum Warahmatullahi Wabarakatuh dan Salam Sejahtera,</b><br><br>" .
-                        "<b>YBhg. Dato'/Datin/Prof./Dr./Tuan/Puan " . htmlspecialchars($lecturerName) . ",</b><br><br>" .
-                        "<b>PERMOHONAN PERTUKARAN TAJUK FYP</b><br><br>" .
-                        "Sukacita dimaklumkan bahawa pelajar di bawah seliaan YBhg. Dato'/Datin/Prof./Dr./Tuan/Puan telah membuat permohonan untuk menukar tajuk FYP mereka.<br><br>" .
-                        "Sila log masuk ke sistem FYPAssess untuk meluluskan atau menolak permohonan ini.<br><br>" .
-                        "Untuk sebarang pertanyaan, sila hubungi pihak pentadbir sistem.<br><br>" .
-                        "Sekian, terima kasih.<br><br>" .
-                        "<b>\"MALAYSIA MADANI\"</b><br>" .
-                        "<b>\"BERILMU BERBAKTI\"</b><br><br>" .
-                        "Saya yang menjalankan amanah,<br><br>" .
-                         "<b>Nurul Saidahtul Fatiha binti Shaharudin</b><br>" .
-                        "<b>Pembangun Sistem FYPAssess</b><br>" .
-                        "<b>PutraAssess System</b><br>" .
+                   
                         "Universiti Putra Malaysia"
         ],
         // Add more templates for other pages as needed

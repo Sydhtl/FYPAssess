@@ -92,22 +92,41 @@ if ($titleStatus === 'Approved' && !empty($proposedTitle)) {
 }
 
 // --- 2. GET PAST TITLES (DYNAMIC) ---
-$pastTitlesQuery = "SELECT 
-    l.Lecturer_Name as supervisor_name,
-    fs.FYP_Session as session,
-    s.Student_Name as student_name,
-    fp.Project_Title as title
-FROM fyp_project fp
-JOIN student s ON fp.Student_ID = s.Student_ID
-JOIN supervisor sup ON s.Supervisor_ID = sup.Supervisor_ID
-JOIN lecturer l ON sup.Lecturer_ID = l.Lecturer_ID
-JOIN fyp_session fs ON s.FYP_Session_ID = fs.FYP_Session_ID
-WHERE fp.Project_Title IS NOT NULL AND fp.Project_Title != '' AND l.Department_ID = ?
-ORDER BY l.Lecturer_Name ASC, fs.FYP_Session DESC";
+$pastTitlesQuery = "
+WITH latest_titles AS (
+    SELECT 
+        l.Lecturer_Name AS supervisor_name,
+        fs.FYP_Session AS session,
+        s.Student_Name AS student_name,
+        fp.Project_Title AS title,
+        s.Student_ID,
+        fs.FYP_Session_ID,
+        ROW_NUMBER() OVER (PARTITION BY s.Student_ID ORDER BY fs.FYP_Session_ID DESC) AS rn
+    FROM fyp_project fp
+    JOIN student s ON fp.Student_ID = s.Student_ID
+    JOIN supervisor sup ON s.Supervisor_ID = sup.Supervisor_ID
+    JOIN lecturer l ON sup.Lecturer_ID = l.Lecturer_ID
+    JOIN fyp_session fs ON s.FYP_Session_ID = fs.FYP_Session_ID
+    WHERE fp.Project_Title IS NOT NULL
+      AND fp.Project_Title != ''
+      AND l.Department_ID = ?
+      AND s.Student_ID NOT IN (
+            SELECT s2.Student_ID
+            FROM student s2
+            JOIN fyp_session fs2 ON s2.FYP_Session_ID = fs2.FYP_Session_ID
+            WHERE fs2.FYP_Session = ?
+              AND s2.Semester = ?
+      )
+      AND s.Student_ID != ?
+)
+SELECT supervisor_name, session, student_name, title
+FROM latest_titles
+WHERE rn = 1
+ORDER BY supervisor_name ASC, session DESC";
 
 $pastStmt = $conn->prepare($pastTitlesQuery);
 if ($pastStmt && $departmentId !== null) {
-    $pastStmt->bind_param("i", $departmentId);
+    $pastStmt->bind_param("isss", $departmentId, $fypSession, $semesterRaw, $studentId);
     $pastStmt->execute();
     $pastResult = $pastStmt->get_result();
     $pastStmt->close();
@@ -952,7 +971,7 @@ if ($commentStmt) {
 
         function startFypInfoPolling() {
             fetchFypInfo();
-            fypInfoUpdateInterval = setInterval(fetchFypInfo, 5000);
+            fypInfoUpdateInterval = setInterval(fetchFypInfo, 1000);
         }
 
         document.addEventListener('visibilitychange', function() {

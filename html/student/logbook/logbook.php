@@ -840,7 +840,7 @@ if ($tableExists && $tableExists->num_rows > 0) {
 
     function startLogbookPolling() {
         fetchLogbooks();
-        logbookUpdateInterval = setInterval(fetchLogbooks, 5000);
+        logbookUpdateInterval = setInterval(fetchLogbooks, 1000);
     }
 
     document.addEventListener('visibilitychange', function(){

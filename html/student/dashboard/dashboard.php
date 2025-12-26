@@ -264,6 +264,10 @@ if ($assessmentSessionsStmt) {
 
                         <!-- Logbook Submission View (Active by default) -->
                         <div class="task-group active" data-group="logbook">
+                            <div class="student-click-hint" data-tab="logbook">
+                                Click on a bar to jump to filtered logbooks.<br><br>
+                                Hover over the graph to see more details.
+                            </div>
                             <div class="graph-container-wrapper">
                                 <div id="graphContainer">
                                     <canvas id="barChart"></canvas>
@@ -368,6 +372,17 @@ if ($assessmentSessionsStmt) {
             font-family: 'Montserrat', sans-serif;
             min-width: 180px;
         }
+        .student-click-hint {
+            margin: 8px 0 12px 0;
+            padding: 10px 12px;
+            background: #f5f0ea;
+            border-left: 4px solid #780000;
+            border-radius: 6px;
+            color: #3a2a2a;
+            font-size: 13px;
+            font-weight: 600;
+            line-height: 1.4;
+        }
         .tooltip-header {
             background-color: #363636;
             color: #ffffff;
@@ -405,6 +420,10 @@ if ($assessmentSessionsStmt) {
         }
     </style>
     <script>
+        let barChartInstance = null;
+        let assessmentDateTimeValue = <?php echo $assessmentDateTime ? json_encode($assessmentDateTime) : 'null'; ?>;
+        let assessmentCountdownInterval = null;
+
         // Initialize chart when page loads
         document.addEventListener('DOMContentLoaded', function() {
             const ctx = document.getElementById('barChart');
@@ -415,18 +434,17 @@ if ($assessmentSessionsStmt) {
                 var rejectedCount = <?php echo json_encode($rejectedCount); ?>;
                 var totalRequired = <?php echo json_encode($requiredTotal); ?>;
 
-                // Calculate percentages (cap at 0 if totalRequired is 0)
-                var approvedPct = totalRequired ? Math.round((approvedCount / totalRequired) * 100) : 0;
-                var waitingPct = totalRequired ? Math.round((waitingCount / totalRequired) * 100) : 0;
-                var rejectedPct = totalRequired ? Math.round((rejectedCount / totalRequired) * 100) : 0;
+                function toPct(count) {
+                    return totalRequired ? Math.round((count / totalRequired) * 100) : 0;
+                }
 
-                new Chart(ctx, {
+                barChartInstance = new Chart(ctx, {
                     type: 'bar',
                     data: {
                         labels: ['Approved', 'Waiting for approval', 'Rejected'],
                         datasets: [{
                             label: 'Logbook Progress (%)',
-                            data: [approvedPct, waitingPct, rejectedPct],
+                            data: [toPct(approvedCount), toPct(waitingCount), toPct(rejectedCount)],
                             raw_data: [approvedCount, waitingCount, rejectedCount],
                             total_count: totalRequired,
                             backgroundColor: [
@@ -459,7 +477,6 @@ if ($assessmentSessionsStmt) {
                                 const statusFilter = statusMap[selectedLabel];
                                 const fypSessionId = <?php echo json_encode($student['FYP_Session_ID'] ?? null); ?>;
                                 
-                                // Navigate to logbook page with status filter and session ID
                                 let url = '../logbook/logbook.php?status=' + encodeURIComponent(statusFilter);
                                 if (fypSessionId) {
                                     url += '&fyp_session_id=' + encodeURIComponent(fypSessionId);
@@ -500,25 +517,21 @@ if ($assessmentSessionsStmt) {
                                 align: 'center',
                                 color: 'white',
                                 font: { weight: 'bold' },
-                                formatter: (value, context) => {
+                                formatter: (value) => {
                                     return value > 0 ? value : '';
                                 }
                             },
                             tooltip: {
-                                enabled: false, // Disable default tooltip
+                                enabled: false,
                                 external: function(context) {
-                                    // Custom tooltip implementation
                                     let tooltipEl = document.getElementById('chartjs-tooltip');
-                                    
-                                    // Create tooltip if it doesn't exist
                                     if (!tooltipEl) {
                                         tooltipEl = document.createElement('div');
                                         tooltipEl.id = 'chartjs-tooltip';
                                         tooltipEl.className = 'custom-tooltip';
                                         document.body.appendChild(tooltipEl);
                                     }
-                                    
-                                    // Hide tooltip if no data
+
                                     if (!context.tooltip || context.tooltip.opacity === 0 || !context.tooltip.dataPoints || context.tooltip.dataPoints.length === 0) {
                                         tooltipEl.style.opacity = '0';
                                         tooltipEl.style.pointerEvents = 'none';
@@ -530,31 +543,25 @@ if ($assessmentSessionsStmt) {
                                     const dataIndex = dataPoint.dataIndex;
                                     const dataset = context.tooltip.dataPoints[0].dataset;
                                     const percentage = dataset.data[dataIndex];
-                                    const totalSubmissions = dataset.total_count;
-                                    const label = chart.data.labels[dataIndex]; // "Submitted", "Waiting for approval", or "Not submitted"
-                                    
+                                    const label = chart.data.labels[dataIndex];
+
                                     let rawCount = 0;
                                     let indicatorColor = '#4CAF50';
-                                    
+
                                     if (dataIndex < 3 && dataset.raw_data) {
                                         rawCount = parseFloat(dataset.raw_data[dataIndex].toFixed(2));
                                     }
-                                    
-                                    // Determine indicator color based on label
-                                    if (label === 'Submitted') {
-                                        indicatorColor = '#4CAF50'; // Green
-                                    } else if (label === 'Waiting for approval') {
-                                        indicatorColor = '#FF9800'; // Orange
+
+                                    if (label === 'Waiting for approval') {
+                                        indicatorColor = '#FF9800';
                                     } else if (label === 'Rejected') {
-                                        indicatorColor = '#F44336'; // Red
+                                        indicatorColor = '#F44336';
                                     }
 
-                                    // Position tooltip
                                     const position = chart.canvas.getBoundingClientRect();
                                     const left = position.left + context.tooltip.caretX + window.scrollX;
                                     const top = position.top + context.tooltip.caretY + window.scrollY;
-                                    
-                                    // Set tooltip position
+
                                     tooltipEl.style.opacity = '1';
                                     tooltipEl.style.left = left + 'px';
                                     tooltipEl.style.top = top + 'px';
@@ -562,7 +569,6 @@ if ($assessmentSessionsStmt) {
                                     tooltipEl.style.marginTop = '-10px';
                                     tooltipEl.style.pointerEvents = 'none';
 
-                                    // Set tooltip content with dark theme
                                     tooltipEl.innerHTML = `
                                         <div class="tooltip-header">${label}</div>
                                         <div class="tooltip-body">
@@ -666,76 +672,157 @@ if ($assessmentSessionsStmt) {
             status.classList.add('status-pending');
         }
     }
-    
-    // Assessment countdown function
-    function updateAssessmentCountdown() {
+
+    function startOrUpdateCountdown(newDateTime){
         const countdownElement = document.getElementById('assessmentCountdown');
         if (!countdownElement) return;
-        
-        const assessmentDateTime = <?php echo $assessmentDateTime ? json_encode($assessmentDateTime) : 'null'; ?>;
-        
-        if (!assessmentDateTime) {
+
+        // Clear existing interval
+        if (assessmentCountdownInterval) {
+            clearInterval(assessmentCountdownInterval);
+            assessmentCountdownInterval = null;
+        }
+
+        assessmentDateTimeValue = newDateTime;
+
+        if (!assessmentDateTimeValue) {
             countdownElement.textContent = 'No Assessment Scheduled';
             return;
         }
-        
+
         function updateCountdown() {
             const now = new Date().getTime();
-            const assessmentDate = new Date(assessmentDateTime).getTime();
-            
-            // Check if date is valid
+            const assessmentDate = new Date(assessmentDateTimeValue).getTime();
+
             if (isNaN(assessmentDate)) {
                 countdownElement.textContent = 'Invalid Date';
                 return;
             }
-            
+
             const distance = assessmentDate - now;
-            
+
             if (distance < 0) {
                 countdownElement.textContent = 'Assessment Passed';
                 return;
             }
-            
+
             const days = Math.floor(distance / (1000 * 60 * 60 * 24));
             const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
             const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
             const seconds = Math.floor((distance % (1000 * 60)) / 1000);
-            
-            // Check if countdown has reached zero
+
             if (days === 0 && hours === 0 && minutes === 0 && seconds === 0) {
                 countdownElement.textContent = 'DONE!';
                 return;
             }
-            
+
             let countdownText = '';
-            if (days > 0) {
-                countdownText += days + 'd ';
-            }
-            if (hours > 0 || days > 0) {
-                countdownText += hours + 'h ';
-            }
-            if (minutes > 0 || hours > 0 || days > 0) {
-                countdownText += minutes + 'm ';
-            }
+            if (days > 0) countdownText += days + 'd ';
+            if (hours > 0 || days > 0) countdownText += hours + 'h ';
+            if (minutes > 0 || hours > 0 || days > 0) countdownText += minutes + 'm ';
             countdownText += seconds + 's';
-            
             countdownElement.textContent = countdownText.trim();
         }
-        
-        // Update immediately
+
         updateCountdown();
-        
-        // Update every second for real-time countdown
-        setInterval(updateCountdown, 1000);
+        assessmentCountdownInterval = setInterval(updateCountdown, 1000);
     }
-    
+
     // Ensure the collapsed state is set immediately on page load
     window.onload = function () {
         document.getElementById("nameSide").style.display = "none";
         closeNav();
         updateApprovalStatusColor();
-        updateAssessmentCountdown();
+        startOrUpdateCountdown(assessmentDateTimeValue);
     };
+
+    // --- REALTIME DASHBOARD POLLING ---
+    let dashboardPollInterval = null;
+    let dashboardDataHash = '';
+
+    function hashDashboard(data) {
+        try {
+            return JSON.stringify({
+                approval: data.approvalDisplay,
+                approved: data.approvedCount,
+                waiting: data.waitingCount,
+                rejected: data.rejectedCount,
+                total: data.requiredTotal,
+                asmt: data.assessmentDateTime
+            });
+        } catch (e) {
+            return '';
+        }
+    }
+
+    function applyDashboardData(data) {
+        if (!data || !data.success) return;
+
+        const approvalEl = document.getElementById('approvalStatus');
+        if (approvalEl && data.approvalDisplay) {
+            approvalEl.textContent = data.approvalDisplay;
+            updateApprovalStatusColor();
+        }
+
+        const logbookEl = document.getElementById('logbookProgress');
+        if (logbookEl && data.requiredTotal) {
+            logbookEl.textContent = `${data.approvedCount}/${data.requiredTotal}`;
+        }
+
+        if (barChartInstance && data.requiredTotal) {
+            const toPct = (val) => data.requiredTotal ? Math.round((val / data.requiredTotal) * 100) : 0;
+            const ds = barChartInstance.data.datasets[0];
+            ds.data = [toPct(data.approvedCount), toPct(data.waitingCount), toPct(data.rejectedCount)];
+            ds.raw_data = [data.approvedCount, data.waitingCount, data.rejectedCount];
+            ds.total_count = data.requiredTotal;
+            barChartInstance.update();
+        }
+
+        if (data.hasOwnProperty('assessmentDateTime')) {
+            startOrUpdateCountdown(data.assessmentDateTime);
+        }
+    }
+
+    function fetchDashboardMetrics() {
+        fetch('../../../php/phpStudent/fetch_dashboard_metrics.php')
+            .then(resp => resp.json())
+            .then(data => {
+                const newHash = hashDashboard(data);
+                if (newHash !== dashboardDataHash) {
+                    dashboardDataHash = newHash;
+                    applyDashboardData(data);
+                }
+            })
+            .catch(err => console.error('Dashboard poll failed:', err));
+    }
+
+    function startDashboardPolling() {
+        fetchDashboardMetrics();
+        dashboardPollInterval = setInterval(fetchDashboardMetrics, 1000);
+    }
+
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) {
+            if (dashboardPollInterval) { clearInterval(dashboardPollInterval); dashboardPollInterval = null; }
+        } else {
+            if (!dashboardPollInterval) { startDashboardPolling(); }
+        }
+    });
+
+    // Initialize hash from server-rendered values
+    (function initDashboardRealtime(){
+        const initial = {
+            success: true,
+            approvalDisplay: <?php echo json_encode($approvalDisplay); ?>,
+            approvedCount: <?php echo json_encode($approvedCount); ?>,
+            waitingCount: <?php echo json_encode($waitingCount); ?>,
+            rejectedCount: <?php echo json_encode($rejectedCount); ?>,
+            requiredTotal: <?php echo json_encode($requiredTotal); ?>,
+            assessmentDateTime: <?php echo $assessmentDateTime ? json_encode($assessmentDateTime) : 'null'; ?>
+        };
+        dashboardDataHash = hashDashboard(initial);
+        startDashboardPolling();
+    })();
 
     // Check session validity on page load and periodically
     function validateSession() {
