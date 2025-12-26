@@ -256,6 +256,7 @@ $courseIdBJson = json_encode($courseIdB);
 
     <div id="successModal" class="custom-modal"></div>
     <div id="resetModal" class="custom-modal"></div>
+    <div id="sendingModal" class="custom-modal"></div>
 
     <script>
         // --- FILTER RELOAD FUNCTION ---
@@ -264,6 +265,7 @@ $courseIdBJson = json_encode($courseIdB);
             Object.keys(dateTimeAllocations).forEach(key => {
                 dateTimeAllocations[key] = [];
             });
+            deletions.length = 0;
             
             // Reload due dates with new filters
             loadDueDates();
@@ -274,6 +276,7 @@ $courseIdBJson = json_encode($courseIdB);
 
         const dateTimeAllocations = {}; // Will be populated from database
         const originalDateTimeAllocations = {}; // Backup of original data for cancel/reset
+        const deletions = []; // Due_IDs marked for deletion
         const courses = []; // Will be loaded from database
         const assessmentsByCourse = {}; // Cache assessments by course_id
         const courseIdMap = {}; // Maps course code to course_id
@@ -411,6 +414,7 @@ $courseIdBJson = json_encode($courseIdB);
         async function loadDueDates() {
             try {
                 // Clear existing allocations
+                deletions.length = 0;
                 Object.keys(dateTimeAllocations).forEach(key => {
                     dateTimeAllocations[key] = [];
                     originalDateTimeAllocations[key] = [];
@@ -534,6 +538,29 @@ $courseIdBJson = json_encode($courseIdB);
             });
         }
 
+        function showSendingModal() {
+            const sendingModal = document.getElementById('sendingModal');
+            if (!sendingModal) return;
+            sendingModal.innerHTML = `
+                <div class="modal-dialog">
+                    <div class="modal-content-custom">
+                        <span class="close-btn" onclick="closeSendingModal()">&times;</span>
+                        <div class="modal-icon"><i class="bi bi-envelope-paper-fill"></i></div>
+                        <div class="modal-title-custom">Sending Emails...</div>
+                        <div class="modal-message">Please wait while we save and notify lecturers.</div>
+                    </div>
+                </div>`;
+            sendingModal.style.display = 'flex';
+        }
+
+        function closeSendingModal() {
+            const sendingModal = document.getElementById('sendingModal');
+            if (sendingModal) {
+                sendingModal.style.display = 'none';
+                sendingModal.innerHTML = '';
+            }
+        }
+
         async function addNewTask(tabName) {
             if (!tabName || !courseIdMap[tabName]) {
                 alert('Please select a course tab first');
@@ -591,6 +618,10 @@ $courseIdBJson = json_encode($courseIdB);
         function removeAllocation(taskId, allocationIndex, tabName) {
             const task = dateTimeAllocations[tabName].find(item => item.id === taskId);
             if (task) {
+                const alloc = task.allocations[allocationIndex];
+                if (alloc && alloc.due_id > 0) {
+                    deletions.push(alloc.due_id);
+                }
                 if (task.allocations.length > 1) {
                     task.allocations.splice(allocationIndex, 1);
                 } else {
@@ -611,6 +642,12 @@ $courseIdBJson = json_encode($courseIdB);
             const tabTasks = dateTimeAllocations[tabName];
             const index = tabTasks.findIndex(item => item.id === taskId);
             if (index !== -1) {
+                // Mark all existing due_ids under this task for deletion
+                tabTasks[index].allocations.forEach(a => {
+                    if (a.due_id > 0) {
+                        deletions.push(a.due_id);
+                    }
+                });
                 tabTasks.splice(index, 1);
                 renderAllocationTable(tabName);
             }
@@ -781,6 +818,7 @@ $courseIdBJson = json_encode($courseIdB);
             } else {
                 dateTimeAllocations[pendingResetTab] = [];
             }
+            deletions.length = 0;
             
             renderAllocationTable(pendingResetTab);
             pendingResetTab = null;
@@ -833,6 +871,7 @@ $courseIdBJson = json_encode($courseIdB);
                 return;
             }
             
+            showSendingModal();
             try {
                 const response = await fetch('../../../php/phpCoordinator/save_due_dates.php', {
                     method: 'POST',
@@ -841,13 +880,15 @@ $courseIdBJson = json_encode($courseIdB);
                     },
                     body: JSON.stringify({
                         fyp_session_id: fypSessionId,
-                        allocations: allocationsToSave
+                        allocations: allocationsToSave,
+                        deletions
                     })
                 });
                 
                 const data = await response.json();
                 
                 if (data.success) {
+                    closeSendingModal();
                     // Show success modal
                     const successModal = document.getElementById('successModal');
                     if (successModal) {
@@ -857,7 +898,7 @@ $courseIdBJson = json_encode($courseIdB);
                                     <span class="close-btn" onclick="closeSuccessModal()">&times;</span>
                                     <div class="modal-icon"><i class="bi bi-check-circle-fill"></i></div>
                                     <div class="modal-title-custom">Saved Successfully!</div>
-                                    <div class="modal-message">Task allocations have been saved successfully.</div>
+                                    <div class="modal-message">Task allocations have been saved successfully. Emails are being sent.</div>
                                     <div style="display:flex; justify-content:center;">
                                         <button class="btn btn-success" onclick="closeSuccessModal()">OK</button>
                                     </div>
@@ -869,10 +910,12 @@ $courseIdBJson = json_encode($courseIdB);
                     // Reload data from database to get updated due_ids and refresh backup
                     await loadDueDates();
                 } else {
+                    closeSendingModal();
                     alert('Error saving: ' + (data.error || 'Unknown error'));
                 }
             } catch (error) {
                 console.error('Error saving allocations:', error);
+                closeSendingModal();
                 alert('Error saving allocations: ' + error.message);
             }
         }

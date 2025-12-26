@@ -10,6 +10,12 @@ if (!isset($_SESSION['upmId']) || !isset($_SESSION['role']) || $_SESSION['role']
     exit();
 }
 
+// Capture needed session data and release the session lock early to avoid blocking other requests
+$userId = $_SESSION['upmId'];
+if (function_exists('session_write_close')) {
+    session_write_close();
+}
+
 $input = json_decode(file_get_contents('php://input'), true);
 
 // Allow empty allocations array if only deletions are being sent
@@ -112,8 +118,22 @@ try {
     }
     
     $conn->commit();
-    
-    // After successful save, send email notifications to all lecturers
+
+    // Respond to the client immediately so the UI is not blocked by email sending
+    $response = ['success' => true];
+    echo json_encode($response);
+    // Flush response before sending emails (best-effort)
+    if (function_exists('fastcgi_finish_request')) {
+        fastcgi_finish_request();
+    } else {
+        if (function_exists('session_write_close')) {
+            session_write_close();
+        }
+        @ob_flush();
+        @flush();
+    }
+
+    // After save, send email notifications to all lecturers (runs after client got success)
     try {
         // Load email config
         $emailConfig = require __DIR__ . '/../emailConfig.php';
@@ -137,8 +157,7 @@ try {
             $yearSemesterStmt->close();
         }
         
-        // Get coordinator's department ID
-        $userId = $_SESSION['upmId'];
+        // Get coordinator's department ID (session already captured as $userId)
         $departmentId = null;
         $deptQuery = "SELECT Department_ID FROM lecturer WHERE Lecturer_ID = ? LIMIT 1";
         $deptStmt = $conn->prepare($deptQuery);
@@ -298,7 +317,6 @@ try {
         error_log("Error sending date time allocation notification emails: " . $emailEx->getMessage());
     }
     
-    echo json_encode(['success' => true]);
 } catch (Exception $e) {
     $conn->rollback();
     echo json_encode(['success' => false, 'error' => $e->getMessage()]);
