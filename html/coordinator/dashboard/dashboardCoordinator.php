@@ -672,7 +672,7 @@ if ($departmentId !== null) {
             <div id="supervisorMenu" class="menu-items">
                 <a href="../../../php/phpSupervisor/dashboard.php" id="dashboard"><i class="bi bi-house-fill icon-padding"></i> Dashboard</a>
                 <a href="../../../php/phpSupervisor/notification.php" id="Notification"><i class="bi bi-bell-fill icon-padding"></i> Notification</a>
-                <a href="../../../php/phpSupervisor/industrey%20collaboration.php" id="industryCollaboration"><i class="bi bi-file-earmark-text-fill icon-padding"></i>
+                <a href="../../../php/phpSupervisor/industry_collaboration.php" id="industryCollaboration"><i class="bi bi-file-earmark-text-fill icon-padding"></i>
                     Industry Collaboration</a>
                 <a href="../../../php/phpAssessor_Supervisor/evaluation_form.php" id="evaluationForm"><i class="bi bi-file-earmark-text-fill icon-padding"></i> Evaluation Form</a>
                 <a href="../../../php/phpSupervisor/report.php" id="superviseesReport"><i class="bi bi-bar-chart-fill icon-padding"></i> Supervisees' Report</a>

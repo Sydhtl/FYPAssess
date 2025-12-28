@@ -364,13 +364,14 @@ $assessorDataJson = json_encode($assessorData);
                 </span>
             </a>
 
-            <div id="supervisorMenu" class="menu-items">
-                <a href="#" id="Notification"><i class="bi bi-bell-fill icon-padding"></i> Notification</a>
-                <a href="#" id="industryCollaboration"><i class="bi bi-file-earmark-text-fill icon-padding"></i>
+      <div id="supervisorMenu" class="menu-items">
+                <a href="../../../php/phpSupervisor/dashboard.php" id="dashboard"><i class="bi bi-house-fill icon-padding"></i> Dashboard</a>
+                <a href="../../../php/phpSupervisor/notification.php" id="Notification"><i class="bi bi-bell-fill icon-padding"></i> Notification</a>
+                <a href="../../../php/phpSupervisor/industry_collaboration.php" id="industryCollaboration"><i class="bi bi-file-earmark-text-fill icon-padding"></i>
                     Industry Collaboration</a>
-                <a href="#" id="evaluationForm"><i class="bi bi-file-earmark-text-fill icon-padding"></i> Evaluation Form</a>
-                <a href="#" id="superviseesReport"><i class="bi bi-bar-chart-fill icon-padding"></i> Supervisees' Report</a>
-                <a href="#" id="logbookSubmission"><i class="bi bi-calendar-check-fill icon-padding"></i> Logbook Submission</a>
+                <a href="../../../php/phpAssessor_Supervisor/evaluation_form.php" id="evaluationForm"><i class="bi bi-file-earmark-text-fill icon-padding"></i> Evaluation Form</a>
+                <a href="../../../php/phpSupervisor/report.php" id="superviseesReport"><i class="bi bi-bar-chart-fill icon-padding"></i> Supervisees' Report</a>
+                <a href="../../../php/phpSupervisor/logbook_submission.php" id="logbookSubmission"><i class="bi bi-calendar-check-fill icon-padding"></i> Logbook Submission</a>
             </div>
 
             <a href="#assessorMenu" class="role-header" data-role="assessor">
@@ -381,9 +382,9 @@ $assessorDataJson = json_encode($assessorData);
             </a>
 
             <div id="assessorMenu" class="menu-items">
-                <a href="#" id="Dashboard"><i class="bi bi-house-fill icon-padding"></i> Dashboard</a>
-                <a href="#" id="Notification"><i class="bi bi-bell-fill icon-padding"></i> Notification</a>
-                <a href="#" id="EvaluationForm"><i class="bi bi-file-earmark-text-fill icon-padding"></i> Evaluation Form</a>
+                <a href="../../../php/phpAssessor/dashboard.php" id="Dashboard"><i class="bi bi-house-fill icon-padding"></i> Dashboard</a>
+                <a href="../../../php/phpAssessor/notification.php" id="Notification"><i class="bi bi-bell-fill icon-padding"></i> Notification</a>
+                <a href="../../../php/phpAssessor_Supervisor/evaluation_form.php" id="EvaluationForm"><i class="bi bi-file-earmark-text-fill icon-padding"></i> Evaluation Form</a>
             </div>
 
             <a href="#coordinatorMenu" class="role-header active-role menu-expanded" data-role="coordinator">

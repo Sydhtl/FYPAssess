@@ -277,6 +277,72 @@ if ($lecturerResult->num_rows > 0) {
     </div>
 </div>
 
+<style>
+.custom-modal {
+    display: none;
+    position: fixed;
+    z-index: 9999;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    align-items: center;
+    justify-content: center;
+}
+.modal-dialog {
+    position: relative;
+    width: 500px;
+    max-width: 90%;
+    margin: 0 auto;
+}
+.modal-content-custom {
+    background-color: #fff;
+    border-radius: 8px;
+    padding: 30px;
+    text-align: center;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+.modal-icon {
+    font-size: 48px;
+    margin-bottom: 20px;
+}
+.modal-title-custom {
+    color: #333;
+    margin-bottom: 15px;
+    font-size: 24px;
+}
+.modal-message {
+    color: #666;
+    margin-bottom: 25px;
+    font-size: 16px;
+}
+.modal-button {
+    background-color: #780000;
+    color: white;
+    border: none;
+    padding: 10px 30px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+}
+.modal-button:hover {
+    background-color: #5a0000;
+}
+.close-btn {
+    position: absolute;
+    right: 15px;
+    top: 10px;
+    font-size: 28px;
+    font-weight: bold;
+    color: #aaa;
+    cursor: pointer;
+}
+.close-btn:hover {
+    color: #000;
+}
+</style>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     

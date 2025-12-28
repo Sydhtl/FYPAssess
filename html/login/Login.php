@@ -83,12 +83,14 @@
     width: 100%;
     height: 100%;
     background-color: rgba(0, 0, 0, 0.5);
+    align-items: center;
+    justify-content: center;
 }
 .modal-dialog {
     position: relative;
-    width: auto;
-    max-width: 500px;
-    margin: 10% auto;
+    width: 500px;
+    max-width: 90%;
+    margin: 0 auto;
 }
 .modal-content-custom {
     background-color: #fff;
@@ -146,7 +148,7 @@
         const errorMessage = document.getElementById('errorMessage');
         if (errorModal && errorMessage) {
             errorMessage.textContent = <?php echo json_encode($loginError); ?>;
-            errorModal.style.display = 'block';
+            errorModal.style.display = 'flex';
             document.getElementById('errorModalOkBtn').addEventListener('click', function() {
                 errorModal.style.display = 'none';
             });
@@ -159,7 +161,7 @@
     window.addEventListener('DOMContentLoaded', function() {
         const modal = document.getElementById('registrationSuccessModal');
         if (modal) {
-            modal.style.display = 'block';
+            modal.style.display = 'flex';
             document.getElementById('modalOkBtn').addEventListener('click', function() {
                 modal.style.display = 'none';
             });
