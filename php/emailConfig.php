@@ -33,5 +33,5 @@ return [
     
     // Test email recipient - All emails will be sent to this address for testing
     // Set to null to use actual recipient emails
-    'test_email_recipient' => '214673@student.upm.edu.my'  // Change to null for production
+    'test_email_recipient' => '214673@student.upm.edu.my'  // Temporary: route all notifications to test inbox
 ];
