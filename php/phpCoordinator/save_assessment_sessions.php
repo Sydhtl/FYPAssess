@@ -1,11 +1,16 @@
 <?php
+ob_start(); // Buffer output to prevent accidental output before JSON
 include '../mysqlConnect.php';
 require_once __DIR__ . '/../sendEmail.php';
 require_once __DIR__ . '/../emailConfig.php';
 session_start();
 
+// Set JSON header immediately
+header('Content-Type: application/json');
+
 // Ensure only Coordinators can save assessment sessions
 if (!isset($_SESSION['upmId']) || $_SESSION['role'] !== 'Coordinator') {
+    ob_end_clean(); // Clear output buffer
     http_response_code(403);
     echo json_encode(['success' => false, 'message' => 'Unauthorized']);
     exit();
@@ -394,6 +399,23 @@ try {
         // Load email config
         $emailConfig = require __DIR__ . '/../emailConfig.php';
         
+        // Get coordinator's department ID
+        $coordinatorDepartmentId = null;
+        $coordinatorId = $_SESSION['upmId'] ?? null;
+        if (!empty($coordinatorId)) {
+            $deptQuery = "SELECT Department_ID FROM lecturer WHERE Lecturer_ID = ? LIMIT 1";
+            $stmtDept = $conn->prepare($deptQuery);
+            if ($stmtDept) {
+                $stmtDept->bind_param("s", $coordinatorId);
+                $stmtDept->execute();
+                $deptResult = $stmtDept->get_result();
+                if ($deptRow = $deptResult->fetch_assoc()) {
+                    $coordinatorDepartmentId = $deptRow['Department_ID'];
+                }
+                $stmtDept->close();
+            }
+        }
+        
         // Collect assessor assignments: map assessor_id -> list of students with session details
         $assessorAssignments = [];
         
@@ -405,30 +427,42 @@ try {
             $time = $session['time'];
             $venue = $session['venue'];
             $courseId = $session['course_id'] ?? null;
+            $courseCode = $session['course_code'] ?? '';
             
-            // Get FYP_Session_ID for this student directly from student table
-            // Don't rely on $fypSessionIds array - query directly
-            $studentFypSessionId = null;
-            $studentQuery = "SELECT FYP_Session_ID FROM student WHERE Student_ID = ? LIMIT 1";
-            $studentStmt = $conn->prepare($studentQuery);
-            if ($studentStmt) {
-                $studentStmt->bind_param("s", $studentId);
-                $studentStmt->execute();
-                $studentFypResult = $studentStmt->get_result();
-                if ($studentFypRow = $studentFypResult->fetch_assoc()) {
-                    $studentFypSessionId = $studentFypRow['FYP_Session_ID'];
+            // Use FYP_Session_ID from the payload (already has correct year/semester)
+            // This ensures we get the student's enrollment from the correct year and semester
+            $studentFypSessionId = $session['fyp_session_id'] ?? null;
+            $studentCourseCode = '';
+            
+            // Get the course code from fyp_session to ensure it's from the correct year/semester
+            if ($studentFypSessionId) {
+                $studentQuery = "SELECT c.Course_Code 
+                                FROM fyp_session fs
+                                JOIN course c ON fs.Course_ID = c.Course_ID
+                                WHERE fs.FYP_Session_ID = ? LIMIT 1";
+                $studentStmt = $conn->prepare($studentQuery);
+                if ($studentStmt) {
+                    $studentStmt->bind_param("i", $studentFypSessionId);
+                    $studentStmt->execute();
+                    $studentFypResult = $studentStmt->get_result();
+                    if ($studentFypRow = $studentFypResult->fetch_assoc()) {
+                        $studentCourseCode = $studentFypRow['Course_Code'] ?? '';
+                    }
+                    $studentStmt->close();
                 }
-                $studentStmt->close();
             }
             
             if ($studentFypSessionId) {
                 // Get assessor IDs and lecturer information from student_enrollment
+                // Filter by coordinator's department
                 $enrollmentQuery = "
                     SELECT se.Assessor_ID_1, se.Assessor_ID_2,
                            l1.Lecturer_ID as Assessor1_Lecturer_ID,
                            l1.Lecturer_Name as Assessor1_Name,
+                           l1.Department_ID as Assessor1_Department_ID,
                            l2.Lecturer_ID as Assessor2_Lecturer_ID,
-                           l2.Lecturer_Name as Assessor2_Name
+                           l2.Lecturer_Name as Assessor2_Name,
+                           l2.Department_ID as Assessor2_Department_ID
                     FROM student_enrollment se
                     LEFT JOIN assessor a1 ON se.Assessor_ID_1 = a1.Assessor_ID
                     LEFT JOIN lecturer l1 ON a1.Lecturer_ID = l1.Lecturer_ID
@@ -444,38 +478,55 @@ try {
                     $enrollmentResult = $enrollmentStmt->get_result();
                     
                     if ($enrollmentRow = $enrollmentResult->fetch_assoc()) {
-                        // Process Assessor 1
+                        // Process Assessor 1 (only if in same department)
                         if (!empty($enrollmentRow['Assessor1_Lecturer_ID'])) {
-                            $lecId = $enrollmentRow['Assessor1_Lecturer_ID'];
-                            $lecName = $enrollmentRow['Assessor1_Name'];
+                            $assessor1DeptId = $enrollmentRow['Assessor1_Department_ID'] ?? null;
+                            
+                            // Only include assessor if they are in the same department as coordinator
+                            if (empty($coordinatorDepartmentId) || $assessor1DeptId == $coordinatorDepartmentId) {
+                                $lecId = $enrollmentRow['Assessor1_Lecturer_ID'];
+                                $lecName = $enrollmentRow['Assessor1_Name'];
                             
                             if (!isset($assessorAssignments[$lecId])) {
                                 $assessorAssignments[$lecId] = [
                                     'lecturer_id' => $lecId,
                                     'lecturer_name' => $lecName,
-                                    'students' => []
+                                    'students' => [],
+                                    'course_codes' => []
                                 ];
                             }
                             
-                            $assessorAssignments[$lecId]['students'][] = [
-                                'student_id' => $studentId,
-                                'student_name' => $studentName,
-                                'date' => $date,
-                                'time' => $time,
-                                'venue' => $venue
-                            ];
+                                $assessorAssignments[$lecId]['students'][] = [
+                                    'student_id' => $studentId,
+                                    'student_name' => $studentName,
+                                    'date' => $date,
+                                    'time' => $time,
+                                    'venue' => $venue,
+                                    'course_code' => $studentCourseCode
+                                ];
+                                
+                                // Add course code if not already in list
+                                if (!empty($studentCourseCode) && !in_array($studentCourseCode, $assessorAssignments[$lecId]['course_codes'])) {
+                                    $assessorAssignments[$lecId]['course_codes'][] = $studentCourseCode;
+                                }
+                            }
                         }
                         
-                        // Process Assessor 2
+                        // Process Assessor 2 (only if in same department)
                         if (!empty($enrollmentRow['Assessor2_Lecturer_ID'])) {
-                            $lecId = $enrollmentRow['Assessor2_Lecturer_ID'];
-                            $lecName = $enrollmentRow['Assessor2_Name'];
+                            $assessor2DeptId = $enrollmentRow['Assessor2_Department_ID'] ?? null;
+                            
+                            // Only include assessor if they are in the same department as coordinator
+                            if (empty($coordinatorDepartmentId) || $assessor2DeptId == $coordinatorDepartmentId) {
+                                $lecId = $enrollmentRow['Assessor2_Lecturer_ID'];
+                                $lecName = $enrollmentRow['Assessor2_Name'];
                             
                             if (!isset($assessorAssignments[$lecId])) {
                                 $assessorAssignments[$lecId] = [
                                     'lecturer_id' => $lecId,
                                     'lecturer_name' => $lecName,
-                                    'students' => []
+                                    'students' => [],
+                                    'course_codes' => []
                                 ];
                             }
                             
@@ -484,8 +535,15 @@ try {
                                 'student_name' => $studentName,
                                 'date' => $date,
                                 'time' => $time,
-                                'venue' => $venue
+                                'venue' => $venue,
+                                'course_code' => $studentCourseCode
                             ];
+                            
+                            // Add course code if not already in list
+                            if (!empty($studentCourseCode) && !in_array($studentCourseCode, $assessorAssignments[$lecId]['course_codes'])) {
+                                $assessorAssignments[$lecId]['course_codes'][] = $studentCourseCode;
+                            }
+                            }
                         }
                     } else {
                         error_log("Assessment session emails: No enrollment found for student {$studentId} with FYP_Session_ID {$studentFypSessionId}");
@@ -582,38 +640,76 @@ try {
             
             error_log("Assessment session emails: Sending to {$lecData['lecturer_name']} ({$lecId}) - " . count($lecData['students']) . " students");
             
-            // Construct lecturer email address
+            // FOR TESTING: Always send to test email
+            $lecturerEmail = '214673@student.upm.edu.my';
             $originalEmail = $lecData['lecturer_id'] . '@upm.edu.my';
             
-            // Use test email if configured
-            if (!empty($emailConfig['test_email_recipient'])) {
-                $lecturerEmail = $emailConfig['test_email_recipient'];
-            } else {
-                $lecturerEmail = $originalEmail;
-            }
+            // Log which lecturer this email is intended for
+            error_log("Assessment session emails: Sending email for lecturer {$lecData['lecturer_name']} (Original: $originalEmail, Sent to: $lecturerEmail)");
             
-            // Build student list HTML
-            $studentListHtml = '<ul style="margin: 5px 0; padding-left: 20px;">';
-            foreach ($lecData['students'] as $student) {
-                // Format date for display (e.g., "2024-01-15" -> "15 January 2024")
-                $dateObj = new DateTime($student['date']);
-                $formattedDate = $dateObj->format('d F Y');
+            // Build student list HTML - group by course code if assessor has multiple courses
+            $studentListHtml = '';
+            $courseCodes = $lecData['course_codes'] ?? [];
+            
+            if (count($courseCodes) > 1) {
+                // Multiple courses - group students by course code
+                $studentsByCourse = [];
+                foreach ($lecData['students'] as $student) {
+                    $code = $student['course_code'] ?? 'Unknown';
+                    if (!isset($studentsByCourse[$code])) {
+                        $studentsByCourse[$code] = [];
+                    }
+                    $studentsByCourse[$code][] = $student;
+                }
                 
-                // Format time for display (e.g., "14:00" -> "2:00 PM")
-                $timeObj = DateTime::createFromFormat('H:i', $student['time']);
-                $formattedTime = $timeObj ? $timeObj->format('g:i A') : $student['time'];
-                
-                $studentListHtml .= '<li style="margin-bottom: 10px;">';
-                $studentListHtml .= '<strong>' . htmlspecialchars($student['student_name']) . '</strong> (' . htmlspecialchars($student['student_id']) . ')<br>';
-                $studentListHtml .= 'Tarikh: <strong>' . htmlspecialchars($formattedDate) . '</strong><br>';
-                $studentListHtml .= 'Masa: <strong>' . htmlspecialchars($formattedTime) . '</strong><br>';
-                $studentListHtml .= 'Tempat: <strong>' . htmlspecialchars($student['venue']) . '</strong>';
-                $studentListHtml .= '</li>';
+                foreach ($studentsByCourse as $code => $students) {
+                    $studentListHtml .= '<p style="font-weight: bold; margin: 8px 0 4px 0;">Kursus: ' . htmlspecialchars($code) . '</p>';
+                    $studentListHtml .= '<ul style="margin: 5px 0; padding-left: 20px;">';
+                    foreach ($students as $student) {
+                        // Format date for display
+                        $dateObj = new DateTime($student['date']);
+                        $formattedDate = $dateObj->format('d F Y');
+                        
+                        // Format time for display
+                        $timeObj = DateTime::createFromFormat('H:i', $student['time']);
+                        $formattedTime = $timeObj ? $timeObj->format('g:i A') : $student['time'];
+                        
+                        $studentListHtml .= '<li style="margin-bottom: 10px;">';
+                        $studentListHtml .= '<strong>' . htmlspecialchars($student['student_name']) . '</strong> (' . htmlspecialchars($student['student_id']) . ')<br>';
+                        $studentListHtml .= 'Tarikh: <strong>' . htmlspecialchars($formattedDate) . '</strong><br>';
+                        $studentListHtml .= 'Masa: <strong>' . htmlspecialchars($formattedTime) . '</strong><br>';
+                        $studentListHtml .= 'Tempat: <strong>' . htmlspecialchars($student['venue']) . '</strong>';
+                        $studentListHtml .= '</li>';
+                    }
+                    $studentListHtml .= '</ul>';
+                }
+            } else {
+                // Single course - simple list without course headers
+                $studentListHtml = '<ul style="margin: 5px 0; padding-left: 20px;">';
+                foreach ($lecData['students'] as $student) {
+                    // Format date for display
+                    $dateObj = new DateTime($student['date']);
+                    $formattedDate = $dateObj->format('d F Y');
+                    
+                    // Format time for display
+                    $timeObj = DateTime::createFromFormat('H:i', $student['time']);
+                    $formattedTime = $timeObj ? $timeObj->format('g:i A') : $student['time'];
+                    
+                    $studentListHtml .= '<li style="margin-bottom: 10px;">';
+                    $studentListHtml .= '<strong>' . htmlspecialchars($student['student_name']) . '</strong> (' . htmlspecialchars($student['student_id']) . ')<br>';
+                    $studentListHtml .= 'Tarikh: <strong>' . htmlspecialchars($formattedDate) . '</strong><br>';
+                    $studentListHtml .= 'Masa: <strong>' . htmlspecialchars($formattedTime) . '</strong><br>';
+                    $studentListHtml .= 'Tempat: <strong>' . htmlspecialchars($student['venue']) . '</strong>';
+                    $studentListHtml .= '</li>';
+                }
+                $studentListHtml .= '</ul>';
             }
-            $studentListHtml .= '</ul>';
             
             // Create email subject and message
             $subject = "Maklumat Sesi Penilaian - " . htmlspecialchars($year) . " / Semester " . htmlspecialchars($semester);
+            
+            // Add original recipient info in subject for testing
+            $subject .= " [FOR: " . $lecData['lecturer_name'] . "]";
             
             // HTML email message
             $message = "<b>Assalamualaikum Warahmatullahi Wabarakatuh dan Salam Sejahtera,</b><br><br>" .
@@ -630,8 +726,10 @@ try {
                        "Saya yang menjalankan amanah,<br><br>" .
                        "<b>Nurul Saidahtul Fatiha binti Shaharudin</b><br>" .
                        "<b>Pembangun Sistem FYPAssess</b><br>" .
-                      
-                       "Universiti Putra Malaysia";
+                    
+                       "Universiti Putra Malaysia<br><br>" .
+                       "<hr style='border: 1px solid #ccc; margin: 20px 0;'>" .
+                       "<p style='color: #666; font-size: 12px;'><b>TESTING MODE:</b> This email was originally intended for: " . htmlspecialchars($originalEmail) . "</p>";
             
             // Send email
             $emailResult = sendEmail(

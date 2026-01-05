@@ -54,7 +54,6 @@ function getEmailTemplate($page, $lecturerName, $courseCode, $year, $semester) {
                         "Saya yang menjalankan amanah,<br><br>" .
                         "<b>Nurul Saidahtul Fatiha binti Shaharudin</b><br>" .
                         "<b>Pembangun Sistem FYPAssess</b><br>" .
-                        "<b>PutraAssess System</b><br>" .
                         "Universiti Putra Malaysia"
         ],
         'student_assignation' => [
@@ -78,7 +77,7 @@ function getEmailTemplate($page, $lecturerName, $courseCode, $year, $semester) {
                         "Saya yang menjalankan amanah,<br><br>" .
                          "<b>Nurul Saidahtul Fatiha binti Shaharudin</b><br>" .
                         "<b>Pembangun Sistem FYPAssess</b><br>" .
-                        "<b>PutraAssess System</b><br>" .
+                        "<b>ss System</b><br>" .
                         "Universiti Putra Malaysia"
         ],
         // Add more templates for other pages as needed

@@ -1,3 +1,4 @@
+
 <?php
 include '../../../php/mysqlConnect.php';
 session_start();
@@ -2382,6 +2383,8 @@ $assessorDataJson = json_encode($assessorData);
                 student.assessor2 = null;
             });
             
+            console.log('All assignments cleared. Call Save to update database.');
+            
             // Update remaining quotas after clearing
             updateAllRemainingQuotas();
             renderStudentTable();
@@ -2761,24 +2764,24 @@ $assessorDataJson = json_encode($assessorData);
         function saveAssignments() {
             // Build payload with both names and IDs for supervisor/assessors
             const assignmentData = students.map(student => {
-                const supervisorId = getSupervisorIdByName(student.supervisor);
-                // Use getAssessorIdByName for assessors (not getSupervisorIdByName)
-                const assessor1Id = getAssessorIdByName(student.assessor1);
-                const assessor2Id = getAssessorIdByName(student.assessor2);
+                // Get IDs for supervisor and assessors, handle null values
+                const supervisorId = student.supervisor ? getSupervisorIdByName(student.supervisor) : null;
+                const assessor1Id = student.assessor1 ? getAssessorIdByName(student.assessor1) : null;
+                const assessor2Id = student.assessor2 ? getAssessorIdByName(student.assessor2) : null;
 
                 // Debug logging
-                if (student.supervisor) {
-                    console.log(`Student: ${student.id}, Supervisor: ${student.supervisor}, Supervisor_ID: ${supervisorId}`);
-                }
+                console.log(`Student: ${student.id}, Supervisor: ${student.supervisor || 'NULL'}, Supervisor_ID: ${supervisorId || 'NULL'}`);
+                console.log(`  Assessor1: ${student.assessor1 || 'NULL'}, Assessor1_ID: ${assessor1Id || 'NULL'}`);
+                console.log(`  Assessor2: ${student.assessor2 || 'NULL'}, Assessor2_ID: ${assessor2Id || 'NULL'}`);
 
                 return {
-                    id: student.id,
-                    name: student.name,
-                    supervisor: student.supervisor,
-                    assessor1: student.assessor1,
-                    assessor2: student.assessor2,
+                    student_id: student.id,
+                    fyp_session_id: student.fyp_session_id,
+                    supervisor: student.supervisor || null,
                     supervisor_id: supervisorId,
+                    assessor1: student.assessor1 || null,
                     assessor1_id: assessor1Id,
+                    assessor2: student.assessor2 || null,
                     assessor2_id: assessor2Id
                 };
             });
