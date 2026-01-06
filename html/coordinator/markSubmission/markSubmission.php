@@ -148,8 +148,8 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
                 <a href="../learningObjective/learningObjective.php" id="learningObjective"><i class="bi bi-book-fill icon-padding"></i> Learning Objective</a>
                 <a href="markSubmission.php" id="markSubmission" class="active-menu-item"><i class="bi bi-clipboard-check-fill icon-padding"></i> Progress Submission</a>
                 <a href="../notification/notification.php" id="coordinatorNotification"><i class="bi bi-bell-fill icon-padding"></i> Notification</a>
-                <a href="../signatureSubmission/signatureSubmission.php" id="signatureSubmission"><i class="bi bi-pen-fill icon-padding"></i> Signature Submission</a>
-                <a href="../dateTimeAllocation/dateTimeAllocation.php" id="dateTimeAllocation"><i class="bi bi-calendar-event-fill icon-padding"></i> Date & Time Allocation</a>
+                <a href="../signatureSubmission/signatureSubmission.php" id="signatureSubmission"><i class="bi bi-pen-fill icon-padding"></i> Stamp Submission</a>
+                <a href="../dateTimeAllocation/dateTimeAllocation.php" id="dateTimeAllocation"><i class="bi bi-calendar-event-fill icon-padding"></i> Deadline Allocation</a>
             </div>
 
             <a href="../../logout.php" id="logout">
@@ -2586,7 +2586,7 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
                 modal.innerHTML = `
                     <div class="modal-dialog">
                         <div class="modal-content-custom">
-                            <div class="modal-icon" style="color: #007bff;"><i class="bi bi-hourglass-split" style="animation: spin 1s linear infinite; font-size: 48px;"></i></div>
+                            <div class="modal-icon" style="color: #007bff;"><i class="bi bi-hourglass-split" style="font-size: 48px;"></i></div>
                             <div class="modal-title-custom">Processing...</div>
                             <div class="modal-message">${message || 'Saving data and sending emails. Please wait.'}</div>
                         </div>
@@ -2603,18 +2603,8 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
             }
         }
         
-        // Add spinner animation style
-        if (!document.getElementById('loadingModalStyles')) {
-            const style = document.createElement('style');
-            style.id = 'loadingModalStyles';
-            style.textContent = `
-                @keyframes spin {
-                    0% { transform: rotate(0deg); }
-                    100% { transform: rotate(360deg); }
-                }
-            `;
-            document.head.appendChild(style);
-        }
+        // Loading modal styling removed (no animation)
+
 
         function openModal(title, message) {
             const modal = document.getElementById('notifyModal');

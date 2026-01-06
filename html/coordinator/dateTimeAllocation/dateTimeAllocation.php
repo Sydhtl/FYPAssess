@@ -112,7 +112,7 @@ $courseIdBJson = json_encode($courseIdB);
 <!DOCTYPE html>
 <html>
 <head>
-    <title>FYPAssess - Date & Time Allocation</title>
+    <title>FYPAssess - Deadline Allocation</title>
     <link rel="stylesheet" href="../../../css/background.css">
     <link rel="stylesheet" href="../../../css/coordinator/dashboard.css">
     <link rel="stylesheet" href="../../../css/coordinator/dateTimeAllocation.css">
@@ -174,8 +174,8 @@ $courseIdBJson = json_encode($courseIdB);
                 <a href="../learningObjective/learningObjective.php" id="learningObjective"><i class="bi bi-book-fill icon-padding"></i> Learning Objective</a>
                 <a href="../markSubmission/markSubmission.php" id="markSubmission"><i class="bi bi-clipboard-check-fill icon-padding"></i> Progress Submission</a>
                 <a href="../notification/notification.php" id="coordinatorNotification"><i class="bi bi-bell-fill icon-padding"></i> Notification</a>
-                <a href="../signatureSubmission/signatureSubmission.php" id="signatureSubmission"><i class="bi bi-pen-fill icon-padding"></i> Signature Submission</a>
-                <a href="dateTimeAllocation.php" id="dateTimeAllocation" class="active-menu-item"><i class="bi bi-calendar-event-fill icon-padding"></i> Date & Time Allocation</a>
+                <a href="../signatureSubmission/signatureSubmission.php" id="signatureSubmission"><i class="bi bi-pen-fill icon-padding"></i> Stamp Submission</a>
+                <a href="dateTimeAllocation.php" id="dateTimeAllocation" class="active-menu-item"><i class="bi bi-calendar-event-fill icon-padding"></i> Deadline Allocation</a>
             </div>
 
             <a href="../../logout.php" id="logout">
@@ -202,7 +202,7 @@ $courseIdBJson = json_encode($courseIdB);
     </div>
 
     <div id="main" class="main-grid">
-        <h1 class="page-title">Date &amp; Time Allocation</h1>
+        <h1 class="page-title">Deadline Allocation</h1>
 
         <div class="filters-section">
             <div class="filter-group">
@@ -547,7 +547,7 @@ $courseIdBJson = json_encode($courseIdB);
                 <div class="modal-dialog">
                     <div class="modal-content-custom">
                         <span class="close-btn" onclick="closeSendingModal()">&times;</span>
-                        <div class="modal-icon"><i class="bi bi-envelope-paper-fill"></i></div>
+                        <div class="modal-icon"><i class="bi bi-hourglass-split" style="color: #007bff;"></i></div>
                         <div class="modal-title-custom">Sending Emails...</div>
                         <div class="modal-message">Please wait while we save and notify lecturers.</div>
                     </div>

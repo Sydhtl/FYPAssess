@@ -212,6 +212,69 @@ try {
                 }
                 $detailsStmt->close();
             }
+
+            // Fallback: if nothing returned (e.g., replication delay or session mismatch),
+            // build details directly from the just-saved payload so emails always contain data.
+            if (empty($dueDatesDetails) && !empty($input['allocations'])) {
+                // Map assessment IDs to assessment/course info
+                $assessmentIds = [];
+                foreach ($input['allocations'] as $allocation) {
+                    if (!empty($allocation['assessment_id'])) {
+                        $assessmentIds[] = intval($allocation['assessment_id']);
+                    }
+                }
+                $assessmentIds = array_values(array_unique($assessmentIds));
+
+                $assessmentMap = [];
+                if (!empty($assessmentIds)) {
+                    $placeholders = implode(',', array_fill(0, count($assessmentIds), '?'));
+                    $infoSql = "SELECT a.Assessment_ID, a.Assessment_Name, c.Course_Code
+                                FROM assessment a
+                                JOIN course c ON a.Course_ID = c.Course_ID
+                                WHERE a.Assessment_ID IN ($placeholders)";
+                    $infoStmt = $conn->prepare($infoSql);
+                    if ($infoStmt) {
+                        $types = str_repeat('i', count($assessmentIds));
+                        $infoStmt->bind_param($types, ...$assessmentIds);
+                        $infoStmt->execute();
+                        $infoRes = $infoStmt->get_result();
+                        while ($infoRow = $infoRes->fetch_assoc()) {
+                            $assessmentMap[intval($infoRow['Assessment_ID'])] = [
+                                'Assessment_Name' => $infoRow['Assessment_Name'],
+                                'Course_Code' => $infoRow['Course_Code']
+                            ];
+                        }
+                        $infoStmt->close();
+                    }
+                }
+
+                foreach ($input['allocations'] as $allocation) {
+                    if (empty($allocation['assessment_id']) || empty($allocation['due_dates']) || !is_array($allocation['due_dates'])) {
+                        continue;
+                    }
+                    $assessmentId = intval($allocation['assessment_id']);
+                    $assessmentInfo = $assessmentMap[$assessmentId] ?? ['Assessment_Name' => 'Assessment', 'Course_Code' => ''];
+
+                    foreach ($allocation['due_dates'] as $dueDate) {
+                        if (empty($dueDate['start_date']) || empty($dueDate['end_date']) ||
+                            empty($dueDate['start_time']) || empty($dueDate['end_time']) ||
+                            empty($dueDate['role'])) {
+                            continue;
+                        }
+
+                        $dueDatesDetails[] = [
+                            'Due_ID' => $dueDate['due_id'] ?? 0,
+                            'Start_Date' => $dueDate['start_date'],
+                            'End_Date' => $dueDate['end_date'],
+                            'Start_Time' => $dueDate['start_time'],
+                            'End_Time' => $dueDate['end_time'],
+                            'Role' => $dueDate['role'],
+                            'Assessment_Name' => $assessmentInfo['Assessment_Name'],
+                            'Course_Code' => $assessmentInfo['Course_Code']
+                        ];
+                    }
+                }
+            }
             
             // Build due dates list HTML
             $dueDatesListHtml = '';
