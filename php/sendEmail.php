@@ -29,8 +29,12 @@ if (file_exists(__DIR__ . '/../vendor/autoload.php')) {
         function sendEmailFallback($to, $subject, $body, $bodyType = 'html', $options = []) {
             global $emailConfig;
             
-            if ($emailConfig['test_mode']) {
-                return logEmailForTesting($to, $subject, $body, $bodyType, $options);
+            $testRecipient = $emailConfig['test_email_recipient'] ?? null;
+            $useTestEmail = !empty($testRecipient) && $emailConfig['test_mode'];
+            
+            // If test mode with test recipient, send to test email
+            if ($useTestEmail) {
+                $to = $testRecipient;
             }
             
             $headers = "From: " . ($options['from_email'] ?? $emailConfig['from']['email']) . "\r\n";
@@ -44,7 +48,7 @@ if (file_exists(__DIR__ . '/../vendor/autoload.php')) {
             
             return [
                 'success' => $result,
-                'message' => $result ? 'Email sent successfully (using PHP mail())' : 'Failed to send email (PHP mail() failed)'
+                'message' => $result ? 'Email sent successfully' . ($useTestEmail ? ' (to test email: ' . $testRecipient . ')' : '') : 'Failed to send email'
             ];
         }
         
@@ -101,11 +105,6 @@ function sendEmail($to, $subject, $body, $bodyType = 'html', $options = []) {
     global $emailConfig;
     
     try {
-        // Test mode: log email instead of sending
-        if ($emailConfig['test_mode']) {
-            return logEmailForTesting($to, $subject, $body, $bodyType, $options);
-        }
-        
         $mail = new PHPMailer(true);
         
         // Server settings
@@ -126,10 +125,10 @@ function sendEmail($to, $subject, $body, $bodyType = 'html', $options = []) {
         // Handle test email recipient override (for testing purposes)
         $actualRecipients = is_array($to) ? $to : [$to];
         $testRecipient = $emailConfig['test_email_recipient'] ?? null;
-        $useTestEmail = !empty($testRecipient);
+        $useTestEmail = !empty($testRecipient) && $emailConfig['test_mode'];
         
         if ($useTestEmail) {
-            // In test mode, send to test email
+            // In test mode, send to test email instead of actual recipients
             $mail->addAddress($testRecipient);
         } else {
             // Normal mode: use actual recipients
@@ -177,7 +176,7 @@ function sendEmail($to, $subject, $body, $bodyType = 'html', $options = []) {
         $finalSubject = $subject;
         if ($useTestEmail) {
             $originalRecipients = is_array($to) ? implode(', ', $to) : $to;
-            $finalSubject = "[TEST] " . $subject . " (Original: {$originalRecipients})";
+            $finalSubject = " $subject ";
         }
         
         $mail->Subject = $finalSubject;

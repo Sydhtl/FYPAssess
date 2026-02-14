@@ -10,6 +10,12 @@ if (!isset($_SESSION['upmId']) || !isset($_SESSION['role']) || $_SESSION['role']
     exit();
 }
 
+// Capture needed session data and release the session lock early to avoid blocking other requests
+$userId = $_SESSION['upmId'];
+if (function_exists('session_write_close')) {
+    session_write_close();
+}
+
 $input = json_decode(file_get_contents('php://input'), true);
 
 // Allow empty allocations array if only deletions are being sent
@@ -112,8 +118,22 @@ try {
     }
     
     $conn->commit();
-    
-    // After successful save, send email notifications to all lecturers
+
+    // Respond to the client immediately so the UI is not blocked by email sending
+    $response = ['success' => true];
+    echo json_encode($response);
+    // Flush response before sending emails (best-effort)
+    if (function_exists('fastcgi_finish_request')) {
+        fastcgi_finish_request();
+    } else {
+        if (function_exists('session_write_close')) {
+            session_write_close();
+        }
+        @ob_flush();
+        @flush();
+    }
+
+    // After save, send email notifications to all lecturers (runs after client got success)
     try {
         // Load email config
         $emailConfig = require __DIR__ . '/../emailConfig.php';
@@ -137,8 +157,7 @@ try {
             $yearSemesterStmt->close();
         }
         
-        // Get coordinator's department ID
-        $userId = $_SESSION['upmId'];
+        // Get coordinator's department ID (session already captured as $userId)
         $departmentId = null;
         $deptQuery = "SELECT Department_ID FROM lecturer WHERE Lecturer_ID = ? LIMIT 1";
         $deptStmt = $conn->prepare($deptQuery);
@@ -192,6 +211,69 @@ try {
                     $dueDatesDetails[] = $detailRow;
                 }
                 $detailsStmt->close();
+            }
+
+            // Fallback: if nothing returned (e.g., replication delay or session mismatch),
+            // build details directly from the just-saved payload so emails always contain data.
+            if (empty($dueDatesDetails) && !empty($input['allocations'])) {
+                // Map assessment IDs to assessment/course info
+                $assessmentIds = [];
+                foreach ($input['allocations'] as $allocation) {
+                    if (!empty($allocation['assessment_id'])) {
+                        $assessmentIds[] = intval($allocation['assessment_id']);
+                    }
+                }
+                $assessmentIds = array_values(array_unique($assessmentIds));
+
+                $assessmentMap = [];
+                if (!empty($assessmentIds)) {
+                    $placeholders = implode(',', array_fill(0, count($assessmentIds), '?'));
+                    $infoSql = "SELECT a.Assessment_ID, a.Assessment_Name, c.Course_Code
+                                FROM assessment a
+                                JOIN course c ON a.Course_ID = c.Course_ID
+                                WHERE a.Assessment_ID IN ($placeholders)";
+                    $infoStmt = $conn->prepare($infoSql);
+                    if ($infoStmt) {
+                        $types = str_repeat('i', count($assessmentIds));
+                        $infoStmt->bind_param($types, ...$assessmentIds);
+                        $infoStmt->execute();
+                        $infoRes = $infoStmt->get_result();
+                        while ($infoRow = $infoRes->fetch_assoc()) {
+                            $assessmentMap[intval($infoRow['Assessment_ID'])] = [
+                                'Assessment_Name' => $infoRow['Assessment_Name'],
+                                'Course_Code' => $infoRow['Course_Code']
+                            ];
+                        }
+                        $infoStmt->close();
+                    }
+                }
+
+                foreach ($input['allocations'] as $allocation) {
+                    if (empty($allocation['assessment_id']) || empty($allocation['due_dates']) || !is_array($allocation['due_dates'])) {
+                        continue;
+                    }
+                    $assessmentId = intval($allocation['assessment_id']);
+                    $assessmentInfo = $assessmentMap[$assessmentId] ?? ['Assessment_Name' => 'Assessment', 'Course_Code' => ''];
+
+                    foreach ($allocation['due_dates'] as $dueDate) {
+                        if (empty($dueDate['start_date']) || empty($dueDate['end_date']) ||
+                            empty($dueDate['start_time']) || empty($dueDate['end_time']) ||
+                            empty($dueDate['role'])) {
+                            continue;
+                        }
+
+                        $dueDatesDetails[] = [
+                            'Due_ID' => $dueDate['due_id'] ?? 0,
+                            'Start_Date' => $dueDate['start_date'],
+                            'End_Date' => $dueDate['end_date'],
+                            'Start_Time' => $dueDate['start_time'],
+                            'End_Time' => $dueDate['end_time'],
+                            'Role' => $dueDate['role'],
+                            'Assessment_Name' => $assessmentInfo['Assessment_Name'],
+                            'Course_Code' => $assessmentInfo['Course_Code']
+                        ];
+                    }
+                }
             }
             
             // Build due dates list HTML
@@ -268,7 +350,7 @@ try {
                            "Saya yang menjalankan amanah,<br><br>" .
                            "<b>Nurul Saidahtul Fatiha binti Shaharudin</b><br>" .
                            "<b>Pembangun Sistem FYPAssess</b><br>" .
-                           "<b>PutraAssess System</b><br>" .
+               
                            "Universiti Putra Malaysia";
                 
                 // Send email
@@ -298,7 +380,6 @@ try {
         error_log("Error sending date time allocation notification emails: " . $emailEx->getMessage());
     }
     
-    echo json_encode(['success' => true]);
 } catch (Exception $e) {
     $conn->rollback();
     echo json_encode(['success' => false, 'error' => $e->getMessage()]);

@@ -672,7 +672,7 @@ if ($departmentId !== null) {
             <div id="supervisorMenu" class="menu-items">
                 <a href="../../../php/phpSupervisor/dashboard.php" id="dashboard"><i class="bi bi-house-fill icon-padding"></i> Dashboard</a>
                 <a href="../../../php/phpSupervisor/notification.php" id="Notification"><i class="bi bi-bell-fill icon-padding"></i> Notification</a>
-                <a href="../../../php/phpSupervisor/industrey%20collaboration.php" id="industryCollaboration"><i class="bi bi-file-earmark-text-fill icon-padding"></i>
+                <a href="../../../php/phpSupervisor/industry_collaboration.php" id="industryCollaboration"><i class="bi bi-file-earmark-text-fill icon-padding"></i>
                     Industry Collaboration</a>
                 <a href="../../../php/phpAssessor_Supervisor/evaluation_form.php" id="evaluationForm"><i class="bi bi-file-earmark-text-fill icon-padding"></i> Evaluation Form</a>
                 <a href="../../../php/phpSupervisor/report.php" id="superviseesReport"><i class="bi bi-bar-chart-fill icon-padding"></i> Supervisees' Report</a>
@@ -705,8 +705,8 @@ if ($departmentId !== null) {
                 <a href="../learningObjective/learningObjective.php" id="learningObjective"><i class="bi bi-book-fill icon-padding"></i> Learning Objective</a>
                 <a href="../markSubmission/markSubmission.php" id="markSubmission"><i class="bi bi-clipboard-check-fill icon-padding"></i> Progress Submission</a>
                 <a href="../notification/notification.php" id="coordinatorNotification"><i class="bi bi-bell-fill icon-padding"></i> Notification</a>
-                <a href="../signatureSubmission/signatureSubmission.php" id="signatureSubmission"><i class="bi bi-pen-fill icon-padding"></i> Signature Submission</a>
-                <a href="../dateTimeAllocation/dateTimeAllocation.php" id="dateTimeAllocation"><i class="bi bi-calendar-event-fill icon-padding"></i> Date and Time Allocation</a>
+                <a href="../signatureSubmission/signatureSubmission.php" id="signatureSubmission"><i class="bi bi-pen-fill icon-padding"></i> Stamp Submission</a>
+                <a href="../dateTimeAllocation/dateTimeAllocation.php" id="dateTimeAllocation"><i class="bi bi-calendar-event-fill icon-padding"></i> Deadline Allocation</a>
             </div>
 
             <a href="../../logout.php" id="logout">
@@ -920,6 +920,8 @@ if ($departmentId !== null) {
         // Dynamic data from backend
         const titleStatusData = <?php echo json_encode($titleChartData); ?>;
         const courseChartsData = <?php echo json_encode($courseCharts); ?>;
+        let titleChartInstance = null;
+        let courseChartInstances = [];
 
         // Function to create bar chart where each title has its own bars with gaps
         function createGroupedBarChart(canvasId, chartData) {
@@ -1131,7 +1133,7 @@ if ($departmentId !== null) {
             const titleCtx = document.getElementById('titleChart');
             if (titleCtx && titleStatusData && Array.isArray(titleStatusData.data)) {
                 const totalCount = titleStatusData.data.reduce((sum, val) => sum + (parseInt(val) || 0), 0);
-                new Chart(titleCtx, {
+                titleChartInstance = new Chart(titleCtx, {
                     type: 'pie',
                     data: {
                         labels: titleStatusData.labels,
@@ -1216,12 +1218,127 @@ if ($departmentId !== null) {
                             total: a.total,
                             studentCount: a.studentCount
                         })),
-                        course_code: course.course_code // Store course code for navigation
+                        course_code: course.course_code
                     };
-                    createGroupedBarChart(chartId, chartData);
+                    courseChartInstances[idx] = createGroupedBarChart(chartId, chartData);
                 });
             }
         });
+    </script>
+
+    <script>
+        // --- REALTIME DASHBOARD POLLING ---
+        let coordinatorPollInterval = null;
+        let coordinatorDataHash = '';
+
+        function hashCoordinator(data) {
+            try {
+                return JSON.stringify({
+                    widgets: data.widgets,
+                    title: data.titleChart,
+                    courses: (data.courseCharts || []).map(c => ({ code: c.course_code, data: c.assessments }))
+                });
+            } catch (e) { return ''; }
+        }
+
+        function updateWidgets(widgets) {
+            if (!widgets) return;
+            const w1 = document.getElementById('titleSubmissions');
+            const w2 = document.getElementById('overallProgress');
+            const w3 = document.getElementById('totalStudents');
+            if (w1) w1.textContent = widgets.firstCourseStudentCount ?? 0;
+            if (w2) w2.textContent = widgets.secondCourseStudentCount ?? 0;
+            if (w3) w3.textContent = widgets.totalLecturers ?? 0;
+            const courseCodeEl = document.getElementById('courseCode');
+            const courseSessionEl = document.getElementById('courseSession');
+            if (courseCodeEl && widgets.baseCourseCode) {
+                courseCodeEl.textContent = widgets.baseCourseCode || widgets.firstCourseCode || '';
+            }
+            if (courseSessionEl && window.currentYear && window.currentSemester) {
+                courseSessionEl.textContent = `${window.currentYear} - ${window.currentSemester}`;
+            }
+        }
+
+        function updateTitleChart(titleData) {
+            if (!titleChartInstance || !titleData) return;
+            const ds = titleChartInstance.data.datasets[0];
+            titleChartInstance.data.labels = titleData.labels || ['Approved', 'Waiting for approval', 'Rejected'];
+            ds.data = titleData.data || [0,0,0];
+            titleChartInstance.update();
+        }
+
+        function updateCourseCharts(courses) {
+            if (!Array.isArray(courses)) return;
+            if (courses.length !== courseChartInstances.length) {
+                // Structure changed; safest is to refresh page
+                window.location.reload();
+                return;
+            }
+            courses.forEach((course, idx) => {
+                const chart = courseChartInstances[idx];
+                if (!chart || !course.assessments) return;
+                chart.data.labels = course.assessments.map(a => a.name);
+                const dsComplete = chart.data.datasets[0];
+                const dsIncomplete = chart.data.datasets[1];
+                dsComplete.data = course.assessments.map(a => a.submitted);
+                dsIncomplete.data = course.assessments.map(a => a.notSubmitted);
+                chart.options.scales.y.max = Math.max(...course.assessments.map(a => a.total || 0)) + 5;
+                chart.update();
+            });
+        }
+
+        function applyCoordinatorData(data) {
+            if (!data || !data.success) return;
+            window.currentYear = data.currentYear || window.currentYear;
+            window.currentSemester = data.currentSemester || window.currentSemester;
+            updateWidgets(data.widgets);
+            updateTitleChart(data.titleChart);
+            updateCourseCharts(data.courseCharts);
+        }
+
+        function fetchCoordinatorMetrics() {
+            fetch('../../../php/phpCoordinator/fetch_dashboard_metrics.php')
+                .then(resp => resp.json())
+                .then(data => {
+                    const newHash = hashCoordinator(data);
+                    if (newHash !== coordinatorDataHash) {
+                        coordinatorDataHash = newHash;
+                        applyCoordinatorData(data);
+                    }
+                })
+                .catch(err => console.error('Coordinator dashboard poll failed:', err));
+        }
+
+        function startCoordinatorPolling() {
+            fetchCoordinatorMetrics();
+            coordinatorPollInterval = setInterval(fetchCoordinatorMetrics, 1000);
+        }
+
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                if (coordinatorPollInterval) { clearInterval(coordinatorPollInterval); coordinatorPollInterval = null; }
+            } else {
+                if (!coordinatorPollInterval) { startCoordinatorPolling(); }
+            }
+        });
+
+        (function initCoordinatorRealtime(){
+            const initial = {
+                success: true,
+                widgets: {
+                    firstCourseStudentCount: <?php echo json_encode($firstCourseStudentCount); ?>,
+                    secondCourseStudentCount: <?php echo json_encode($secondCourseStudentCount); ?>,
+                    totalLecturers: <?php echo json_encode($totalLecturers); ?>,
+                    firstCourseCode: <?php echo json_encode($firstCourseCode); ?>,
+                    secondCourseCode: <?php echo json_encode($secondCourseCode); ?>,
+                    baseCourseCode: <?php echo json_encode($baseCourseCode ?: $firstCourseCode); ?>
+                },
+                titleChart: <?php echo json_encode($titleChartData); ?>,
+                courseCharts: <?php echo json_encode($courseCharts); ?>
+            };
+            coordinatorDataHash = hashCoordinator(initial);
+            startCoordinatorPolling();
+        })();
     </script>
 
     <script>

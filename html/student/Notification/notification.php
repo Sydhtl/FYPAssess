@@ -609,8 +609,8 @@ function getNotificationDescription($type, $status) {
         function startNotificationPolling() {
             // Initial fetch
             fetchNotifications();
-            // Set up interval to check every 5 seconds
-            notificationUpdateInterval = setInterval(fetchNotifications, 5000);
+            // Set up interval to check every 2 seconds
+            notificationUpdateInterval = setInterval(fetchNotifications, 1000);
         }
 
         // Stop polling when page is hidden (to save resources)

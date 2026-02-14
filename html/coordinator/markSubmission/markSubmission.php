@@ -112,11 +112,13 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
             </a>
 
             <div id="supervisorMenu" class="menu-items">
-                <a href="#" id="NotificationSupervisor"><i class="bi bi-bell-fill icon-padding"></i> Notification</a>
-                <a href="#" id="industryCollaboration"><i class="bi bi-file-earmark-text-fill icon-padding"></i> Industry Collaboration</a>
-                <a href="#" id="evaluationForm"><i class="bi bi-file-earmark-text-fill icon-padding"></i> Evaluation Form</a>
-                <a href="#" id="superviseesReport"><i class="bi bi-bar-chart-fill icon-padding"></i> Supervisees' Report</a>
-                <a href="#" id="logbookSubmission"><i class="bi bi-calendar-check-fill icon-padding"></i> Logbook Submission</a>
+                <a href="../../../php/phpSupervisor/dashboard.php" id="dashboard"><i class="bi bi-house-fill icon-padding"></i> Dashboard</a>
+                <a href="../../../php/phpSupervisor/notification.php" id="Notification"><i class="bi bi-bell-fill icon-padding"></i> Notification</a>
+                <a href="../../../php/phpSupervisor/industry_collaboration.php" id="industryCollaboration"><i class="bi bi-file-earmark-text-fill icon-padding"></i>
+                    Industry Collaboration</a>
+                <a href="../../../php/phpAssessor_Supervisor/evaluation_form.php" id="evaluationForm"><i class="bi bi-file-earmark-text-fill icon-padding"></i> Evaluation Form</a>
+                <a href="../../../php/phpSupervisor/report.php" id="superviseesReport"><i class="bi bi-bar-chart-fill icon-padding"></i> Supervisees' Report</a>
+                <a href="../../../php/phpSupervisor/logbook_submission.php" id="logbookSubmission"><i class="bi bi-calendar-check-fill icon-padding"></i> Logbook Submission</a>
             </div>
 
             <a href="#assessorMenu" class="role-header" data-role="assessor">
@@ -127,10 +129,11 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
             </a>
 
             <div id="assessorMenu" class="menu-items">
-                <a href="#" id="DashboardAssessor"><i class="bi bi-house-fill icon-padding"></i> Dashboard</a>
-                <a href="#" id="NotificationAssessor"><i class="bi bi-bell-fill icon-padding"></i> Notification</a>
-                <a href="#" id="EvaluationFormAssessor"><i class="bi bi-file-earmark-text-fill icon-padding"></i> Evaluation Form</a>
+                <a href="../../../php/phpAssessor/dashboard.php" id="Dashboard"><i class="bi bi-house-fill icon-padding"></i> Dashboard</a>
+                <a href="../../../php/phpAssessor/notification.php" id="Notification"><i class="bi bi-bell-fill icon-padding"></i> Notification</a>
+                <a href="../../../php/phpAssessor_Supervisor/evaluation_form.php" id="EvaluationForm"><i class="bi bi-file-earmark-text-fill icon-padding"></i> Evaluation Form</a>
             </div>
+
 
             <a href="#coordinatorMenu" class="role-header active-role menu-expanded" data-role="coordinator">
                 <span class="role-text">Coordinator</span>
@@ -145,8 +148,8 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
                 <a href="../learningObjective/learningObjective.php" id="learningObjective"><i class="bi bi-book-fill icon-padding"></i> Learning Objective</a>
                 <a href="markSubmission.php" id="markSubmission" class="active-menu-item"><i class="bi bi-clipboard-check-fill icon-padding"></i> Progress Submission</a>
                 <a href="../notification/notification.php" id="coordinatorNotification"><i class="bi bi-bell-fill icon-padding"></i> Notification</a>
-                <a href="../signatureSubmission/signatureSubmission.php" id="signatureSubmission"><i class="bi bi-pen-fill icon-padding"></i> Signature Submission</a>
-                <a href="../dateTimeAllocation/dateTimeAllocation.php" id="dateTimeAllocation"><i class="bi bi-calendar-event-fill icon-padding"></i> Date & Time Allocation</a>
+                <a href="../signatureSubmission/signatureSubmission.php" id="signatureSubmission"><i class="bi bi-pen-fill icon-padding"></i> Stamp Submission</a>
+                <a href="../dateTimeAllocation/dateTimeAllocation.php" id="dateTimeAllocation"><i class="bi bi-calendar-event-fill icon-padding"></i> Deadline Allocation</a>
             </div>
 
             <a href="../../logout.php" id="logout">
@@ -334,11 +337,15 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
                             </div>
                         </div>
 
-                                                    <div class="student-click-hint" data-tab="swe4949a">Click on a student name to view their supervisor and assessors. 
+                                                    <div class="student-click-hint" data-tab="swe4949a">
+                                                        Click on the Student's Marks Overview dropdown to switch to Lecturer Progress.
+                                                        <br><br>Click on a student name to view their supervisor and assessors. 
                                                         <br><br>
                                                         Hover over the assessment to see more details.
                                                     </div>
-                                                    <div class="lecturer-click-hint" data-tab="swe4949a">Click on a lecturer name to view the students they supervise or assess.
+                                                    <div class="lecturer-click-hint" data-tab="swe4949a">
+                                                    Click on the Lecturer Progress dropdown to switch to Student's Marks Overview.<br><br>    
+                                                    Click on a lecturer name to view the students they supervise or assess.
                                                         <br><br>
                                                       Hover over the assessment to see more details.
                                                     </div>
@@ -407,11 +414,15 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
                 
                         </div>
                         </div>
-                         <div class="student-click-hint" data-tab="swe4949b">Click on a student name to view their supervisor and assessors.
+                         <div class="student-click-hint" data-tab="swe4949b">
+                            Click on the Student's Marks Overview dropdown to switch to Lecturer Progress.<br><br>
+                            Click on a student name to view their supervisor and assessors.
                             <br><br>
                                                         Hover over the assessment to see more details.
                          </div>
-                         <div class="lecturer-click-hint" data-tab="swe4949b">Click on a lecturer name to view the students they supervise or assess.
+                         <div class="lecturer-click-hint" data-tab="swe4949b">
+                            Click on the Lecturer Progress dropdown to switch to Student's Marks Overview.<br><br>
+                            Click on a lecturer name to view the students they supervise or assess.
                             <br><br>
                                                         Hover over the assessment to see more details.
                                                    
@@ -1749,7 +1760,7 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
         // Real-time polling for marks and progress
         let pollingInterval = null;
         let pollingPaused = false;
-        const POLLING_INTERVAL = 5000; // Poll every 5 seconds
+        const POLLING_INTERVAL = 1000; // Poll every second
         
         // Store hash of current data for comparison
         const dataHashes = {};
@@ -1852,7 +1863,7 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
         // Real-time polling for FYP Title Submissions
         let fypTitlePollingInterval = null;
         let fypTitlePollingPaused = false;
-        const FYPTITLE_POLLING_INTERVAL = 5000; // Poll every 5 seconds
+        const FYPTITLE_POLLING_INTERVAL = 1000; // Poll every second
         let currentFYPTitleHash = '';
         
         // Helper function to transform backend data to frontend format
@@ -2583,7 +2594,7 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
                 modal.innerHTML = `
                     <div class="modal-dialog">
                         <div class="modal-content-custom">
-                            <div class="modal-icon" style="color: #007bff;"><i class="bi bi-hourglass-split" style="animation: spin 1s linear infinite; font-size: 48px;"></i></div>
+                            <div class="modal-icon" style="color: #007bff;"><i class="bi bi-hourglass-split" style="font-size: 48px;"></i></div>
                             <div class="modal-title-custom">Processing...</div>
                             <div class="modal-message">${message || 'Saving data and sending emails. Please wait.'}</div>
                         </div>
@@ -2600,18 +2611,8 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
             }
         }
         
-        // Add spinner animation style
-        if (!document.getElementById('loadingModalStyles')) {
-            const style = document.createElement('style');
-            style.id = 'loadingModalStyles';
-            style.textContent = `
-                @keyframes spin {
-                    0% { transform: rotate(0deg); }
-                    100% { transform: rotate(360deg); }
-                }
-            `;
-            document.head.appendChild(style);
-        }
+        // Loading modal styling removed (no animation)
+
 
         function openModal(title, message) {
             const modal = document.getElementById('notifyModal');

@@ -2,38 +2,31 @@
 include '../../../php/coordinator_bootstrap.php';
 ?>
 <script>
-// Prevent back button after logout
 window.history.pushState(null, "", window.location.href);
 window.onpopstate = function() {
     window.history.pushState(null, "", window.location.href);
 };
 
-// Check session validity on page load and periodically
 function validateSession() {
     fetch('../../../php/check_session_alive.php')
         .then(function(resp){ return resp.json(); })
         .then(function(data){
             if (!data.valid) {
-                // Session is invalid, redirect to login
                 window.location.href = '../../login/Login.php';
             }
         })
         .catch(function(err){
-            // If we can't reach the server, assume session is invalid
             console.warn('Session validation failed:', err);
             window.location.href = '../../login/Login.php';
         });
 }
 
-// Validate session on page load
 window.addEventListener('load', validateSession);
 
-// Also check every 10 seconds
 setInterval(validateSession, 10000);
 </script>
 <?php
 
-// Get coordinator's department ID
 $departmentId = null;
 if ($stmt = $conn->prepare("SELECT Department_ID FROM lecturer WHERE Lecturer_ID = ? LIMIT 1")) {
     $stmt->bind_param("s", $userId);
@@ -46,7 +39,6 @@ if ($stmt = $conn->prepare("SELECT Department_ID FROM lecturer WHERE Lecturer_ID
     $stmt->close();
 }
 
-// Fetch courses for this department
 $courses = [];
 if ($departmentId) {
     $coursesQuery = "SELECT Course_ID, Course_Code FROM course WHERE Department_ID = ? ORDER BY Course_Code";
@@ -68,10 +60,8 @@ $courseCodeB = !empty($courses[1]) ? $courses[1]['Course_Code'] : 'SWE4949-B';
 $courseIdA = !empty($courses[0]) ? $courses[0]['Course_ID'] : null;
 $courseIdB = !empty($courses[1]) ? $courses[1]['Course_ID'] : null;
 
-// Display base course code without section suffix (e.g., SWE4949-A -> SWE4949)
 $baseCourseCode = $courseCodeA ? preg_replace('/[-_ ]?[A-Za-z]$/', '', $courseCodeA) : '';
 
-// Fetch assessments for each course
 $assessmentsA = [];
 $assessmentsB = [];
 
@@ -103,7 +93,6 @@ if ($courseIdB) {
     }
 }
 
-// Encode assessments as JSON for JavaScript
 $assessmentsAJson = json_encode($assessmentsA);
 $assessmentsBJson = json_encode($assessmentsB);
 $courseIdAJson = json_encode($courseIdA);
@@ -112,7 +101,7 @@ $courseIdBJson = json_encode($courseIdB);
 <!DOCTYPE html>
 <html>
 <head>
-    <title>FYPAssess - Date & Time Allocation</title>
+    <title>FYPAssess - Deadline Allocation</title>
     <link rel="stylesheet" href="../../../css/background.css">
     <link rel="stylesheet" href="../../../css/coordinator/dashboard.css">
     <link rel="stylesheet" href="../../../css/coordinator/dateTimeAllocation.css">
@@ -137,13 +126,14 @@ $courseIdBJson = json_encode($courseIdB);
                     <i class="bi bi-chevron-right arrow-icon"></i>
                 </span>
             </a>
-
-            <div id="supervisorMenu" class="menu-items">
-                <a href="#" id="NotificationSupervisor"><i class="bi bi-bell-fill icon-padding"></i> Notification</a>
-                <a href="#" id="industryCollaboration"><i class="bi bi-file-earmark-text-fill icon-padding"></i> Industry Collaboration</a>
-                <a href="#" id="evaluationForm"><i class="bi bi-file-earmark-text-fill icon-padding"></i> Evaluation Form</a>
-                <a href="#" id="superviseesReport"><i class="bi bi-bar-chart-fill icon-padding"></i> Supervisees' Report</a>
-                <a href="#" id="logbookSubmission"><i class="bi bi-calendar-check-fill icon-padding"></i> Logbook Submission</a>
+ <div id="supervisorMenu" class="menu-items">
+                <a href="../../../php/phpSupervisor/dashboard.php" id="dashboard"><i class="bi bi-house-fill icon-padding"></i> Dashboard</a>
+                <a href="../../../php/phpSupervisor/notification.php" id="Notification"><i class="bi bi-bell-fill icon-padding"></i> Notification</a>
+                <a href="../../../php/phpSupervisor/industry_collaboration.php" id="industryCollaboration"><i class="bi bi-file-earmark-text-fill icon-padding"></i>
+                    Industry Collaboration</a>
+                <a href="../../../php/phpAssessor_Supervisor/evaluation_form.php" id="evaluationForm"><i class="bi bi-file-earmark-text-fill icon-padding"></i> Evaluation Form</a>
+                <a href="../../../php/phpSupervisor/report.php" id="superviseesReport"><i class="bi bi-bar-chart-fill icon-padding"></i> Supervisees' Report</a>
+                <a href="../../../php/phpSupervisor/logbook_submission.php" id="logbookSubmission"><i class="bi bi-calendar-check-fill icon-padding"></i> Logbook Submission</a>
             </div>
 
             <a href="#assessorMenu" class="role-header" data-role="assessor">
@@ -154,10 +144,11 @@ $courseIdBJson = json_encode($courseIdB);
             </a>
 
             <div id="assessorMenu" class="menu-items">
-                <a href="#" id="DashboardAssessor"><i class="bi bi-house-fill icon-padding"></i> Dashboard</a>
-                <a href="#" id="NotificationAssessor"><i class="bi bi-bell-fill icon-padding"></i> Notification</a>
-                <a href="#" id="EvaluationFormAssessor"><i class="bi bi-file-earmark-text-fill icon-padding"></i> Evaluation Form</a>
+                <a href="../../../php/phpAssessor/dashboard.php" id="Dashboard"><i class="bi bi-house-fill icon-padding"></i> Dashboard</a>
+                <a href="../../../php/phpAssessor/notification.php" id="Notification"><i class="bi bi-bell-fill icon-padding"></i> Notification</a>
+                <a href="../../../php/phpAssessor_Supervisor/evaluation_form.php" id="EvaluationForm"><i class="bi bi-file-earmark-text-fill icon-padding"></i> Evaluation Form</a>
             </div>
+
 
             <a href="#coordinatorMenu" class="role-header active-role menu-expanded" data-role="coordinator">
                 <span class="role-text">Coordinator</span>
@@ -172,8 +163,8 @@ $courseIdBJson = json_encode($courseIdB);
                 <a href="../learningObjective/learningObjective.php" id="learningObjective"><i class="bi bi-book-fill icon-padding"></i> Learning Objective</a>
                 <a href="../markSubmission/markSubmission.php" id="markSubmission"><i class="bi bi-clipboard-check-fill icon-padding"></i> Progress Submission</a>
                 <a href="../notification/notification.php" id="coordinatorNotification"><i class="bi bi-bell-fill icon-padding"></i> Notification</a>
-                <a href="../signatureSubmission/signatureSubmission.php" id="signatureSubmission"><i class="bi bi-pen-fill icon-padding"></i> Signature Submission</a>
-                <a href="dateTimeAllocation.php" id="dateTimeAllocation" class="active-menu-item"><i class="bi bi-calendar-event-fill icon-padding"></i> Date & Time Allocation</a>
+                <a href="../signatureSubmission/signatureSubmission.php" id="signatureSubmission"><i class="bi bi-pen-fill icon-padding"></i> Stamp Submission</a>
+                <a href="dateTimeAllocation.php" id="dateTimeAllocation" class="active-menu-item"><i class="bi bi-calendar-event-fill icon-padding"></i> Deadline Allocation</a>
             </div>
 
             <a href="../../logout.php" id="logout">
@@ -200,7 +191,7 @@ $courseIdBJson = json_encode($courseIdB);
     </div>
 
     <div id="main" class="main-grid">
-        <h1 class="page-title">Date &amp; Time Allocation</h1>
+        <h1 class="page-title">Deadline Allocation</h1>
 
         <div class="filters-section">
             <div class="filter-group">
@@ -228,21 +219,17 @@ $courseIdBJson = json_encode($courseIdB);
         </div>
 
         <div class="allocation-container">
-           
-
             <div class="tab-buttons" id="tabButtons">
-                <!-- Tabs will be dynamically generated -->
             </div>
 
             <div class="allocation-top-actions">
                 <button class="btn-add-task" onclick="addNewTask(activeTab)">
                     <i class="bi bi-plus-circle"></i>
-                    <span>Add New Task</span>
+                    <span>Add New Assessment</span>
                 </button>
             </div>
 
             <div class="table-scroll-container" id="tableContainer">
-                <!-- Tables will be dynamically generated -->
             </div>
 
             <div class="allocation-footer">
@@ -256,14 +243,15 @@ $courseIdBJson = json_encode($courseIdB);
 
     <div id="successModal" class="custom-modal"></div>
     <div id="resetModal" class="custom-modal"></div>
+    <div id="sendingModal" class="custom-modal"></div>
 
     <script>
-        // --- FILTER RELOAD FUNCTION ---
         function reloadPageWithFilters() {
             // Clear existing allocations
             Object.keys(dateTimeAllocations).forEach(key => {
                 dateTimeAllocations[key] = [];
             });
+            deletions.length = 0;
             
             // Reload due dates with new filters
             loadDueDates();
@@ -272,16 +260,16 @@ $courseIdBJson = json_encode($courseIdB);
         const collapsedWidth = "60px";
         const expandedWidth = "220px";
 
-        const dateTimeAllocations = {}; // Will be populated from database
-        const originalDateTimeAllocations = {}; // Backup of original data for cancel/reset
-        const courses = []; // Will be loaded from database
-        const assessmentsByCourse = {}; // Cache assessments by course_id
-        const courseIdMap = {}; // Maps course code to course_id
+        const dateTimeAllocations = {};
+        const originalDateTimeAllocations = {};
+        const deletions = [];
+        const courses = [];
+        const assessmentsByCourse = {};
+        const courseIdMap = {};
         let activeTab = null;
         let pendingResetTab = null;
         let nextTaskId = 1;
 
-        // Load courses and initialize the page
         async function loadCoursesAndInitialize() {
             try {
                 const response = await fetch('../../../php/phpCoordinator/fetch_courses.php');
@@ -291,7 +279,6 @@ $courseIdBJson = json_encode($courseIdB);
                     courses.length = 0;
                     courses.push(...data.courses);
                     
-                    // Create course ID map
                     courses.forEach(course => {
                         const tabKey = course.course_code.toLowerCase().replace(/[^a-z0-9]/g, '');
                         courseIdMap[tabKey] = course.course_id;
@@ -308,7 +295,6 @@ $courseIdBJson = json_encode($courseIdB);
             }
         }
 
-        // Create tabs dynamically based on courses
         function createTabs() {
             const tabButtons = document.getElementById('tabButtons');
             const tableContainer = document.getElementById('tableContainer');
@@ -358,7 +344,6 @@ $courseIdBJson = json_encode($courseIdB);
             }
         }
 
-        // Load assessments for a course
         async function loadAssessmentsForCourse(courseId) {
             if (assessmentsByCourse[courseId]) {
                 return assessmentsByCourse[courseId];
@@ -379,21 +364,16 @@ $courseIdBJson = json_encode($courseIdB);
             return [];
         }
 
-        // Get FYP_Session_ID from year and semester
         async function getFypSessionId(year, semester) {
             if (!year || !semester) {
                 return null;
             }
             
             try {
-                // Get FYP_Session_IDs for the selected year and semester
-                // We'll use the first matching FYP_Session_ID for the coordinator's courses
                 const response = await fetch(`../../../php/phpCoordinator/fetch_due_dates.php?year=${encodeURIComponent(year)}&semester=${encodeURIComponent(semester)}`);
                 const data = await response.json();
                 
                 if (data.success && data.fyp_session_ids && data.fyp_session_ids.length > 0) {
-                    // Use the first FYP_Session_ID that matches the selected year and semester
-                    // Since all should be for the same year/semester, any one will work
                     return data.fyp_session_ids[0];
                 }
             } catch (error) {
@@ -402,15 +382,13 @@ $courseIdBJson = json_encode($courseIdB);
             return null;
         }
 
-        // Deep copy helper function
         function deepCopy(obj) {
             return JSON.parse(JSON.stringify(obj));
         }
 
-        // Load existing due dates from database
         async function loadDueDates() {
             try {
-                // Clear existing allocations
+                deletions.length = 0;
                 Object.keys(dateTimeAllocations).forEach(key => {
                     dateTimeAllocations[key] = [];
                     originalDateTimeAllocations[key] = [];
@@ -420,7 +398,6 @@ $courseIdBJson = json_encode($courseIdB);
                 const semester = document.getElementById('semesterFilter')?.value || '';
                 
                 if (!year || !semester) {
-                    // If no filters, show empty tables
                     courses.forEach(course => {
                         const tabKey = course.course_code.toLowerCase().replace(/[^a-z0-9]/g, '');
                         renderAllocationTable(tabKey);
@@ -432,11 +409,9 @@ $courseIdBJson = json_encode($courseIdB);
                 const data = await response.json();
                 
                 if (data.success && data.allocations) {
-                    // Only show tasks that have due dates assigned
                     data.allocations.forEach(allocation => {
-                        // Only process if there are due dates
                         if (!allocation.due_dates || allocation.due_dates.length === 0) {
-                            return; // Skip assessments without due dates
+                            return;
                         }
                         
                         const tabKey = allocation.course_code.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -445,7 +420,6 @@ $courseIdBJson = json_encode($courseIdB);
                             dateTimeAllocations[tabKey] = [];
                         }
                         
-                        // Create task entry with due dates
                         const task = {
                             id: nextTaskId++,
                             assessment_id: allocation.assessment_id,
@@ -454,7 +428,6 @@ $courseIdBJson = json_encode($courseIdB);
                             allocations: []
                         };
                         
-                        // Add due dates
                         allocation.due_dates.forEach(dueDate => {
                             task.allocations.push({
                                 due_id: dueDate.due_id || 0,
@@ -470,19 +443,16 @@ $courseIdBJson = json_encode($courseIdB);
                     });
                 }
                 
-                // Create backup of original data for cancel/reset functionality
                 Object.keys(dateTimeAllocations).forEach(key => {
                     originalDateTimeAllocations[key] = deepCopy(dateTimeAllocations[key]);
                 });
                 
-                // Render all tables (will show empty state if no data)
                 courses.forEach(course => {
                     const tabKey = course.course_code.toLowerCase().replace(/[^a-z0-9]/g, '');
                     renderAllocationTable(tabKey);
                 });
             } catch (error) {
                 console.error('Error loading due dates:', error);
-                // On error, show empty tables
                 courses.forEach(course => {
                     const tabKey = course.course_code.toLowerCase().replace(/[^a-z0-9]/g, '');
                     renderAllocationTable(tabKey);
@@ -532,6 +502,29 @@ $courseIdBJson = json_encode($courseIdB);
             document.querySelectorAll('.allocation-table').forEach(table => {
                 table.style.display = table.id === `allocationTable-${tabName}` ? 'table' : 'none';
             });
+        }
+
+        function showSendingModal() {
+            const sendingModal = document.getElementById('sendingModal');
+            if (!sendingModal) return;
+            sendingModal.innerHTML = `
+                <div class="modal-dialog">
+                    <div class="modal-content-custom">
+                        <span class="close-btn" onclick="closeSendingModal()">&times;</span>
+                        <div class="modal-icon"><i class="bi bi-hourglass-split" style="color: #007bff;"></i></div>
+                        <div class="modal-title-custom">Sending Emails...</div>
+                        <div class="modal-message">Please wait while we save and notify lecturers.</div>
+                    </div>
+                </div>`;
+            sendingModal.style.display = 'flex';
+        }
+
+        function closeSendingModal() {
+            const sendingModal = document.getElementById('sendingModal');
+            if (sendingModal) {
+                sendingModal.style.display = 'none';
+                sendingModal.innerHTML = '';
+            }
         }
 
         async function addNewTask(tabName) {
@@ -591,6 +584,10 @@ $courseIdBJson = json_encode($courseIdB);
         function removeAllocation(taskId, allocationIndex, tabName) {
             const task = dateTimeAllocations[tabName].find(item => item.id === taskId);
             if (task) {
+                const alloc = task.allocations[allocationIndex];
+                if (alloc && alloc.due_id > 0) {
+                    deletions.push(alloc.due_id);
+                }
                 if (task.allocations.length > 1) {
                     task.allocations.splice(allocationIndex, 1);
                 } else {
@@ -611,6 +608,12 @@ $courseIdBJson = json_encode($courseIdB);
             const tabTasks = dateTimeAllocations[tabName];
             const index = tabTasks.findIndex(item => item.id === taskId);
             if (index !== -1) {
+                // Mark all existing due_ids under this task for deletion
+                tabTasks[index].allocations.forEach(a => {
+                    if (a.due_id > 0) {
+                        deletions.push(a.due_id);
+                    }
+                });
                 tabTasks.splice(index, 1);
                 renderAllocationTable(tabName);
             }
@@ -671,7 +674,6 @@ $courseIdBJson = json_encode($courseIdB);
                     const row = document.createElement('tr');
 
                     if (allocationIndex === 0) {
-                        // Build assessment dropdown options
                         let assessmentOptions = '<option value="">Select assessment...</option>';
                         assessments.forEach(assessment => {
                             const selected = task.assessment_id === assessment.assessment_id ? 'selected' : '';
@@ -781,6 +783,7 @@ $courseIdBJson = json_encode($courseIdB);
             } else {
                 dateTimeAllocations[pendingResetTab] = [];
             }
+            deletions.length = 0;
             
             renderAllocationTable(pendingResetTab);
             pendingResetTab = null;
@@ -833,6 +836,7 @@ $courseIdBJson = json_encode($courseIdB);
                 return;
             }
             
+            showSendingModal();
             try {
                 const response = await fetch('../../../php/phpCoordinator/save_due_dates.php', {
                     method: 'POST',
@@ -841,14 +845,15 @@ $courseIdBJson = json_encode($courseIdB);
                     },
                     body: JSON.stringify({
                         fyp_session_id: fypSessionId,
-                        allocations: allocationsToSave
+                        allocations: allocationsToSave,
+                        deletions
                     })
                 });
                 
                 const data = await response.json();
                 
                 if (data.success) {
-                    // Show success modal
+                    closeSendingModal();
                     const successModal = document.getElementById('successModal');
                     if (successModal) {
                         successModal.innerHTML = `
@@ -857,7 +862,7 @@ $courseIdBJson = json_encode($courseIdB);
                                     <span class="close-btn" onclick="closeSuccessModal()">&times;</span>
                                     <div class="modal-icon"><i class="bi bi-check-circle-fill"></i></div>
                                     <div class="modal-title-custom">Saved Successfully!</div>
-                                    <div class="modal-message">Task allocations have been saved successfully.</div>
+                                    <div class="modal-message">Task allocations have been saved successfully. Emails are being sent.</div>
                                     <div style="display:flex; justify-content:center;">
                                         <button class="btn btn-success" onclick="closeSuccessModal()">OK</button>
                                     </div>
@@ -866,13 +871,14 @@ $courseIdBJson = json_encode($courseIdB);
                         successModal.style.display = 'flex';
                     }
                     
-                    // Reload data from database to get updated due_ids and refresh backup
                     await loadDueDates();
                 } else {
+                    closeSendingModal();
                     alert('Error saving: ' + (data.error || 'Unknown error'));
                 }
             } catch (error) {
                 console.error('Error saving allocations:', error);
+                closeSendingModal();
                 alert('Error saving allocations: ' + error.message);
             }
         }
@@ -985,34 +991,27 @@ $courseIdBJson = json_encode($courseIdB);
                         }
                     });
 
-                    // CRITICAL: Always ensure coordinator header state is correct
                     const coordinatorHeader = document.querySelector('.role-header[data-role="coordinator"]');
                     const coordinatorMenu = document.querySelector('#coordinatorMenu');
                     
                     if (coordinatorHeader && coordinatorMenu) {
-                        // Coordinator header ALWAYS has active-role on coordinator pages
                         coordinatorHeader.classList.add('active-role');
                         
-                        // If coordinator menu is collapsed, ensure it shows white (remove menu-expanded)
                         if (!coordinatorMenu.classList.contains('expanded')) {
                             coordinatorHeader.classList.remove('menu-expanded');
                         } else {
-                            // If coordinator menu is expanded, ensure it shows normal (add menu-expanded)
                             coordinatorHeader.classList.add('menu-expanded');
                         }
                     }
 
-                    // Remove active-role from all non-coordinator roles (they shouldn't be highlighted on coordinator pages)
                     document.querySelectorAll('.role-header').forEach(h => {
                         const roleType = h.getAttribute('data-role');
-                        // Only keep active-role for coordinator on coordinator pages
                         if (roleType !== 'coordinator') {
                             h.classList.remove('active-role');
                             h.classList.remove('menu-expanded');
                         }
                     });
 
-                    // Toggle current menu
                     if (isExpanded) {
                         menu.classList.remove('expanded');
                         this.classList.remove('menu-expanded');
@@ -1031,8 +1030,6 @@ $courseIdBJson = json_encode($courseIdB);
                         }
                     }
 
-                    // IMPORTANT: After toggling other roles, ensure coordinator header state is maintained
-                    // This ensures coordinator stays white when its menu is collapsed, even when other roles are clicked
                     if (coordinatorHeader && coordinatorMenu && role !== 'coordinator') {
                         coordinatorHeader.classList.add('active-role');
                         if (!coordinatorMenu.classList.contains('expanded')) {
@@ -1042,7 +1039,6 @@ $courseIdBJson = json_encode($courseIdB);
                         }
                     }
 
-                    // Show/hide child links for the current menu (only when sidebar is expanded)
                     const sidebar = document.getElementById("mySidebar");
                     const isSidebarExpanded = sidebar.style.width === expandedWidth;
 

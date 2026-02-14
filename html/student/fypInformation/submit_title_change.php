@@ -119,7 +119,6 @@ if ($success) {
                "Saya yang menjalankan amanah,<br><br>" .
                "<b>Nurul Saidahtul Fatiha binti Shaharudin</b><br>" .
               "<b>Pembangun Sistem FYPAssess</b><br>" .
-              "<b>PutraAssess System</b><br>" .
               "Universiti Putra Malaysia";
     
     // Send email using sendEmail function
