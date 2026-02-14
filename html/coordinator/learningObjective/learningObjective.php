@@ -354,7 +354,7 @@ if ($coordinatorDepartmentId) {
                             <div class="right-actions">
                                 <button class="btn-add-row" onclick="addNewRow('course-<?php echo htmlspecialchars($courseId); ?>')">
                                     <i class="bi bi-plus-circle"></i>
-                                    <span>Add new row</span>
+                                    <span>Add new Assessment</span>
                                 </button>
                                 <div class="download-dropdown">
                                     <button class="btn-download" onclick="toggleDownloadDropdown(event, 'course-<?php echo htmlspecialchars($courseId); ?>')">
@@ -484,6 +484,47 @@ if ($coordinatorDepartmentId) {
             renderTable('course-<?php echo $courseId; ?>');
             <?php endforeach; ?>
             initializeRoleToggle();
+            
+            // Close dropdown when scrolling
+            document.addEventListener('scroll', function() {
+                if (openDropdown && dropdownPortal) {
+                    closeDropdownPortal();
+                }
+            }, { passive: true });
+            
+            // Reposition dropdown on window resize
+            window.addEventListener('resize', function() {
+                if (openDropdown && dropdownPortal) {
+                    const dropdownId = openDropdown;
+                    const parts = dropdownId.split('-');
+                    const itemId = parseInt(parts[parts.length - 2]);
+                    const objIndex = parseInt(parts[parts.length - 1]);
+                    const tabName = parts.slice(1, -2).join('-');
+                    
+                    const originalDropdown = document.getElementById(dropdownId);
+                    const inputWrapper = originalDropdown.parentElement;
+                    const inputElement = inputWrapper.querySelector('.learning-objective-input');
+                    
+                    if (inputElement) {
+                        const rect = inputElement.getBoundingClientRect();
+                        const dropdownHeight = 400;
+                        const spaceBelow = window.innerHeight - rect.bottom;
+                        const spaceAbove = rect.top;
+                        
+                        dropdownPortal.style.left = Math.max(10, rect.left) + 'px';
+                        dropdownPortal.style.width = Math.max(350, Math.min(rect.width, window.innerWidth - 20)) + 'px';
+                        
+                        // Reposition based on available space
+                        if (spaceBelow < dropdownHeight && spaceAbove > spaceBelow) {
+                            dropdownPortal.style.bottom = (window.innerHeight - rect.top + 5) + 'px';
+                            dropdownPortal.style.top = 'auto';
+                        } else {
+                            dropdownPortal.style.top = (rect.bottom + 5) + 'px';
+                            dropdownPortal.style.bottom = 'auto';
+                        }
+                    }
+                }
+            });
         });
 
         // Initialize tabs
@@ -665,11 +706,19 @@ if ($coordinatorDepartmentId) {
 
         // Show learning objective dropdown
         let openDropdown = null;
+        let currentHighlightedOption = null;
+        let dropdownPortal = null;
+        
         function showLearningObjectiveDropdown(itemId, objIndex, tabName) {
             const dropdownId = `dropdown-${tabName}-${itemId}-${objIndex}`;
             const dropdown = document.getElementById(dropdownId);
+            const inputWrapper = dropdown.parentElement;
+            const inputElement = inputWrapper.querySelector('.learning-objective-input');
 
             // Close all other dropdowns
+            if (dropdownPortal && dropdownPortal.parentNode) {
+                dropdownPortal.parentNode.removeChild(dropdownPortal);
+            }
             document.querySelectorAll('.learning-objective-dropdown.show').forEach(menu => {
                 if (menu.id !== dropdownId) {
                     menu.classList.remove('show');
@@ -678,37 +727,269 @@ if ($coordinatorDepartmentId) {
 
             // Toggle current dropdown
             if (dropdown) {
-                dropdown.classList.toggle('show');
-                if (dropdown.classList.contains('show')) {
+                const isCurrentlyShown = dropdown.classList.contains('show');
+                
+                if (!isCurrentlyShown) {
+                    dropdown.classList.add('show');
                     openDropdown = dropdownId;
-                    // Reset search when opening
-                    const searchInput = dropdown.querySelector('.dropdown-search input');
-                    if (searchInput) {
-                        searchInput.value = '';
-                        filterLearningObjectives(itemId, objIndex, tabName, '');
+                    currentHighlightedOption = null;
+                    
+                    // Create dropdown portal in body
+                    dropdownPortal = document.createElement('div');
+                    dropdownPortal.className = 'learning-objective-dropdown show';
+                    dropdownPortal.id = dropdownId + '-portal';
+                    dropdownPortal.dataset.ported = 'true';
+                    
+                    // Get current selected value
+                    const currentValue = inputElement.value;
+                    
+                    // Build dropdown HTML with all options
+                    const searchHTML = `
+                        <div class="dropdown-search">
+                            <i class="bi bi-search"></i>
+                            <input type="text" placeholder="Search learning objective..." />
+                        </div>
+                    `;
+                    
+                    const optionsHTML = `
+                        <div class="dropdown-options" id="options-${dropdownId}-portal">
+                            ${generateLearningObjectiveOptions(currentValue, itemId, objIndex, tabName)}
+                        </div>
+                    `;
+                    
+                    dropdownPortal.innerHTML = searchHTML + optionsHTML;
+                    
+                    // Hide original dropdown
+                    dropdown.style.visibility = 'hidden';
+                    dropdown.style.display = 'none';
+                    
+                    // Append to body
+                    document.body.appendChild(dropdownPortal);
+                    
+                    // Position dropdown using fixed positioning with smart placement
+                    const rect = inputElement.getBoundingClientRect();
+                    const dropdownHeight = 400; // Approximate height for calculation
+                    const spaceBelow = window.innerHeight - rect.bottom;
+                    const spaceAbove = rect.top;
+                    
+                    dropdownPortal.style.position = 'fixed';
+                    dropdownPortal.style.left = Math.max(10, rect.left) + 'px';
+                    dropdownPortal.style.width = Math.max(350, Math.min(rect.width, window.innerWidth - 20)) + 'px';
+                    dropdownPortal.style.margin = '0';
+                    dropdownPortal.style.zIndex = '10000';
+                    
+                    // Place dropdown above or below based on available space
+                    if (spaceBelow < dropdownHeight && spaceAbove > spaceBelow) {
+                        // Place above
+                        dropdownPortal.style.bottom = (window.innerHeight - rect.top + 5) + 'px';
+                        dropdownPortal.style.top = 'auto';
+                    } else {
+                        // Place below (default)
+                        dropdownPortal.style.top = (rect.bottom + 5) + 'px';
+                        dropdownPortal.style.bottom = 'auto';
                     }
+                    
+                    // Get search input and options container
+                    const searchInput = dropdownPortal.querySelector('.dropdown-search input');
+                    const optionsContainer = dropdownPortal.querySelector('.dropdown-options');
+                    
+                    // Add search event listener
+                    if (searchInput) {
+                        searchInput.focus();
+                        searchInput.addEventListener('input', function(e) {
+                            filterLearningObjectivesPortal(itemId, objIndex, tabName, e.target.value, dropdownPortal);
+                        });
+                        
+                        // Add keyboard navigation
+                        searchInput.addEventListener('keydown', function(e) {
+                            handleDropdownKeyNavigationPortal(e, itemId, objIndex, tabName, dropdownPortal);
+                        });
+                    }
+                    
+                    // Add click handlers to options
+                    dropdownPortal.querySelectorAll('.dropdown-option').forEach(option => {
+                        option.addEventListener('click', function(e) {
+                            if (this.style.display !== 'none') {
+                                const value = this.textContent.trim();
+                                selectLearningObjective(value, itemId, objIndex, tabName);
+                                closeDropdownPortal();
+                            }
+                        });
+                    });
                 } else {
-                    openDropdown = null;
+                    // Close dropdown
+                    closeDropdownPortal();
+                }
+            }
+        }
+        
+        function closeDropdownPortal() {
+            if (dropdownPortal && dropdownPortal.parentNode) {
+                dropdownPortal.parentNode.removeChild(dropdownPortal);
+            }
+            if (openDropdown) {
+                const originalDropdown = document.getElementById(openDropdown);
+                if (originalDropdown) {
+                    originalDropdown.classList.remove('show');
+                    originalDropdown.style.visibility = 'visible';
+                    originalDropdown.style.display = '';
+                }
+            }
+            dropdownPortal = null;
+            openDropdown = null;
+            currentHighlightedOption = null;
+        }
+
+        // Handle keyboard navigation in dropdown
+        function handleDropdownKeyNavigation(e, itemId, objIndex, tabName, portalDropdown) {
+            const optionsContainer = portalDropdown ? 
+                portalDropdown.querySelector(`.dropdown-options`) :
+                document.getElementById(`options-${tabName}-${itemId}-${objIndex}`);
+            
+            if (!optionsContainer) return;
+
+            const visibleOptions = Array.from(optionsContainer.querySelectorAll('.dropdown-option:not([style*="display: none"])'));
+            
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (visibleOptions.length === 0) return;
+                
+                if (currentHighlightedOption === null) {
+                    currentHighlightedOption = visibleOptions[0];
+                } else {
+                    const currentIndex = visibleOptions.indexOf(currentHighlightedOption);
+                    if (currentIndex < visibleOptions.length - 1) {
+                        currentHighlightedOption = visibleOptions[currentIndex + 1];
+                    }
+                }
+                
+                highlightOption(currentHighlightedOption, optionsContainer);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (visibleOptions.length === 0) return;
+                
+                if (currentHighlightedOption === null) {
+                    currentHighlightedOption = visibleOptions[visibleOptions.length - 1];
+                } else {
+                    const currentIndex = visibleOptions.indexOf(currentHighlightedOption);
+                    if (currentIndex > 0) {
+                        currentHighlightedOption = visibleOptions[currentIndex - 1];
+                    }
+                }
+                
+                highlightOption(currentHighlightedOption, optionsContainer);
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (currentHighlightedOption) {
+                    currentHighlightedOption.click();
                 }
             }
         }
 
-        // Filter learning objectives
-        function filterLearningObjectives(itemId, objIndex, tabName, searchTerm) {
-            const optionsContainer = document.getElementById(`options-${tabName}-${itemId}-${objIndex}`);
+        // Highlight an option and scroll it into view
+        function highlightOption(option, container) {
+            document.querySelectorAll('.dropdown-option').forEach(opt => {
+                opt.style.backgroundColor = '';
+                opt.style.color = '';
+            });
+            
+            option.style.backgroundColor = '#f0f0f0';
+            option.style.color = '#780000';
+            
+            // Scroll into view
+            option.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        }
+
+        // Filter learning objectives for portal dropdown
+        function filterLearningObjectivesPortal(itemId, objIndex, tabName, searchTerm, portalDropdown) {
+            const optionsContainer = portalDropdown.querySelector('.dropdown-options');
             if (!optionsContainer) return;
 
             const searchLower = searchTerm.toLowerCase();
             const options = optionsContainer.querySelectorAll('.dropdown-option');
+            let visibleCount = 0;
 
             options.forEach(option => {
                 const text = option.textContent.toLowerCase();
                 if (text.includes(searchLower)) {
                     option.style.display = 'block';
+                    visibleCount++;
                 } else {
                     option.style.display = 'none';
                 }
             });
+
+            // If no results, show a message (optional)
+            if (visibleCount === 0 && searchTerm.trim() !== '') {
+                const noResults = optionsContainer.querySelector('.no-results');
+                if (!noResults) {
+                    const msg = document.createElement('div');
+                    msg.className = 'no-results';
+                    msg.textContent = 'No results found';
+                    msg.style.cssText = 'padding: 15px; text-align: center; color: #999; font-style: italic;';
+                    optionsContainer.appendChild(msg);
+                }
+            } else {
+                const noResults = optionsContainer.querySelector('.no-results');
+                if (noResults) noResults.remove();
+            }
+        }
+        
+        // Handle keyboard navigation for portal dropdown
+        function handleDropdownKeyNavigationPortal(e, itemId, objIndex, tabName, portalDropdown) {
+            const optionsContainer = portalDropdown.querySelector('.dropdown-options');
+            if (!optionsContainer) return;
+
+            const visibleOptions = Array.from(optionsContainer.querySelectorAll('.dropdown-option:not([style*="display: none"])'));
+            
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (visibleOptions.length === 0) return;
+                
+                if (currentHighlightedOption === null) {
+                    currentHighlightedOption = visibleOptions[0];
+                } else {
+                    const currentIndex = visibleOptions.indexOf(currentHighlightedOption);
+                    if (currentIndex < visibleOptions.length - 1) {
+                        currentHighlightedOption = visibleOptions[currentIndex + 1];
+                    }
+                }
+                
+                highlightOptionPortal(currentHighlightedOption, optionsContainer);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (visibleOptions.length === 0) return;
+                
+                if (currentHighlightedOption === null) {
+                    currentHighlightedOption = visibleOptions[visibleOptions.length - 1];
+                } else {
+                    const currentIndex = visibleOptions.indexOf(currentHighlightedOption);
+                    if (currentIndex > 0) {
+                        currentHighlightedOption = visibleOptions[currentIndex - 1];
+                    }
+                }
+                
+                highlightOptionPortal(currentHighlightedOption, optionsContainer);
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (currentHighlightedOption) {
+                    currentHighlightedOption.click();
+                }
+            }
+        }
+
+        // Highlight an option in portal and scroll it into view
+        function highlightOptionPortal(option, container) {
+            document.querySelectorAll('.dropdown-option').forEach(opt => {
+                opt.style.backgroundColor = '';
+                opt.style.color = '';
+            });
+            
+            option.style.backgroundColor = '#f0f0f0';
+            option.style.color = '#780000';
+            
+            // Scroll into view
+            option.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
         }
 
         // Select learning objective
@@ -1155,10 +1436,8 @@ if ($coordinatorDepartmentId) {
 
             // Handle learning objective dropdowns
             if (openDropdown && !event.target.closest('.learning-objective-input-wrapper')) {
-                const openDropdownElement = document.getElementById(openDropdown);
-                if (openDropdownElement) {
-                    openDropdownElement.classList.remove('show');
-                    openDropdown = null;
+                if (!event.target.closest('.learning-objective-dropdown')) {
+                    closeDropdownPortal();
                 }
             }
 

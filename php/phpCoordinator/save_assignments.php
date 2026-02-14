@@ -5,17 +5,14 @@ require_once __DIR__ . '/../sendEmail.php';
 require_once __DIR__ . '/../emailConfig.php';
 session_start();
 
-// Ensure only Coordinators can save assignments
 if (!isset($_SESSION['upmId']) || !isset($_SESSION['role']) || $_SESSION['role'] !== 'Coordinator') {
     http_response_code(403);
     echo json_encode(['success' => false, 'message' => 'Unauthorized']);
     exit();
 }
 
-// Load email configuration
 $emailConfig = require __DIR__ . '/../emailConfig.php';
 
-// Read JSON payload
 $input = json_decode(file_get_contents('php://input'), true);
 
 if (!$input || !isset($input['assignments']) || !is_array($input['assignments'])) {
@@ -171,12 +168,9 @@ function upsertStudentEnrollment($conn, $studentId, $fypSessionId, $supervisorId
     }
 }
 
-// Before transaction: Capture OLD state for comparison
-// This will be used to detect changes and determine if emails should be sent
 $oldLecturerAssignments = [];
 $oldQuotas = [];
 
-// Get FYP_Session_IDs from assignments to check old state
 $fypSessionIdsForOld = [];
 if (!empty($assignments)) {
     $firstStudentId = $assignments[0]['id'] ?? '';
@@ -203,7 +197,6 @@ if (!empty($assignments)) {
     }
 }
 
-// Get OLD assignments before saving
 if (!empty($fypSessionIdsForOld)) {
     $sessionPlaceholders = implode(',', array_fill(0, count($fypSessionIdsForOld), '?'));
     $oldEnrollmentQuery = "
@@ -300,7 +293,6 @@ if (!empty($fypSessionIdsForOld)) {
     }
 }
 
-// Start transaction for all assignments
 $conn->begin_transaction();
 $assessorMap = buildAssessorMap($conn);
 
@@ -308,7 +300,6 @@ try {
     $processedKeys = [];
 
     foreach ($assignments as $assignment) {
-        // Use student_id and fyp_session_id from frontend (new structure)
         $studentId      = $assignment['student_id'] ?? ($assignment['id'] ?? '');
         $fypSessionIdFromFrontend = $assignment['fyp_session_id'] ?? null;
         $supervisorId   = $assignment['supervisor_id'] ?? null;   // INT (Supervisor.Supervisor_ID)
@@ -318,7 +309,6 @@ try {
         $assessor1Name  = $assignment['assessor1'] ?? null;
         $assessor2Name  = $assignment['assessor2'] ?? null;
 
-        // Debug logging - log all assignments including nulls
         error_log("DEBUG: Processing Student $studentId");
         error_log("  Supervisor: " . ($supervisorName ?: 'NULL') . ", Supervisor_ID: " . var_export($supervisorId, true));
         error_log("  Assessor1: " . ($assessor1Name ?: 'NULL') . ", Assessor1_ID: " . var_export($assessor1Id, true));
@@ -326,10 +316,9 @@ try {
 
         if (empty($studentId)) {
             error_log("WARNING: Skipping assignment with empty student_id");
-            continue; // Skip invalid entries
+            continue;
         }
 
-        // 1) Find student's FYP_Session_ID from student table (or use provided one)
         $fypSessionId = $fypSessionIdFromFrontend;
         if (empty($fypSessionId)) {
             $lookupStudent = $conn->prepare("SELECT FYP_Session_ID FROM student WHERE Student_ID = ? LIMIT 1");
@@ -348,14 +337,11 @@ try {
             $lookupStudent->close();
         }
 
-        // If student record not found, skip this assignment
         if (empty($fypSessionId)) {
             error_log("WARNING: No FYP_Session_ID found for student $studentId");
             continue;
         }
 
-        // 2) Update supervisor in student table - handle NULL values for clearing
-        // Supervisor follows the session and year - update for current and future sessions
         $updateStudent = $conn->prepare("UPDATE student SET Supervisor_ID = ? WHERE Student_ID = ?");
         if (!$updateStudent) {
             throw new Exception('Prepare failed (updateStudent): ' . $conn->error);
@@ -381,8 +367,6 @@ try {
         error_log("  Resolved Assessor1_ID: " . var_export($assessor1Resolved, true));
         error_log("  Resolved Assessor2_ID: " . var_export($assessor2Resolved, true));
 
-        // 3) Insert or update student_enrollment - this handles NULL values properly
-        //    Ensure Fyp_Session_ID follows student's FYP_Session_ID
         upsertStudentEnrollment(
             $conn,
             $studentId,
@@ -397,8 +381,6 @@ try {
         $processedKeys[$studentId . '_' . $fypSessionId] = true;
     }
 
-    // After processing provided assignments, ensure students from CURRENT SESSION only have enrollment records
-    // Get FYP_Session_IDs from the assignments (only process students from current session/semester)
     $currentSessionIds = [];
     foreach ($assignments as $assignment) {
         $studentId = $assignment['id'] ?? '';
@@ -419,7 +401,6 @@ try {
         }
     }
     
-    // Only process students from the current session(s) - do NOT touch students from other sessions
     if (!empty($currentSessionIds)) {
         $sessionPlaceholders = implode(',', array_fill(0, count($currentSessionIds), '?'));
         $currentStudentsQuery = "
@@ -448,8 +429,6 @@ try {
                     continue; // Already upserted above with fresh data
                 }
 
-                // For students not in the assignment list, preserve existing enrollment data
-                // Check if enrollment exists and preserve assessors
                 $checkExisting = $conn->prepare("
                     SELECT Supervisor_ID, Assessor_ID_1, Assessor_ID_2
                     FROM student_enrollment
@@ -461,7 +440,6 @@ try {
                     $checkExisting->execute();
                     $existingResult = $checkExisting->get_result();
                     if ($existingRow = $existingResult->fetch_assoc()) {
-                        // Use existing enrollment data (preserve assessors)
                         upsertStudentEnrollment(
                             $conn,
                             $studentId,
@@ -471,7 +449,6 @@ try {
                             $existingRow['Assessor_ID_2'] ?? null
                         );
                     } else {
-                        // No existing enrollment - create with supervisor only
                         upsertStudentEnrollment(
                             $conn,
                             $studentId,
@@ -488,12 +465,9 @@ try {
         }
     }
 
-    // Commit all changes
     $conn->commit();
     
-    // After successful save, send email notifications to lecturers
     try {
-        // Get coordinator's department ID
         $coordinatorDepartmentId = null;
         $coordinatorId = $_SESSION['upmId'] ?? null;
         if (!empty($coordinatorId)) {
@@ -510,10 +484,9 @@ try {
             }
         }
         
-        // Get year and semester from the first assignment's FYP_Session_ID
         $year = '';
         $semester = '';
-        $courseCode = ''; // This will be the first course code encountered
+        $courseCode = '';
         $firstAssignmentSessionId = null;
         
         foreach ($assignments as $assignment) {
@@ -543,8 +516,6 @@ try {
             }
         }
         
-        // Now get ALL FYP_Session_IDs that match this year and semester
-        // This ensures we fetch all course codes for the same year/semester
         $fypSessionIds = [];
         if (!empty($year) && !empty($semester)) {
             $allSessionsQuery = "SELECT DISTINCT FYP_Session_ID 
@@ -562,14 +533,11 @@ try {
             }
         }
         
-        // Collect lecturer assignments: supervisors and assessors with their students
-        $lecturerAssignments = []; // Key: Lecturer_ID, Value: {name, lecturer_id, supervisor_students: [], assessor_students: [], course_codes: [], quota: 0, remaining_quota: 0}
+        $lecturerAssignments = [];
         
-        // Get all student enrollments for THIS specific session only
         if (!empty($fypSessionIds)) {
             $sessionPlaceholders = implode(',', array_fill(0, count($fypSessionIds), '?'));
             
-            // Use the year and semester we already retrieved above
             $currentYear = $year;
             $currentSemester = $semester;
             
@@ -595,12 +563,10 @@ try {
                 LEFT JOIN lecturer l3 ON a2.Lecturer_ID = l3.Lecturer_ID
                 WHERE se.Fyp_Session_ID IN ($sessionPlaceholders)";
             
-            // Add filter for current year and semester if available
             if (!empty($currentYear) && !empty($currentSemester)) {
                 $enrollmentQuery .= " AND fs.FYP_Session = ? AND fs.Semester = ?";
             }
             
-            // Add department filter - only include lecturers from the same department
             if (!empty($coordinatorDepartmentId)) {
                 $enrollmentQuery .= " AND (l1.Department_ID = ? OR l2.Department_ID = ? OR l3.Department_ID = ?)";
             }
@@ -739,13 +705,10 @@ try {
                 }
                 $stmtEnroll->close();
                 
-                // Get quota information for supervisors
                 if (!empty($lecturerAssignments)) {
                     $lecturerIds = array_keys($lecturerAssignments);
                     $placeholders = implode(',', array_fill(0, count($lecturerIds), '?'));
                     
-                    // Get quota for each lecturer (only supervisors have quotas)
-                    // Use the first FYP_Session_ID (quota is the same across all courses for a session)
                     if (!empty($fypSessionIds)) {
                         $fypSessionId = $fypSessionIds[0]; // Use first session ID for quota lookup
                         $quotaQuery = "
@@ -777,25 +740,17 @@ try {
                     }
                 }
                 
-                // Determine if this is first distribution
-                // First distribution: no lecturers had student assignments before (oldLecturerAssignments is empty)
-                // OR we're assigning all students for the first time in this session
                 $isFirstDistribution = empty($oldLecturerAssignments);
                 
-                // Also need to get OLD quotas for ALL supervisors in the session to detect quota changes
-                // (not just those who had assignments before)
                 $allSupervisorLecturerIds = [];
                 foreach ($lecturerAssignments as $lecId => $lecData) {
-                    // Check if this lecturer is a supervisor (has supervisor_students OR has quota > 0)
                     if (!empty($lecData['supervisor_students']) || $lecData['quota'] > 0) {
                         if (!isset($oldQuotas[$lecId]) && !empty($fypSessionIds)) {
-                            // Need to check old quota even if they weren't in oldLecturerAssignments
                             $allSupervisorLecturerIds[] = $lecId;
                         }
                     }
                 }
                 
-                // Get old quotas for supervisors not in oldLecturerAssignments
                 if (!empty($allSupervisorLecturerIds) && !empty($fypSessionIds)) {
                     $newSupervisorIds = array_diff($allSupervisorLecturerIds, array_keys($oldQuotas));
                     if (!empty($newSupervisorIds)) {
@@ -823,7 +778,6 @@ try {
                     }
                 }
                 
-                // Find lecturers with changes (quota changed OR student assignments changed)
                 $lecturersWithChanges = [];
                 foreach ($lecturerAssignments as $lecId => $lecData) {
                     if (empty($lecData['lecturer_name'])) {
@@ -832,14 +786,12 @@ try {
                     
                     $hasChanges = false;
                     
-                    // Check if quota changed
                     $oldQuota = $oldQuotas[$lecId] ?? 0;
                     $newQuota = $lecData['quota'];
                     if ($oldQuota != $newQuota) {
                         $hasChanges = true;
                     }
                     
-                    // Check if supervisor assignments changed
                     $oldSupervisorStudents = isset($oldLecturerAssignments[$lecId]) ? 
                         $oldLecturerAssignments[$lecId]['supervisor_students'] : [];
                     $newSupervisorStudents = array_map(function($s) { return $s['id']; }, $lecData['supervisor_students']);
@@ -849,7 +801,6 @@ try {
                         $hasChanges = true;
                     }
                     
-                    // Check if assessor assignments changed
                     $oldAssessorStudents = isset($oldLecturerAssignments[$lecId]) ? 
                         $oldLecturerAssignments[$lecId]['assessor_students'] : [];
                     $newAssessorStudents = array_map(function($s) { return $s['id']; }, $lecData['assessor_students']);
@@ -859,7 +810,6 @@ try {
                         $hasChanges = true;
                     }
                     
-                    // For first distribution, include all lecturers with assignments
                     if ($isFirstDistribution && (!empty($lecData['supervisor_students']) || !empty($lecData['assessor_students']))) {
                         $hasChanges = true;
                     }
@@ -869,35 +819,24 @@ try {
                     }
                 }
 
-                // Even if no differences were detected (e.g., user clicked Save without
-                // changing assignments), still notify all lecturers involved in the
-                // current session. This keeps the email behaviour consistent with the
-                // Save action and surfaces issues like SMTP failures instead of silently
-                // exiting early.
                 if (empty($lecturersWithChanges)) {
                     $lecturersWithChanges = $lecturerAssignments;
                 }
                 
-                // Send emails only to lecturers with changes (or all if first distribution)
                 $emailResults = [];
                 foreach ($lecturersWithChanges as $lecId => $lecData) {
-                    // FOR TESTING: Always send to test email
                     $lecturerEmail = '214673@student.upm.edu.my';
                     $originalEmail = $lecData['lecturer_id'] . '@upm.edu.my';
                     
-                    // Log which lecturer this email is intended for
                     error_log("Sending email for lecturer: " . $lecData['lecturer_name'] . " (Original: $originalEmail, Sent to: $lecturerEmail)");
                     
-                    // Get course codes for this lecturer (only if supervising/assessing multiple courses)
                     $allCourseCodesForLecturer = !empty($lecData['course_codes']) ? $lecData['course_codes'] : [$courseCode];
                     $courseCodeDisplay = count($allCourseCodesForLecturer) > 1 ? 
                         implode(', ', $allCourseCodesForLecturer) : $courseCode;
                     
-                    // Build student lists grouped by course code (only show course if lecturer has multiple)
                     $supervisorListHtml = '';
                     if (!empty($lecData['supervisor_students'])) {
                         if (count($allCourseCodesForLecturer) > 1) {
-                            // Group students by course code
                             $supervisorsByCode = [];
                             foreach ($lecData['supervisor_students'] as $student) {
                                 $code = $student['course_code'] ?? 'Unknown';
@@ -917,7 +856,6 @@ try {
                                 $supervisorListHtml .= '</ul>';
                             }
                         } else {
-                            // Single course code - list without course header
                             $supervisorListHtml = '<ul style="margin: 5px 0; padding-left: 20px;">';
                             foreach ($lecData['supervisor_students'] as $student) {
                                 $supervisorListHtml .= '<li>' . htmlspecialchars($student['name']) . ' (' . htmlspecialchars($student['id']) . ')</li>';
@@ -931,7 +869,6 @@ try {
                     $assessorListHtml = '';
                     if (!empty($lecData['assessor_students'])) {
                         if (count($allCourseCodesForLecturer) > 1) {
-                            // Group students by course code
                             $assessorsByCode = [];
                             foreach ($lecData['assessor_students'] as $student) {
                                 $code = $student['course_code'] ?? 'Unknown';
@@ -951,7 +888,6 @@ try {
                                 $assessorListHtml .= '</ul>';
                             }
                         } else {
-                            // Single course code - list without course header
                             $assessorListHtml = '<ul style="margin: 5px 0; padding-left: 20px;">';
                             foreach ($lecData['assessor_students'] as $student) {
                                 $assessorListHtml .= '<li>' . htmlspecialchars($student['name']) . ' (' . htmlspecialchars($student['id']) . ')</li>';
@@ -962,13 +898,10 @@ try {
                         $assessorListHtml = '<p style="color: #999; font-style: italic;">Tiada pelajar untuk dinilai.</p>';
                     }
                     
-                    // Create email subject and message
                     $subject = "Maklumat Pengagihan Pelajar - " . $courseCodeDisplay . " (" . $year . "/" . $semester . ")";
                     
-                    // Add original recipient info in subject for testing
                     $subject .= " [FOR: " . $lecData['lecturer_name'] . "]";
                     
-                    // HTML email message
                     $message = "<b>Assalamualaikum Warahmatullahi Wabarakatuh dan Salam Sejahtera,</b><br><br>" .
                                "<b>YBhg. Dato'/Datin/Prof./Dr./Tuan/Puan " . htmlspecialchars($lecData['lecturer_name']) . ",</b><br><br>" .
                                "<b>MAKLUMAT PENGAGIHAN PELAJAR</b><br><br>" .
@@ -993,7 +926,6 @@ try {
                                "<hr style='border: 1px solid #ccc; margin: 20px 0;'>" .
                                "<p style='color: #666; font-size: 12px;'><b>TESTING MODE:</b> This email was originally intended for: " . htmlspecialchars($originalEmail) . "</p>";
                     
-                    // Send email
                     $emailResult = sendEmail(
                         $lecturerEmail,
                         $subject,
@@ -1009,7 +941,6 @@ try {
                         'message' => $emailResult['message'] ?? ''
                     ];
                     
-                    // Log email sending result
                     if ($emailResult['success']) {
                         error_log("Successfully sent assignment notification for {$lecData['lecturer_name']} to $lecturerEmail");
                     } else {
@@ -1019,7 +950,6 @@ try {
             }
         }
     } catch (Exception $emailEx) {
-        // Log email errors but don't fail the save operation
         error_log("Error sending assignment notification emails: " . $emailEx->getMessage());
     }
 

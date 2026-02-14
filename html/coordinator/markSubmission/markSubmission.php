@@ -337,11 +337,15 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
                             </div>
                         </div>
 
-                                                    <div class="student-click-hint" data-tab="swe4949a">Click on a student name to view their supervisor and assessors. 
+                                                    <div class="student-click-hint" data-tab="swe4949a">
+                                                        Click on the Student's Marks Overview dropdown to switch to Lecturer Progress.
+                                                        <br><br>Click on a student name to view their supervisor and assessors. 
                                                         <br><br>
                                                         Hover over the assessment to see more details.
                                                     </div>
-                                                    <div class="lecturer-click-hint" data-tab="swe4949a">Click on a lecturer name to view the students they supervise or assess.
+                                                    <div class="lecturer-click-hint" data-tab="swe4949a">
+                                                    Click on the Lecturer Progress dropdown to switch to Student's Marks Overview.<br><br>    
+                                                    Click on a lecturer name to view the students they supervise or assess.
                                                         <br><br>
                                                       Hover over the assessment to see more details.
                                                     </div>
@@ -410,11 +414,15 @@ $selectedSemesterJson = json_encode($selectedSemester ?? '');
                 
                         </div>
                         </div>
-                         <div class="student-click-hint" data-tab="swe4949b">Click on a student name to view their supervisor and assessors.
+                         <div class="student-click-hint" data-tab="swe4949b">
+                            Click on the Student's Marks Overview dropdown to switch to Lecturer Progress.<br><br>
+                            Click on a student name to view their supervisor and assessors.
                             <br><br>
                                                         Hover over the assessment to see more details.
                          </div>
-                         <div class="lecturer-click-hint" data-tab="swe4949b">Click on a lecturer name to view the students they supervise or assess.
+                         <div class="lecturer-click-hint" data-tab="swe4949b">
+                            Click on the Lecturer Progress dropdown to switch to Student's Marks Overview.<br><br>
+                            Click on a lecturer name to view the students they supervise or assess.
                             <br><br>
                                                         Hover over the assessment to see more details.
                                                    

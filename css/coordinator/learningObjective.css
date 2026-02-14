@@ -55,6 +55,8 @@
   display: flex;
   flex-direction: column;
   gap: 15px;
+  position: relative;
+  z-index: 1;
 }
 
 /* Course Info Header */
@@ -118,6 +120,8 @@
   background-color: #ffffff;
   border: 1px solid #e0e0e0;
   padding: 0;
+  position: relative;
+  z-index: 1;
 }
 
 /* Custom scrollbar styling - Grey like logbook */
@@ -407,19 +411,17 @@
 
 /* Learning Objective Dropdown */
 .learning-objective-dropdown {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
+  position: fixed;
   background-color: white;
   border: 2px solid #ddd;
   border-radius: 8px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 10000;
   display: none;
-  margin-top: 5px;
-  max-height: 300px;
+  min-width: 350px;
+  max-height: 80vh;
   overflow: hidden;
+  max-width: 90vw;
 }
 
 .learning-objective-dropdown.show {
@@ -455,31 +457,68 @@
 }
 
 .dropdown-options {
-  max-height: 250px;
-  overflow-y: auto;
+  max-height: calc(80vh - 60px);
+  overflow-y: scroll;
+  overflow-x: hidden;
+  padding-right: 4px;
+}
+
+/* Scrollbar styling for dropdown options */
+.dropdown-options {
+  scrollbar-width: auto;
+  scrollbar-color: #999 #f5f5f5;
+}
+
+.dropdown-options::-webkit-scrollbar {
+  width: 10px;
+}
+
+.dropdown-options::-webkit-scrollbar-track {
+  background: #f5f5f5;
+  border-radius: 4px;
+  margin: 5px 0;
+}
+
+.dropdown-options::-webkit-scrollbar-thumb {
+  background: #999;
+  border-radius: 4px;
+  border: 2px solid #f5f5f5;
+}
+
+.dropdown-options::-webkit-scrollbar-thumb:hover {
+  background: #666;
 }
 
 .dropdown-option {
-  padding: 10px 15px;
+  padding: 12px 15px;
   cursor: pointer;
   font-size: 14px;
   font-family: 'Montserrat', Arial, sans-serif;
   color: #333;
-  transition: background-color 0.2s;
+  transition: background-color 0.15s ease;
+  border-bottom: 1px solid #f0f0f0;
+  white-space: normal;
+  word-wrap: break-word;
+  line-height: 1.4;
+}
+
+.dropdown-option:last-child {
+  border-bottom: none;
 }
 
 .dropdown-option:hover {
-  background-color: #f8f9fa;
+  background-color: #f0f0f0;
+  color: #780000;
 }
 
 .dropdown-option.selected {
   background-color: #780000;
   color: white;
+  font-weight: 500;
 }
 
-.dropdown-option.disabled {
-  color: #999;
-  cursor: not-allowed;
+.dropdown-option.selected:hover {
+  background-color: #5a0000;
 }
 
 /* Marks Input */

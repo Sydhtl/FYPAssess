@@ -204,7 +204,7 @@ if ($tableExists && $tableExists->num_rows > 0) {
                     </div>
                     <?php if ($isRegisteredCourse1): ?>
                     <a href="add_logbook.php?section=A&course_id=<?php echo $course1['Course_ID']; ?>" class="btn btn-outline-dark add-row-btn" style="background-color: white; color: black;">
-                        <i class="bi bi-plus-circle" style="margin-right: 8px; color: black;"></i>Add new row
+                        <i class="bi bi-plus-circle" style="margin-right: 8px; color: black;"></i>Add New Logbook
                     </a>
                     <?php endif; ?>
                 </div>
@@ -249,7 +249,7 @@ if ($tableExists && $tableExists->num_rows > 0) {
                     </div>
                     <?php if ($isRegisteredCourse2): ?>
                     <a href="add_logbook.php?section=B&course_id=<?php echo $course2['Course_ID']; ?>" class="btn btn-outline-dark add-row-btn" style="background-color: white; color: black;">
-                        <i class="bi bi-plus-circle" style="margin-right: 8px; color: black;"></i>Add new row
+                        <i class="bi bi-plus-circle" style="margin-right: 8px; color: black;"></i>Add New Logbook
                     </a>
                     <?php endif; ?>
                 </div>
