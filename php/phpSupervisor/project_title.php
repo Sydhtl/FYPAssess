@@ -15,28 +15,31 @@ $activeRole = isset($_GET['role']) ? $_GET['role'] : 'supervisor';
 $moduleTitle = ucfirst($activeRole) . " Module";
 
 // 3. FETCH COURSE INFO
-$courseCode = "SWE4949A";
-$courseSession = "2024/2025 - 2";
-
-$sqlSession = "SELECT fs.FYP_Session, fs.Semester, c.Course_Code 
-               FROM fyp_session fs
-               JOIN course c ON fs.Course_ID = c.Course_ID
-               ORDER BY fs.FYP_Session DESC, fs.Semester DESC
-               LIMIT 1";
-
-$resultSession = $conn->query($sqlSession);
-if ($resultSession && $resultSession->num_rows > 0) {
-    $sessionRow = $resultSession->fetch_assoc();
-    $courseCode = $sessionRow['Course_Code'];
-    $courseSession = $sessionRow['FYP_Session'] . " - " . $sessionRow['Semester'];
-}
+// HARDCODED: Using FYP_Session_ID 1 and 2 for 2024/2025 sessions
+$courseCode = "SWE4949";
+$courseSession = "2024/2025 - 1";
+$latestSessionID = 1; // Hardcoded to session 1
 
 // A. Get Login ID 
-if (isset($_SESSION['user_id'])) {
-    $loginID = $_SESSION['user_id'];
+if (isset($_SESSION['upmId'])) {
+    $loginID = $_SESSION['upmId'];
 } else {
     $loginID = 'hazura'; // Fallback
 }
+
+// Check if user has Coordinator role
+$userRole = isset($_SESSION['role']) ? $_SESSION['role'] : '';
+$isCoordinator = ($userRole === 'Coordinator');
+
+// Get lecturer full name
+$lecturerName = $loginID; // Default fallback
+$stmtName = $conn->prepare("SELECT Lecturer_Name FROM lecturer WHERE Lecturer_ID = ?");
+$stmtName->bind_param("s", $loginID);
+$stmtName->execute();
+if ($rowName = $stmtName->get_result()->fetch_assoc()) {
+    $lecturerName = $rowName['Lecturer_Name'];
+}
+$stmtName->close();
 
 // B. Lookup Numeric ID
 $currentUserID = null;
@@ -54,8 +57,8 @@ if ($activeRole === 'supervisor') {
         $currentUserID = $row['Assessor_ID'];
 }
 
-// Fetch distinct FYP Sessions for the Sidebar Filter
-$session_sql = "SELECT DISTINCT FYP_Session FROM fyp_session ORDER BY FYP_Session DESC";
+// Fetch distinct FYP Sessions for the Sidebar Filter (Semester 2 only)
+$session_sql = "SELECT DISTINCT FYP_Session FROM fyp_session WHERE Semester = '2' ORDER BY FYP_Session DESC";
 $session_result = $conn->query($session_sql);
 ?>
 
@@ -85,7 +88,7 @@ $session_result = $conn->query($session_sql);
                 Close <span class="x-symbol">x</span>
             </a>
 
-            <span id="nameSide">HI, <?php echo strtoupper($loginID); ?></span>
+            <span id="nameSide">Hi, <?php echo ucwords(strtolower($lecturerName)); ?></span>
 
             <a href="javascript:void(0)"
                 class="role-header <?php echo ($activeRole == 'supervisor') ? 'menu-expanded' : ''; ?>"
@@ -96,7 +99,7 @@ $session_result = $conn->query($session_sql);
 
             <div id="supervisorMenu" class="menu-items <?php echo ($activeRole == 'supervisor') ? 'expanded' : ''; ?>">
                 <a href="dashboard.php?role=supervisor" id="dashboard"
-                    class="<?php echo ($activeRole == 'supervisor') ? : ''; ?>">
+                    class="<?php echo ($activeRole == 'supervisor') ?: ''; ?>">
                     <i class="bi bi-house-fill icon-padding"></i> Dashboard
                 </a>
 
@@ -105,7 +108,7 @@ $session_result = $conn->query($session_sql);
                     class="<?php echo ($activeRole == 'supervisor') ?: ''; ?>"><i
                         class="bi bi-bell-fill icon-padding"></i> Notification</a>
                 <a href="industry_collaboration.php?role=supervisor" id="industryCollaboration"
-                    class="<?php echo ($activeRole == 'supervisor') ? : ''; ?>">
+                    class="<?php echo ($activeRole == 'supervisor') ?: ''; ?>">
                     <i class="bi bi-calendar-check-fill icon-padding"></i> Industry Collaboration
                 </a>
                 <a href="../phpAssessor_Supervisor/evaluation_form.php?role=supervisor" id="evaluationForm"
@@ -113,15 +116,15 @@ $session_result = $conn->query($session_sql);
                     <i class="bi bi-file-earmark-text-fill icon-padding"></i> Evaluation Form
                 </a>
                 <a href="report.php?role=supervisor" id="superviseesReport"
-                    class="<?php echo ($activeRole == 'supervisor') ? : ''; ?>">
+                    class="<?php echo ($activeRole == 'supervisor') ?: ''; ?>">
                     <i class="bi bi-bar-chart-fill icon-padding"></i> Supervisee's Report
                 </a>
                 <a href="logbook_submission.php?role=supervisor" id="logbookSubmission"
-                    class="<?php echo ($activeRole == 'supervisor') ? : ''; ?>">
+                    class="<?php echo ($activeRole == 'supervisor') ?: ''; ?>">
                     <i class="bi bi-calendar-check-fill icon-padding"></i> Logbook Submission
                 </a>
                 <a href="signature_submission.php?role=supervisor" id="signatureSubmission"
-                    class="<?php echo ($activeRole == 'supervisor') ? : ''; ?>">
+                    class="<?php echo ($activeRole == 'supervisor') ?: ''; ?>">
                     <i class="bi bi-calendar-check-fill icon-padding"></i> Signature Submission
                 </a>
 
@@ -139,7 +142,7 @@ $session_result = $conn->query($session_sql);
             </a>
 
             <div id="assessorMenu" class="menu-items <?php echo ($activeRole == 'assessor') ? 'expanded' : ''; ?>">
-                <a href="../phpAssessor/dashboard.php?role=supervisor" id="Dashboard"
+                <a href="../phpAssessor/dashboard.php?role=assessor" id="Dashboard"
                     class="<?php echo ($activeRole == 'supervisor') ?: ''; ?>"><i
                         class="bi bi-house-fill icon-padding"></i>
                     Dashboard</a>
@@ -147,12 +150,47 @@ $session_result = $conn->query($session_sql);
                     class="<?php echo ($activeRole == 'supervisor') ?: ''; ?>"><i
                         class="bi bi-bell-fill icon-padding"></i> Notification</a>
                 <a href="../phpAssessor_Supervisor/evaluation_form.php?role=assessor" id="AssessorEvaluationForm"
-                    class="<?php echo ($activeRole == 'assessor') ? : ''; ?>">
+                    class="<?php echo ($activeRole == 'assessor') ?: ''; ?>">
                     <i class="bi bi-file-earmark-text-fill icon-padding"></i> Evaluation Form
                 </a>
             </div>
+            <?php if ($isCoordinator): ?>
+                <a href="javascript:void(0)"
+                    class="role-header <?php echo ($activeRole == 'coordinator') ? 'menu-expanded' : ''; ?>"
+                    data-target="coordinatorMenu" onclick="toggleMenu('coordinatorMenu', this)">
+                    <span class="role-text">Coordinator</span>
+                    <span class="arrow-container"><i class="bi bi-chevron-right arrow-icon"></i></span>
+                </a>
 
-            <a href="../login.php" id="logout"><i class="bi bi-box-arrow-left" style="padding-right: 10px;"></i> Logout</a>
+                <div id="coordinatorMenu"
+                    class="menu-items <?php echo ($activeRole == 'coordinator') ? 'expanded' : ''; ?>">
+                    <a href="../../html/coordinator/dashboard/dashboardCoordinator.php" id="CoordinatorDashboard">
+                        <i class="bi bi-house-fill icon-padding"></i> Dashboard
+                    </a>
+                    <a href="../../html/coordinator/notification/notification.php" id="CoordinatorNotification">
+                        <i class="bi bi-bell-fill icon-padding"></i> Notification
+                    </a>
+                    <a href="../../html/coordinator/studentAssignation/studentAssignation.php" id="StudentAssignation">
+                        <i class="bi bi-people-fill icon-padding"></i> Student Assignation
+                    </a>
+                    <a href="../../html/coordinator/dateTimeAllocation/dateTimeAllocation.php" id="DateTimeAllocation">
+                        <i class="bi bi-calendar-check-fill icon-padding"></i> Date & Time Allocation
+                    </a>
+                    <a href="../../html/coordinator/learningObjective/learningObjective.php" id="LearningObjective">
+                        <i class="bi bi-book-fill icon-padding"></i> Learning Objective
+                    </a>
+                    <a href="../../html/coordinator/markSubmission/markSubmission.php" id="MarkSubmission">
+                        <i class="bi bi-file-earmark-check-fill icon-padding"></i> Mark Submission
+                    </a>
+                    <a href="../../html/coordinator/signatureSubmission/signatureSubmission.php"
+                        id="CoordinatorSignatureSubmission">
+                        <i class="bi bi-pen-fill icon-padding"></i> Signature Submission
+                    </a>
+                </div>
+            <?php endif; ?>
+
+            <a href="../login.php" id="logout"><i class="bi bi-box-arrow-left" style="padding-right: 10px;"></i>
+                Logout</a>
         </div>
     </div>
 

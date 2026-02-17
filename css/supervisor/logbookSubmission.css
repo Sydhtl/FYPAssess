@@ -95,7 +95,7 @@
   grid-column: 1;
   flex-direction: column;
   align-items: flex-start;
-  justify-content: center;
+  justify-content: flex-start;
 }
 .meeting-col {
   grid-column: 2;

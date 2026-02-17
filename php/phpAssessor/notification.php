@@ -15,21 +15,10 @@ $activeRole = isset($_GET['role']) ? $_GET['role'] : 'assessor';
 $moduleTitle = ucfirst($activeRole) . " Module";
 
 // 3. FETCH COURSE INFO
-$courseCode = "SWE4949A";
-$courseSession = "2024/2025 - 2";
-
-$sqlSession = "SELECT fs.FYP_Session, fs.Semester, c.Course_Code 
-               FROM fyp_session fs
-               JOIN course c ON fs.Course_ID = c.Course_ID
-               ORDER BY fs.FYP_Session DESC, fs.Semester DESC
-               LIMIT 1";
-
-$resultSession = $conn->query($sqlSession);
-if ($resultSession && $resultSession->num_rows > 0) {
-    $sessionRow = $resultSession->fetch_assoc();
-    $courseCode = $sessionRow['Course_Code'];
-    $courseSession = $sessionRow['FYP_Session'] . " - " . $sessionRow['Semester'];
-}
+// HARDCODED: Using FYP_Session_ID 1 and 2 for 2024/2025 sessions
+$courseCode = "SWE4949";
+$courseSession = "2024/2025 - 1";
+$latestSessionID = 1; // Hardcoded to session 1
 
 // A. Get Login ID 
 if (isset($_SESSION['upmId'])) {
@@ -37,6 +26,70 @@ if (isset($_SESSION['upmId'])) {
 } else {
     $loginID = 'hazura'; // Fallback
 }
+
+// Check if user has Coordinator role
+$userRole = isset($_SESSION['role']) ? $_SESSION['role'] : '';
+$isCoordinator = ($userRole === 'Coordinator');
+
+// Get lecturer full name
+$lecturerName = $loginID; // Default fallback
+$stmtName = $conn->prepare("SELECT Lecturer_Name FROM lecturer WHERE Lecturer_ID = ?");
+$stmtName->bind_param("s", $loginID);
+$stmtName->execute();
+if ($rowName = $stmtName->get_result()->fetch_assoc()) {
+    $lecturerName = $rowName['Lecturer_Name'];
+}
+$stmtName->close();
+
+// B. Lookup Numeric ID
+$currentUserID = null;
+if ($activeRole === 'assessor') {
+    $stmt = $conn->prepare("SELECT Assessor_ID FROM assessor WHERE Lecturer_ID = ?");
+    $stmt->bind_param("s", $loginID);
+    $stmt->execute();
+    if ($row = $stmt->get_result()->fetch_assoc())
+        $currentUserID = $row['Assessor_ID'];
+}
+
+// C. Fetch Presentation Assessment Notifications
+$presentationNotifications = [];
+if ($activeRole === 'assessor' && $currentUserID) {
+    // HARDCODED: Using session 1 (no need to fetch)
+
+    // Fetch presentation schedules for assessor (Assessment IDs 2 and 3)
+    $sqlPresentationNotif = "
+        SELECT DISTINCT
+            asess.Session_ID,
+            asess.Date,
+            asess.Time,
+            asess.Venue,
+            s.Student_ID,
+            s.Student_Name,
+            a.Assessment_Name,
+            a.Assessment_ID
+        FROM student_enrollment se
+        JOIN student s ON se.Student_ID = s.Student_ID
+        JOIN student_session ss ON s.Student_ID = ss.Student_ID
+        JOIN assessment_session asess ON ss.Session_ID = asess.Session_ID
+        JOIN assessment a ON asess.Assessment_ID = a.Assessment_ID
+        WHERE (se.Assessor_ID_1 = ? OR se.Assessor_ID_2 = ?)
+            AND a.Assessment_ID IN (2, 3)
+            AND asess.Date >= CURDATE()
+        ORDER BY asess.Date ASC, asess.Time ASC
+    ";
+
+    $stmtPresentation = $conn->prepare($sqlPresentationNotif);
+    $stmtPresentation->bind_param("ii", $currentUserID, $currentUserID);
+    $stmtPresentation->execute();
+    $resultPresentation = $stmtPresentation->get_result();
+
+    while ($row = $resultPresentation->fetch_assoc()) {
+        $presentationNotifications[] = $row;
+    }
+    $stmtPresentation->close();
+}
+
+$totalNotifications = count($presentationNotifications);
 ?>
 <!DOCTYPE html>
 <html>
@@ -63,7 +116,7 @@ if (isset($_SESSION['upmId'])) {
                 Close <span class="x-symbol">x</span>
             </a>
 
-            <span id="nameSide">HI, <?php echo strtoupper($loginID); ?></span>
+            <span id="nameSide">Hi, <?php echo ucwords(strtolower($lecturerName)); ?></span>
 
             <a href="javascript:void(0)"
                 class="role-header <?php echo ($activeRole == 'supervisor') ? 'menu-expanded' : ''; ?>"
@@ -126,10 +179,45 @@ if (isset($_SESSION['upmId'])) {
                     <i class="bi bi-file-earmark-text-fill icon-padding"></i> Evaluation Form
                 </a>
             </div>
+            <?php if ($isCoordinator): ?>
+                <a href="javascript:void(0)"
+                    class="role-header <?php echo ($activeRole == 'coordinator') ? 'menu-expanded' : ''; ?>"
+                    data-target="coordinatorMenu" onclick="toggleMenu('coordinatorMenu', this)">
+                    <span class="role-text">Coordinator</span>
+                    <span class="arrow-container"><i class="bi bi-chevron-right arrow-icon"></i></span>
+                </a>
+
+                <div id="coordinatorMenu"
+                    class="menu-items <?php echo ($activeRole == 'coordinator') ? 'expanded' : ''; ?>">
+                    <a href="../../html/coordinator/dashboard/dashboardCoordinator.php" id="CoordinatorDashboard">
+                        <i class="bi bi-house-fill icon-padding"></i> Dashboard
+                    </a>
+                    <a href="../../html/coordinator/notification/notification.php" id="CoordinatorNotification">
+                        <i class="bi bi-bell-fill icon-padding"></i> Notification
+                    </a>
+                    <a href="../../html/coordinator/studentAssignation/studentAssignation.php" id="StudentAssignation">
+                        <i class="bi bi-people-fill icon-padding"></i> Student Assignation
+                    </a>
+                    <a href="../../html/coordinator/dateTimeAllocation/dateTimeAllocation.php" id="DateTimeAllocation">
+                        <i class="bi bi-calendar-check-fill icon-padding"></i> Date & Time Allocation
+                    </a>
+                    <a href="../../html/coordinator/learningObjective/learningObjective.php" id="LearningObjective">
+                        <i class="bi bi-book-fill icon-padding"></i> Learning Objective
+                    </a>
+                    <a href="../../html/coordinator/markSubmission/markSubmission.php" id="MarkSubmission">
+                        <i class="bi bi-file-earmark-check-fill icon-padding"></i> Mark Submission
+                    </a>
+                    <a href="../../html/coordinator/signatureSubmission/signatureSubmission.php"
+                        id="CoordinatorSignatureSubmission">
+                        <i class="bi bi-pen-fill icon-padding"></i> Signature Submission
+                    </a>
+                </div>
+            <?php endif; ?>
             <a href="#" id="logout">
                 <i class="bi bi-box-arrow-left" style="padding-right: 10px;"></i> Logout
             </a>
         </div>
+
     </div>
 
     <div id="containerAtas" class="containerAtas">
@@ -154,49 +242,37 @@ if (isset($_SESSION['upmId'])) {
         <div class="notification-container">
             <h1 class="page-title">Notification</h1>
 
-            <!-- Notification Item 1 -->
-            <div class="notification-item">
-                <div class="notification-description">
-                    <span class="notif-number">1.</span> You have been assigned to a new evaluation task. Please review
-                    the details and accept the task.
+            <?php if ($totalNotifications == 0): ?>
+                <div class="notification-item" style="text-align: center; padding: 40px;">
+                    <p style="color: #666; font-size: 16px;">No upcoming presentation assessments at this time.</p>
                 </div>
-                <div class="notif-card">
-                    <div class="notif-details">
-                        <p><strong>Date</strong>: 9 Aug 2025, Wed</p>
-                        <p><strong>Time</strong>: 9.00 am</p>
-                        <p><strong>Venue</strong>: Bilik Kuliah A</p>
-                        <p><strong>Student</strong>: Siti Athirah Binti Othman</p>
+            <?php else: ?>
+                <?php
+                $notifNum = 1;
+                foreach ($presentationNotifications as $presentationNotif):
+                    $dateFormatted = date('d M Y, D', strtotime($presentationNotif['Date']));
+                    $timeFormatted = date('g.i a', strtotime($presentationNotif['Time']));
+                    ?>
+                    <div class="notification-item">
+                        <div class="notification-description">
+                            <span class="notif-number"><?php echo $notifNum++; ?>.</span>
+                            You have been assigned to evaluate
+                            <strong><?php echo htmlspecialchars($presentationNotif['Student_Name']); ?></strong> for
+                            <strong><?php echo htmlspecialchars($presentationNotif['Assessment_Name']); ?></strong>.
+                        </div>
+                        <div class="notif-card">
+                            <div class="notif-details">
+                                <p><strong>Date</strong>: <?php echo $dateFormatted; ?></p>
+                                <p><strong>Time</strong>: <?php echo $timeFormatted; ?></p>
+                                <p><strong>Venue</strong>: <?php echo htmlspecialchars($presentationNotif['Venue'] ?? 'TBA'); ?>
+                                </p>
+                                <p><strong>Student</strong>: <?php echo htmlspecialchars($presentationNotif['Student_Name']); ?>
+                                </p>
+                            </div>
+                        </div>
                     </div>
-                    <div class="notif-action">
-                        <select class="form-select action-dropdown">
-                            <option value="accept">Accept</option>
-                            <option value="reject">Reject</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Notification Item 2 -->
-            <div class="notification-item">
-                <div class="notification-description">
-                    <span class="notif-number">2.</span> You have been assigned to a new evaluation task. Please review
-                    the details and accept the task.
-                </div>
-                <div class="notif-card">
-                    <div class="notif-details">
-                        <p><strong>Date</strong>: 10 Aug 2025, Thu</p>
-                        <p><strong>Time</strong>: 9.30 am</p>
-                        <p><strong>Venue</strong>: Bilik Kuliah A</p>
-                        <p><strong>Student</strong>: Atiya Aisya Bin Aiman</p>
-                    </div>
-                    <div class="notif-action">
-                        <select class="form-select action-dropdown">
-                            <option value="accept">Accept</option>
-                            <option value="reject">Reject</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
+                <?php endforeach; ?>
+            <?php endif; ?>
 
         </div>
     </div>

@@ -1,12 +1,17 @@
 <?php
 // submit_collaboration.php
+error_reporting(0); // Suppress warnings that break JSON
+ini_set('display_errors', 0);
 ob_start();
 session_start();
+
+// Clear any previous output
+ob_clean();
+
 header('Content-Type: application/json');
 include '../db_connect.php';
 
 try {
-    // 1. Receive Input
     $input = file_get_contents('php://input');
     $data = json_decode($input, true);
 
@@ -14,7 +19,7 @@ try {
         throw new Exception("No data received");
 
     // 2. Identify Supervisor
-    $loginID = $_SESSION['user_id'] ?? 'hazura';
+    $loginID = isset($_SESSION['upmId']) ? $_SESSION['upmId'] : 'hazura';
     $supervisorID = null;
     $stmtLookup = $conn->prepare("SELECT Supervisor_ID FROM supervisor WHERE Lecturer_ID = ?");
     $stmtLookup->bind_param("s", $loginID);
@@ -86,7 +91,7 @@ try {
     $resultCheck = $stmtCheck->get_result();
 
     if ($rowCheck = $resultCheck->fetch_assoc()) {
-        // --- UPDATE ---
+        // Update
         $collabID = $rowCheck['Collaboration_ID'];
 
         $sql = "UPDATE collaboration SET 
@@ -109,11 +114,9 @@ try {
                 WHERE Collaboration_ID = ?";
 
         $stmt = $conn->prepare($sql);
-        // Types: s=string, i=integer. 
-        // s(Status) s(Name) s(Addr) s(Post) s(City) s(State) s(Email) s(Quota) s(Qual) 
-        // s(SvTitle) s(CmpTitle) s(Skills) s(SvNames) s(SvEmails) s(SvPhones) s(SvRoles) i(ID)
+
         $stmt->bind_param(
-            "ssssssssssssssssi",
+            "sssssssisssssssi",
             $status,
             $compName,
             $compAddress,
@@ -133,8 +136,13 @@ try {
             $collabID
         );
 
+        // Execute the UPDATE statement
+        if (!$stmt->execute()) {
+            throw new Exception("Update failed: " . $stmt->error);
+        }
+
     } else {
-        // --- INSERT ---
+        // Insert
         $sql = "INSERT INTO collaboration (
                 Collaboration_Status, Company_Name, Company_Address, Postcode, City, State,
                 Company_Email, Student_Quota, Academic_Qualification, Supervisor_Title, Company_Title, 
@@ -143,8 +151,11 @@ try {
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
         $stmt = $conn->prepare($sql);
+        // Types: s=string, i=integer
+        // s(Status) s(Name) s(Addr) s(Post) s(City) s(State) s(Email) i(Quota) s(Qual) 
+        // s(SvTitle) s(CmpTitle) s(Skills) s(SvNames) s(SvEmails) s(SvPhones) s(SvRoles) i(SupervisorID) i(SessionID)
         $stmt->bind_param(
-            "ssssssssssssssssii",
+            "sssssssissssssssii",
             $status,
             $compName,
             $compAddress,
@@ -164,16 +175,37 @@ try {
             $supervisorID,
             $sessionID
         );
+
+        // Execute INSERT and get the newly inserted ID
+        if (!$stmt->execute()) {
+            throw new Exception("Insert failed: " . $stmt->error);
+        }
+        $collabID = $conn->insert_id;
     }
 
-    if ($stmt->execute()) {
-        echo json_encode(['status' => 'success', 'message' => 'Data saved successfully']);
-    } else {
-        throw new Exception("Database Error: " . $stmt->error);
-    }
+    // Return success with collaboration ID
+    ob_clean(); // Clear any accumulated output
+    echo json_encode([
+        'status' => 'success',
+        'message' => 'Data saved successfully',
+        'collaboration_id' => $collabID
+    ]);
+    ob_end_flush();
 
 } catch (Exception $e) {
+    ob_clean(); // Clear any accumulated output
     http_response_code(500);
-    echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+    // Log the error for debugging
+    error_log("Collaboration submission error: " . $e->getMessage());
+    error_log("Session data: " . print_r($_SESSION, true));
+    echo json_encode([
+        'status' => 'error',
+        'message' => $e->getMessage(),
+        'debug' => [
+            'session_id' => isset($data['session_id']) ? $data['session_id'] : 'not set',
+            'login_id' => isset($loginID) ? $loginID : 'not set'
+        ]
+    ]);
+    ob_end_flush();
 }
 ?>
