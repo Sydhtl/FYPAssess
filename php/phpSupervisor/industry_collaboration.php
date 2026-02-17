@@ -10,6 +10,20 @@ if (isset($_SESSION['upmId'])) {
     $loginID = 'hazura';
 }
 
+// Check if user has Coordinator role
+$userRole = isset($_SESSION['role']) ? $_SESSION['role'] : '';
+$isCoordinator = ($userRole === 'Coordinator');
+
+// Get lecturer full name
+$lecturerName = $loginID; // Default fallback
+$stmtName = $conn->prepare("SELECT Lecturer_Name FROM lecturer WHERE Lecturer_ID = ?");
+$stmtName->bind_param("s", $loginID);
+$stmtName->execute();
+if ($rowName = $stmtName->get_result()->fetch_assoc()) {
+    $lecturerName = $rowName['Lecturer_Name'];
+}
+$stmtName->close();
+
 // 2. GET NUMERIC SUPERVISOR ID
 $currentUserID = null;
 $stmt = $conn->prepare("SELECT Supervisor_ID FROM supervisor WHERE Lecturer_ID = ?");
@@ -20,31 +34,28 @@ if ($row = $stmt->get_result()->fetch_assoc()) {
 }
 
 // 3. GET CURRENT SESSION (For new submissions)
-// We get the current active session to tag any NEW form submission.
-$currentSessionID = null;
-$sqlSession = "SELECT FYP_Session_ID FROM fyp_session ORDER BY FYP_Session DESC, Semester DESC LIMIT 1";
-$resSession = $conn->query($sqlSession);
-if ($resSession && $row = $resSession->fetch_assoc()) {
-    $currentSessionID = $row['FYP_Session_ID'];
-}
+// HARDCODED: Using FYP_Session_ID 1 for SWE4949A and 2 for SWE4949B
+$currentSessionID = 1; // Hardcoded to session 1
 
 // 4. FETCH SUBMISSION HISTORY (For Sidebar)
 $submissionHistory = [];
 if ($currentUserID) {
-    // We select DISTINCT FYP_Session so we display "2024/2025" regardless of Sem 1 or 2
-    $sqlHist = "SELECT c.Collaboration_ID, fs.FYP_Session
+    // Select FYP_Session and Semester to display year with semester
+    $sqlHist = "SELECT c.Collaboration_ID, fs.FYP_Session, fs.Semester
                 FROM collaboration c
                 LEFT JOIN fyp_session fs ON c.FYP_Session_ID = fs.FYP_Session_ID
                 WHERE c.Supervisor_ID = ?
-                ORDER BY fs.FYP_Session DESC"; // Newest years first
+                ORDER BY fs.FYP_Session DESC, fs.Semester DESC"; // Newest years first, then Semester 2 before 1
 
     if ($stmtHist = $conn->prepare($sqlHist)) {
         $stmtHist->bind_param("i", $currentUserID);
         $stmtHist->execute();
         $resHist = $stmtHist->get_result();
         while ($row = $resHist->fetch_assoc()) {
-            // Label: "2024/2025" (Covers both semesters)
-            $label = $row['FYP_Session'] ? $row['FYP_Session'] : "Form #" . $row['Collaboration_ID'];
+            // Label: "2024/2025 - 1" or "2024/2025 - 2"
+            $label = ($row['FYP_Session'] && $row['Semester'])
+                ? $row['FYP_Session'] . ' - ' . $row['Semester']
+                : "Form #" . $row['Collaboration_ID'];
 
             $submissionHistory[] = [
                 'id' => $row['Collaboration_ID'],
@@ -68,6 +79,8 @@ if ($currentUserID) {
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat&family=Overlock" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
 </head>
 
 <body>
@@ -80,7 +93,7 @@ if ($currentUserID) {
                 Close <span class="x-symbol">x</span>
             </a>
 
-            <span id="nameSide">HI, <?php echo strtoupper($loginID); ?></span>
+            <span id="nameSide">Hi, <?php echo ucwords(strtolower($lecturerName)); ?></span>
 
             <a href="javascript:void(0)"
                 class="role-header <?php echo ($activeRole == 'supervisor') ? 'menu-expanded' : ''; ?>"
@@ -134,7 +147,7 @@ if ($currentUserID) {
             </a>
 
             <div id="assessorMenu" class="menu-items <?php echo ($activeRole == 'assessor') ? 'expanded' : ''; ?>">
-                <a href="../phpAssessor/dashboard.php?role=supervisor" id="dashboard"
+                <a href="../phpAssessor/dashboard.php?role=assessor" id="dashboard"
                     class="<?php echo ($activeRole == 'assessor') ?: ''; ?>">
                     <i class="bi bi-house-fill icon-padding"></i> Dashboard
                 </a>
@@ -147,6 +160,40 @@ if ($currentUserID) {
                     <i class="bi bi-file-earmark-text-fill icon-padding"></i> Evaluation Form
                 </a>
             </div>
+            <?php if ($isCoordinator): ?>
+                <a href="javascript:void(0)"
+                    class="role-header <?php echo ($activeRole == 'coordinator') ? 'menu-expanded' : ''; ?>"
+                    data-target="coordinatorMenu" onclick="toggleMenu('coordinatorMenu', this)">
+                    <span class="role-text">Coordinator</span>
+                    <span class="arrow-container"><i class="bi bi-chevron-right arrow-icon"></i></span>
+                </a>
+
+                <div id="coordinatorMenu"
+                    class="menu-items <?php echo ($activeRole == 'coordinator') ? 'expanded' : ''; ?>">
+                    <a href="../../html/coordinator/dashboard/dashboardCoordinator.php" id="CoordinatorDashboard">
+                        <i class="bi bi-house-fill icon-padding"></i> Dashboard
+                    </a>
+                    <a href="../../html/coordinator/notification/notification.php" id="CoordinatorNotification">
+                        <i class="bi bi-bell-fill icon-padding"></i> Notification
+                    </a>
+                    <a href="../../html/coordinator/studentAssignation/studentAssignation.php" id="StudentAssignation">
+                        <i class="bi bi-people-fill icon-padding"></i> Student Assignation
+                    </a>
+                    <a href="../../html/coordinator/dateTimeAllocation/dateTimeAllocation.php" id="DateTimeAllocation">
+                        <i class="bi bi-calendar-check-fill icon-padding"></i> Date & Time Allocation
+                    </a>
+                    <a href="../../html/coordinator/learningObjective/learningObjective.php" id="LearningObjective">
+                        <i class="bi bi-book-fill icon-padding"></i> Learning Objective
+                    </a>
+                    <a href="../../html/coordinator/markSubmission/markSubmission.php" id="MarkSubmission">
+                        <i class="bi bi-file-earmark-check-fill icon-padding"></i> Mark Submission
+                    </a>
+                    <a href="../../html/coordinator/signatureSubmission/signatureSubmission.php"
+                        id="CoordinatorSignatureSubmission">
+                        <i class="bi bi-pen-fill icon-padding"></i> Signature Submission
+                    </a>
+                </div>
+            <?php endif; ?>
 
             <a href="../login.php" id="logout"><i class="bi bi-box-arrow-left" style="padding-right: 10px;"></i>
                 Logout</a>
@@ -165,8 +212,8 @@ if ($currentUserID) {
                 <div id="containerFYPAssess">FYPAssess</div>
             </div>
             <div id="course-session">
-                <div id="courseCode">SWE4949A</div>
-                <div id="courseSession">2024/2025 - 2 </div>
+                <div id="courseCode">SWE4949</div>
+                <div id="courseSession">2025/2026 - 1 </div>
             </div>
         </div>
 
@@ -183,6 +230,7 @@ if ($currentUserID) {
 
                 <div id="step-indicator-area">
 
+                    <div class="progress-header">Form Progress</div>
 
                     <div class="progress-container">
 
@@ -240,21 +288,22 @@ if ($currentUserID) {
                     </div>
                     <div class="history-section">
                         <div class="history-header">Past Sessions</div>
-
-                        <?php if (empty($submissionHistory)): ?>
-                            <div class="text-muted small fst-italic">No forms submitted yet.</div>
-                        <?php else: ?>
-                            <?php foreach ($submissionHistory as $item): ?>
-                                <a href="view_collaboration_pdf.php?id=<?php echo $item['id']; ?>" target="_blank"
-                                    class="session-link">
-                                    <i class="bi bi-file-earmark-pdf-fill pdf-icon"></i>
-                                    <div>
-                                        <div class="fw-bold"><?php echo $item['label']; ?></div>
-                                        <div class="small text-muted" style="font-size: 0.75rem;">Click to view PDF</div>
-                                    </div>
-                                </a>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
+                        <div id="history-container">
+                            <?php if (empty($submissionHistory)): ?>
+                                <div class="text-muted small fst-italic">No forms submitted yet.</div>
+                            <?php else: ?>
+                                <?php foreach ($submissionHistory as $item): ?>
+                                    <a href="view_collaboration_pdf.php?id=<?php echo $item['id']; ?>" target="_blank"
+                                        class="session-link">
+                                        <i class="bi bi-file-earmark-pdf-fill pdf-icon"></i>
+                                        <div>
+                                            <div class="fw-bold"><?php echo $item['label']; ?></div>
+                                            <div class="small text-muted" style="font-size: 0.75rem;">Click to view PDF</div>
+                                        </div>
+                                    </a>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </div>
                     </div>
                 </div>
 
@@ -268,9 +317,7 @@ if ($currentUserID) {
                                 <option value="">Loading...</option>
                             </select>
                         </div>
-                        <button type="button" id="download-pdf-btn" class="btn btn-download-pdf">
-                            <i class="bi bi-download"></i> Download as PDF
-                        </button>
+
                     </div>
 
                     <form id="industry-form">
@@ -278,32 +325,29 @@ if ($currentUserID) {
                         <!-- ============================================== -->
                         <!-- SECTION 1: TOPIC SELECTION (ALWAYS VISIBLE) -->
                         <!-- ============================================== -->
-                        <h2 class="form-section-title" data-step-target="topic">Topic selection</h2>
+                        <h2 class="form-section-title" data-step-target="topic">Topic selection <span
+                                style="color: white;">*</span></h2>
                         <div class="mb-4">
                             <label class="form-label">List of topics for Bachelor Project</label>
                             <div id="topic-list-container" class="space-y-2">
-                                <div class="input-group mb-2">
-                                    <span class="input-group-text fixed-width-addon">1.</span>
+                                <div class="input-group mb-2 topic-input-group">
+                                    <span class="input-group-text fixed-width-addon topic-number">1.</span>
                                     <input type="text" name="topic[]" class="form-control topic-required" placeholder=""
                                         required>
                                 </div>
-                                <div class="input-group mb-2">
-                                    <span class="input-group-text fixed-width-addon">2.</span>
-                                    <input type="text" name="topic[]" class="form-control topic-required" placeholder=""
-                                        required>
-                                </div>
-                                <div class="input-group mb-2">
-                                    <span class="input-group-text fixed-width-addon">3.</span>
-                                    <input type="text" name="topic[]" class="form-control topic-required" placeholder=""
-                                        required>
-                                </div>
+                            </div>
+                            <div class="mt-0 d-flex justify-content-end">
+                                <button type="button" id="add-topic-btn" class="btn btn-outline-primary btn-sm btn-add">
+                                    <i class="bi bi-plus-circle me-1"></i> Add topic
+                                </button>
                             </div>
                         </div>
 
                         <!-- ============================================== -->
                         <!-- SECTION 2: INDUSTRY COLLABORATION (RADIO BUTTON) -->
                         <!-- ============================================== -->
-                        <h2 class="form-section-title" data-step-target="collaboration">Industry collaboration</h2>
+                        <h2 class="form-section-title" data-step-target="collaboration">Industry collaboration <span
+                                style="color: white;">*</span></h2>
                         <div class="mb-4 d-flex gap-4">
                             <div class="form-check">
                                 <input class="form-check-input" type="radio" name="collaboration_choice" value="yes"
@@ -323,7 +367,8 @@ if ($currentUserID) {
                         <div id="extended-fields" class="d-none">
 
                             <!-- SECTION 3: INDUSTRY INFORMATION -->
-                            <h2 class="form-section-title" data-step-target="info">Industry information</h2>
+                            <h2 class="form-section-title" data-step-target="info">Industry information <span
+                                    style="color: white;">*</span></h2>
                             <div class="mb-3">
                                 <label class="form-label">Company name</label>
                                 <input type="text" name="company_name" placeholder=""
@@ -386,6 +431,7 @@ if ($currentUserID) {
 
                             <!-- SECTION 4: INDUSTRY SUPERVISOR DETAILS -->
                             <h2 class="form-section-title" data-step-target="supervisor">Industry supervisor details
+                                <span style="color: white;">*</span>
                             </h2>
 
                             <div id="supervisor-container" class="mb-3">
@@ -412,6 +458,8 @@ if ($currentUserID) {
 
                                     <div class="mb-3">
                                         <label class="form-label">Phone No</label>
+                                        <br><span class="form-context small text-muted"
+                                            style="font-size: 0.75rem;">Example: 012-3456789</span>
                                         <input type="tel" name="ind_supervisor_phone[]" placeholder=""
                                             class="form-control collaboration-required" pattern="^01[0-9]-[0-9]{7,8}$">
                                     </div>
@@ -433,7 +481,8 @@ if ($currentUserID) {
                             </div>
 
                             <!-- SECTION 5: INDUSTRY REQUIREMENTS -->
-                            <h2 class="form-section-title" data-step-target="requirements">Industry requirements</h2>
+                            <h2 class="form-section-title" data-step-target="requirements">Industry requirements <span
+                                    style="color: white;">*</span></h2>
                             <div class="row g-3 mb-4">
                                 <div class="col-md-6">
                                     <label class="form-label">Student Quota</label>
@@ -459,6 +508,8 @@ if ($currentUserID) {
 
                             <div class="mb-4">
                                 <label class="form-label">Required skills</label>
+                                <br><span class="form-context small text-muted" style="font-size: 0.75rem;">Example:
+                                    Java</span>
                                 <div id="skill-list-container" class="space-y-2">
 
                                     <div class="input-group mb-2 skill-input-group">
@@ -477,7 +528,8 @@ if ($currentUserID) {
                             </div>
 
                             <!-- SECTION 6: INDUSTRY TOPIC SELECTION -->
-                            <h2 class="form-section-title" data-step-target="topic_ext">Industry topic selection</h2>
+                            <h2 class="form-section-title" data-step-target="topic_ext">Industry topic selection <span
+                                    style="color: white;">*</span></h2>
                             <div class="mb-4">
                                 <label class="form-label">List of topic by industry</label>
                                 <div id="ind-topic-list-container" class="space-y-2">
@@ -502,29 +554,45 @@ if ($currentUserID) {
                         </div>
 
                         <!-- ACTION BUTTONS -->
-                        <div class="action-buttons pt-4 mt-5 border-top d-flex justify-content-end gap-3">
-                            <button type="button" class="btn btn-light border fw-medium">
-                                Cancel
-                            </button>
-                            <button type="submit" id="submit-button" class="btn btn-success btn-submit fw-medium">
-                                Save
-                            </button>
+                        <div class="action-buttons pt-4 mt-5 border-top d-flex flex-column align-items-end gap-3">
+
+                            <!-- Save/Cancel buttons group -->
+                            <div class="d-flex gap-3">
+                                <button type="button" class="btn btn-light border fw-medium">
+                                    Cancel
+                                </button>
+                                <button type="submit" id="submit-button" class="btn btn-success btn-submit fw-medium">
+                                    Save
+                                </button>
+                            </div>
+
+                            <!-- Download button below save -->
+                            <div class="d-flex flex-column align-items-end gap-2">
+                                <p style="margin: 0; color: #666; font-size: 14px;">
+                                    <i class="bi bi-info-circle"></i> Optional to download
+                                </p>
+                                <button type="button" id="download-pdf-btn" class="btn btn-primary">
+                                    <i class="bi bi-download"></i> Download as PDF
+                                </button>
+                            </div>
+
                         </div>
+
                     </form>
                 </div>
             </div>
 
         </div>
     </div>
-    <div id="acknowledgementModal" class="modal-backdrop-custom d-none">
-        <div class="modal-wrapper">
+    <div id="acknowledgementModal" class="custom-modal">
+        <div class="modal-dialog">
             <div class="modal-content-custom">
-                <button type="button" class="btn-close btn-close-black modal-close-btn" aria-label="Close"></button>
-                <div class="modal-body-custom text-center">
-                    <div class="modal-icon-container">
-                        <i class="bi bi-check-circle-fill text-success" style="font-size: 3rem;"></i>
-                    </div>
-                    <h3 class="modal-title-custom mt-3">Information saved successfully!</h3>
+                <span class="close-btn" id="closeAcknowledgementModal">&times;</span>
+                <div class="modal-icon"><i class="bi bi-check-circle-fill"></i></div>
+                <div class="modal-title-custom">Information is saved!</div>
+                <div class="modal-message">The industry collaboration information has been saved successfully.</div>
+                <div style="display:flex; justify-content:center;">
+                    <button id="okAcknowledgementBtn" class="btn btn-success" type="button">OK</button>
                 </div>
             </div>
         </div>
@@ -641,6 +709,40 @@ if ($currentUserID) {
             let collaborationRequiredFields = document.querySelectorAll('.collaboration-required');
 
             // ============================================
+            // LOAD SUBMISSION HISTORY (Past Sessions Sidebar)
+            // ============================================
+            async function loadSubmissionHistory() {
+                try {
+                    const response = await fetch('fetch_submission_history.php');
+                    const result = await response.json();
+
+                    const container = document.getElementById('history-container');
+                    container.innerHTML = '';
+
+                    if (result.status === 'success' && result.history && result.history.length > 0) {
+                        result.history.forEach(item => {
+                            const link = document.createElement('a');
+                            link.href = `view_collaboration_pdf.php?id=${item.id}`;
+                            link.target = '_blank';
+                            link.className = 'session-link';
+                            link.innerHTML = `
+                                <i class="bi bi-file-earmark-pdf-fill pdf-icon"></i>
+                                <div>
+                                    <div class="fw-bold">${item.label}</div>
+                                    <div class="small text-muted" style="font-size: 0.75rem;">Click to view PDF</div>
+                                </div>
+                            `;
+                            container.appendChild(link);
+                        });
+                    } else {
+                        container.innerHTML = '<div class="text-muted small fst-italic">No forms submitted yet.</div>';
+                    }
+                } catch (error) {
+                    console.error('Error loading submission history:', error);
+                }
+            }
+
+            // ============================================
             // LOAD FYP SESSIONS (For Semester 1 only)
             // ============================================
             async function loadSessions() {
@@ -648,13 +750,15 @@ if ($currentUserID) {
                     const response = await fetch('fetch_sessions.php');
                     const data = await response.json();
 
+                    console.log('Sessions received from server:', data.sessions); // Debug log
+
                     sessionYearDropdown.innerHTML = '';
 
                     if (data.status === 'success' && data.sessions.length > 0) {
                         data.sessions.forEach((session, index) => {
                             const option = document.createElement('option');
                             option.value = session.FYP_Session_ID;
-                            option.textContent = session.FYP_Session;
+                            option.textContent = `${session.FYP_Session} - ${session.Semester}`;
                             if (index === 0) option.selected = true; // Select newest
                             sessionYearDropdown.appendChild(option);
                         });
@@ -685,6 +789,9 @@ if ($currentUserID) {
                         console.log('Loaded data:', data); // Debug log
                         currentCollaborationID = data.Collaboration_ID;
 
+                        // Load supervisor topics (ALWAYS - regardless of collaboration status)
+                        loadTopics(data.Topic_List || []);
+
                         // Load collaboration status
                         if (data.Collaboration_Status === 'Yes') {
                             radioYes.checked = true;
@@ -707,9 +814,6 @@ if ($currentUserID) {
                                 if (selectBox) selectBox.value = academicQual;
                             }
 
-                            // Load supervisor topics (from Topic_List array)
-                            loadTopics(data.Topic_List || []);
-
                             // Load industry topics (from Ind_Topic_List array)
                             loadIndTopics(data.Ind_Topic_List || []);
 
@@ -723,7 +827,6 @@ if ($currentUserID) {
                             radioNo.checked = true;
                             extendedFields.classList.add('d-none');
                             toggleRequiredFields(false);
-                            currentCollaborationID = data.Collaboration_ID;
                         }
 
                         updateStepIndicators();
@@ -741,28 +844,28 @@ if ($currentUserID) {
                 const container = document.getElementById('topic-list-container');
                 container.innerHTML = ''; // Clear existing
 
+                // If no topics, create at least one empty field
+                if (topics.length === 0) topics = [''];
+
                 topics.forEach((topic, index) => {
                     const cleanTopic = topic.replace(/^\d+\.\s*/, '').trim(); // Remove numbering
                     const inputGroup = document.createElement('div');
-                    inputGroup.className = 'input-group mb-2';
+                    inputGroup.className = 'input-group mb-2 topic-input-group';
                     inputGroup.innerHTML = `
-                        <span class="input-group-text fixed-width-addon">${index + 1}.</span>
+                        <span class="input-group-text fixed-width-addon topic-number">${index + 1}.</span>
                         <input type="text" name="topic[]" class="form-control topic-required" value="${cleanTopic}" required>
+                        ${index > 0 ? '<button type="button" class="btn btn-sm btn-outline-danger input-group-text remove-topic-btn"><i class="bi bi-x"></i></button>' : ''}
                     `;
                     container.appendChild(inputGroup);
-                });
 
-                // Ensure minimum 3 fields
-                while (container.children.length < 3) {
-                    const index = container.children.length;
-                    const inputGroup = document.createElement('div');
-                    inputGroup.className = 'input-group mb-2';
-                    inputGroup.innerHTML = `
-                        <span class="input-group-text fixed-width-addon">${index + 1}.</span>
-                        <input type="text" name="topic[]" class="form-control topic-required" required>
-                    `;
-                    container.appendChild(inputGroup);
-                }
+                    // Attach remove listener for additional fields
+                    if (index > 0) {
+                        inputGroup.querySelector('.remove-topic-btn').addEventListener('click', function () {
+                            inputGroup.remove();
+                            updateTopicNumbers();
+                        });
+                    }
+                });
             }
 
             function loadSkills(skills) {
@@ -871,18 +974,8 @@ if ($currentUserID) {
                 toggleRequiredFields(false);
                 currentCollaborationID = null;
 
-                // Reset topics to 3 empty fields
-                const topicContainer = document.getElementById('topic-list-container');
-                topicContainer.innerHTML = '';
-                for (let i = 0; i < 3; i++) {
-                    const inputGroup = document.createElement('div');
-                    inputGroup.className = 'input-group mb-2';
-                    inputGroup.innerHTML = `
-                        <span class="input-group-text fixed-width-addon">${i + 1}.</span>
-                        <input type="text" name="topic[]" class="form-control topic-required" required>
-                    `;
-                    topicContainer.appendChild(inputGroup);
-                }
+                // Reset topics to 1 empty field (using loadTopics for consistency)
+                loadTopics([]);
 
                 updateStepIndicators();
             }
@@ -899,11 +992,179 @@ if ($currentUserID) {
                     alert('No submission found for this session.');
                     return;
                 }
-                window.open(`view_collaboration_pdf.php?id=${currentCollaborationID}`, '_blank');
+                downloadCollaborationAsPDF();
             });
 
-            // Initialize: Load sessions on page load
+            // Initialize: Load sessions and submission history on page load
             loadSessions();
+            loadSubmissionHistory();
+
+            // Download Collaboration Form as PDF
+            function downloadCollaborationAsPDF() {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF('p', 'mm', 'a4');
+
+                const pageWidth = doc.internal.pageSize.getWidth();
+                const pageHeight = doc.internal.pageSize.getHeight();
+                const margin = 15;
+                let yPosition = 20;
+
+                // Get selected session info
+                const selectedOption = sessionYearDropdown.options[sessionYearDropdown.selectedIndex];
+                const sessionText = selectedOption ? selectedOption.textContent : 'Unknown Session';
+
+                // Header - UPM Logo at top center
+                const logoWidth = 50;
+                const logoHeight = 30;
+                const logoX = (pageWidth - logoWidth) / 2;
+                doc.addImage('../../assets/UPMLogo.png', 'PNG', logoX, yPosition, logoWidth, logoHeight);
+                yPosition += logoHeight + 8;
+
+                // Title
+                doc.setFontSize(14);
+                doc.setFont('helvetica', 'bold');
+                const title = 'INDUSTRY COLLABORATION FORM';
+                const titleWidth = doc.getTextWidth(title);
+                doc.text(title, (pageWidth - titleWidth) / 2, yPosition);
+                yPosition += 6;
+
+                doc.setFontSize(12);
+                const sessionTitle = sessionText;
+                const sessionTitleWidth = doc.getTextWidth(sessionTitle);
+                doc.text(sessionTitle, (pageWidth - sessionTitleWidth) / 2, yPosition);
+                yPosition += 10;
+
+                // Helper function to add section header
+                function addSectionHeader(text) {
+                    if (yPosition > pageHeight - 30) {
+                        doc.addPage();
+                        yPosition = 20;
+                    }
+                    doc.setFillColor(248, 249, 250);
+                    doc.rect(margin, yPosition, pageWidth - 2 * margin, 8, 'F');
+                    doc.setDrawColor(120, 0, 0);
+                    doc.setLineWidth(1);
+                    doc.line(margin, yPosition, margin, yPosition + 8);
+                    doc.setFontSize(10);
+                    doc.setFont('helvetica', 'bold');
+                    doc.setTextColor(0, 0, 0);
+                    doc.text(text, margin + 3, yPosition + 5.5);
+                    yPosition += 12;
+                }
+
+                // Helper function to add field
+                function addField(label, value, isMultiline = false) {
+                    if (yPosition > pageHeight - 20) {
+                        doc.addPage();
+                        yPosition = 20;
+                    }
+                    doc.setFontSize(9);
+                    doc.setFont('helvetica', 'bold');
+                    doc.text(label, margin, yPosition);
+                    doc.setFont('helvetica', 'normal');
+
+                    if (isMultiline && value) {
+                        const lines = doc.splitTextToSize(value, pageWidth - margin - 70);
+                        doc.text(lines, margin + 65, yPosition);
+                        yPosition += lines.length * 5;
+                    } else {
+                        doc.text(value || '-', margin + 65, yPosition);
+                        yPosition += 6;
+                    }
+                }
+
+                // Section 1: Topic Selection
+                addSectionHeader('1. TOPIC SELECTION');
+                const topics = Array.from(document.querySelectorAll('#topic-list-container input[name="topic[]"]'))
+                    .map((input, index) => `${index + 1}. ${input.value}`)
+                    .filter(topic => topic.trim() !== `${topic.split('.')[0]}.`)
+                    .join('\n');
+                addField('List of topics for Bachelor Project:', topics || '-', true);
+                yPosition += 4;
+
+                // Section 2: Collaboration Status
+                addSectionHeader('2. INDUSTRY COLLABORATION');
+                const collaborationStatus = radioYes.checked ? 'Yes' : (radioNo.checked ? 'No' : '-');
+                addField('Is there a collaboration?', collaborationStatus);
+                yPosition += 4;
+
+                // Only show extended sections if collaboration is Yes
+                if (radioYes.checked) {
+                    // Section 3: Industry Information
+                    addSectionHeader('3. INDUSTRY INFORMATION');
+                    addField('Company Name:', document.querySelector('[name="company_name"]')?.value || '');
+                    addField('Company Email:', document.querySelector('[name="company_email"]')?.value || '');
+                    addField('Company Address:', document.querySelector('[name="company_address"]')?.value || '');
+                    addField('Postcode:', document.querySelector('[name="company_postcode"]')?.value || '');
+                    addField('City:', document.querySelector('[name="company_city"]')?.value || '');
+                    addField('State:', document.querySelector('[name="company_state"]')?.value || '');
+                    yPosition += 4;
+
+                    // Section 4: Industry Supervisor Details
+                    addSectionHeader('4. INDUSTRY SUPERVISOR DETAILS');
+                    const supervisorNames = Array.from(document.querySelectorAll('[name="ind_supervisor_name[]"]'))
+                        .map((input, index) => `${index + 1}. ${input.value}`)
+                        .filter(name => name.trim() !== `${name.split('.')[0]}.`)
+                        .join('\n');
+                    const supervisorEmails = Array.from(document.querySelectorAll('[name="ind_supervisor_email[]"]'))
+                        .map((input, index) => `${index + 1}. ${input.value}`)
+                        .filter(email => email.trim() !== `${email.split('.')[0]}.`)
+                        .join('\n');
+                    const supervisorPhones = Array.from(document.querySelectorAll('[name="ind_supervisor_phone[]"]'))
+                        .map((input, index) => `${index + 1}. ${input.value}`)
+                        .filter(phone => phone.trim() !== `${phone.split('.')[0]}.`)
+                        .join('\n');
+                    const supervisorRoles = Array.from(document.querySelectorAll('[name="ind_supervisor_role[]"]'))
+                        .map((input, index) => `${index + 1}. ${input.value}`)
+                        .filter(role => role.trim() !== `${role.split('.')[0]}.`)
+                        .join('\n');
+
+                    addField('Name(s):', supervisorNames || '-', true);
+                    addField('Email(s):', supervisorEmails || '-', true);
+                    addField('Phone(s):', supervisorPhones || '-', true);
+                    addField('Role(s)/Position(s):', supervisorRoles || '-', true);
+                    yPosition += 4;
+
+                    // Section 5: Industry Requirements
+                    addSectionHeader('5. INDUSTRY REQUIREMENTS');
+                    const studentQuota = document.querySelector('[name="num_students"]')?.value || '';
+                    addField('Student Quota:', studentQuota ? `${studentQuota} student(s)` : '-');
+                    addField('Academic Qualification:', document.querySelector('[name="academic_qualification"]')?.value || '');
+
+                    const skills = Array.from(document.querySelectorAll('#skill-list-container input[name="required_skill[]"]'))
+                        .map((input, index) => `${index + 1}. ${input.value}`)
+                        .filter(skill => skill.trim() !== `${skill.split('.')[0]}.`)
+                        .join('\n');
+                    addField('Required Skills:', skills || '-', true);
+                    yPosition += 4;
+
+                    // Section 6: Industry Topic Selection
+                    addSectionHeader('6. INDUSTRY TOPIC SELECTION');
+                    const indTopics = Array.from(document.querySelectorAll('#ind-topic-list-container input[name="ind_topic[]"]'))
+                        .map((input, index) => `${index + 1}. ${input.value}`)
+                        .filter(topic => topic.trim() !== `${topic.split('.')[0]}.`)
+                        .join('\n');
+                    addField('List of topic by industry:', indTopics || '-', true);
+                }
+
+                // Footer
+                if (yPosition > pageHeight - 30) {
+                    doc.addPage();
+                    yPosition = 20;
+                }
+                yPosition = pageHeight - 15;
+                doc.setFontSize(8);
+                doc.setFont('helvetica', 'italic');
+                doc.setTextColor(120, 120, 120);
+                const now = new Date();
+                const dateStr = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+                const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+                doc.text(`Generated by FYPAssess System on: ${dateStr}, ${timeStr}`, margin, yPosition);
+
+                // Save PDF
+                const fileName = `Industry_Collaboration_${sessionText.replace(/\s+/g, '_')}.pdf`;
+                doc.save(fileName);
+            }
 
 
             // --- Helper Functions ---
@@ -929,8 +1190,8 @@ if ($currentUserID) {
                 switch (step.name) {
                     case 'topic':
                         const topicInputs = document.querySelectorAll('#topic-list-container input[type="text"]');
-                        // Min 3 required, and all visible fields must be filled
-                        return topicInputs.length >= 3 && Array.from(topicInputs).every(input => input.value.trim() !== '');
+                        // At least 1 topic required, and all visible fields must be filled
+                        return topicInputs.length >= 1 && Array.from(topicInputs).every(input => input.value.trim() !== '');
                     case 'collaboration':
                         return radioYes.checked || radioNo.checked;
                     case 'info':
@@ -1111,17 +1372,13 @@ if ($currentUserID) {
             document.getElementById('add-skill-btn').addEventListener('click', () => {
                 const container = document.getElementById('skill-list-container');
 
-                // 1. Get the last field element (the template to clone)
                 const existingField = container.querySelector('.skill-input-group:last-child');
 
-                // 2. Clone the existing field (deep clone: true)
                 const newField = existingField.cloneNode(true);
 
-                // 3. Clear the input value in the cloned field
                 const input = newField.querySelector('input[name="required_skill[]"]');
                 input.value = '';
-
-                // 4. Create and append the trash icon button
+                
                 const removeBtn = document.createElement('button');
                 removeBtn.type = 'button';
                 removeBtn.className = 'btn btn-sm btn-outline-danger input-group-text remove-skill-btn';
@@ -1142,6 +1399,43 @@ if ($currentUserID) {
                 // 6. Append the new field and update all numbers and placeholders
                 container.appendChild(newField);
                 updateSkillNumbers();
+            });
+
+            //[Bachelor topic] Re-numbers the topic fields and allows add/remove
+            const updateTopicNumbers = () => {
+                const fields = document.querySelectorAll('#topic-list-container .topic-input-group');
+                fields.forEach((field, index) => {
+                    const number = index + 1;
+                    const numberSpan = field.querySelector('.fixed-width-addon');
+                    if (numberSpan) {
+                        numberSpan.textContent = `${number}.`;
+                    }
+                });
+            };
+
+            document.getElementById('add-topic-btn').addEventListener('click', () => {
+                const container = document.getElementById('topic-list-container');
+                const existingField = container.querySelector('.topic-input-group:last-child');
+                const newField = existingField.cloneNode(true);
+
+                const input = newField.querySelector('input[name="topic[]"]');
+                input.value = '';
+
+                const removeBtn = document.createElement('button');
+                removeBtn.type = 'button';
+                removeBtn.className = 'btn btn-sm btn-outline-danger input-group-text remove-topic-btn';
+                removeBtn.innerHTML = '<i class="bi bi-x"></i>';
+
+                newField.querySelector('.remove-topic-btn')?.remove();
+                newField.appendChild(removeBtn);
+
+                removeBtn.addEventListener('click', function () {
+                    newField.remove();
+                    updateTopicNumbers();
+                });
+
+                container.appendChild(newField);
+                updateTopicNumbers();
             });
 
             //[Ind topic] Re-numbers the skill fields inside the container and updates the placeholders.
@@ -1289,6 +1583,8 @@ if ($currentUserID) {
                     submitBtn.innerText = "Saving...";
                     submitBtn.disabled = true;
 
+                    console.log('Submitting payload:', payload);
+
                     try {
                         const response = await fetch('submit_collaboration.php', {
                             method: 'POST',
@@ -1296,20 +1592,46 @@ if ($currentUserID) {
                             body: JSON.stringify(payload)
                         });
 
-                        const data = await response.json();
+                        // Check if response is ok
+                        if (!response.ok) {
+                            const text = await response.text();
+                            console.error('HTTP error:', response.status, text);
+                            throw new Error(`HTTP ${response.status}: ${text.substring(0, 100)}`);
+                        }
+
+                        // Try to parse JSON
+                        let data;
+                        try {
+                            const text = await response.text();
+                            console.log('Raw response:', text);
+                            data = JSON.parse(text);
+                        } catch (parseError) {
+                            console.error('JSON parse error:', parseError);
+                            throw new Error('Server returned invalid JSON. Check console for raw response.');
+                        }
+
+                        console.log('Server response:', data);
 
                         if (data.status === 'success') {
-                            acknowledgementModal.classList.remove('d-none');
-                            // Reload data to get the new ID if it was an insert
-                            setTimeout(() => {
-                                loadCollaborationData(sessionYearDropdown.value);
-                            }, 500);
+                            // Update the collaboration ID if it was an insert
+                            if (data.collaboration_id) {
+                                currentCollaborationID = data.collaboration_id;
+                                console.log('Updated collaboration ID:', currentCollaborationID);
+                            }
+
+                            // Refresh the Past Sessions sidebar
+                            console.log('Refreshing submission history...');
+                            await loadSubmissionHistory();
+
+                            // Show success modal
+                            openModal(acknowledgementModal);
                         } else {
-                            alert("Error saving data: " + (data.message || 'Unknown error'));
+                            console.error('Server error:', data);
+                            alert("Error saving data: " + (data.message || 'Unknown error') + (data.debug ? '\nDebug: ' + JSON.stringify(data.debug) : ''));
                         }
                     } catch (err) {
                         console.error("Network Error:", err);
-                        alert("Connection failed. Please check console.");
+                        alert("Connection failed: " + err.message + "\n\nPlease check console for details.");
                     } finally {
                         submitBtn.innerText = originalText;
                         submitBtn.disabled = false;
@@ -1323,17 +1645,36 @@ if ($currentUserID) {
 
             // Get references to modal elements
             const acknowledgementModal = document.getElementById('acknowledgementModal');
-            const closeModalBtns = document.querySelectorAll('.modal-close-btn');
+            const closeAcknowledgementModalBtn = document.getElementById('closeAcknowledgementModal');
+            const okAcknowledgementBtn = document.getElementById('okAcknowledgementBtn');
+
+            // Functions to open/close modal
+            function openModal(modal) { modal.style.display = 'block'; }
+            function closeModal(modal) { modal.style.display = 'none'; }
 
             // Add event listeners to close the modal
-            closeModalBtns.forEach(btn => {
-                btn.addEventListener('click', () => {
-                    acknowledgementModal.classList.add('d-none');
+            if (closeAcknowledgementModalBtn) {
+                closeAcknowledgementModalBtn.addEventListener('click', () => {
+                    closeModal(acknowledgementModal);
                 });
+            }
+
+            if (okAcknowledgementBtn) {
+                okAcknowledgementBtn.addEventListener('click', () => {
+                    closeModal(acknowledgementModal);
+                    // Don't reload - keep form data so user can download
+                });
+            }
+
+            // Close modal on backdrop click
+            acknowledgementModal?.addEventListener('click', (e) => {
+                if (e.target.id === 'acknowledgementModal') {
+                    closeModal(acknowledgementModal);
+                }
             });
 
             // --- Initial Setup ---
-            acknowledgementModal.classList.add('d-none');
+            closeModal(acknowledgementModal);
 
             // Set initial state based on radio (which defaults to 'No' in HTML)
             extendedFields.classList.add('d-none');

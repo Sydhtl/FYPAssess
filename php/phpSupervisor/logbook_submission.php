@@ -1,52 +1,43 @@
 <?php
-
-
+session_start();
 include '../db_connect.php';
 
-// --- 1b. GET SUPERVISOR ID ---
-$supervisorID = null;
-
-// Option A: If your session already holds the integer Supervisor_ID
-// $supervisorID = $_SESSION['supervisor_id'] ?? 0;
-
-// Option B: If loginID is a username/staffID (e.g., 'hazura') and you need to look up the integer ID:
-$sqlSup = "SELECT Supervisor_ID FROM supervisor WHERE Lecturer_ID = ? LIMIT 1"; 
-$stmtSup = $conn->prepare($sqlSup);
-$stmtSup->bind_param("s", $loginID);
-$stmtSup->execute();
-$resSup = $stmtSup->get_result();
-
-if ($rowSup = $resSup->fetch_assoc()) {
-    $supervisorID = $rowSup['Supervisor_ID'];
-} else {
-    // Fallback for testing or if not found
-    $supervisorID = 0; 
-}
-$stmtSup->close();
-
 // 1. CAPTURE ROLE & USER ID
-// Check if loginID is in session, otherwise default to 'GUEST'
-$loginID = isset($_SESSION['loginID']) ? $_SESSION['loginID'] : 'USER';
 $activeRole = isset($_GET['role']) ? $_GET['role'] : 'supervisor';
 
 // 2. PREPARE MODULE TITLE
 $moduleTitle = ucfirst($activeRole) . " Module";
 
-// 3. FETCH COURSE INFO
-$courseCode = "SWE4949A";
-$courseSession = "2024/2025 - 2";
+// 3. FETCH CURRENT SEMESTER INFO (Session Year & Semester)
+$courseCode = "SWE4949"; // <--- ADD THIS LINE (Generic code for both A & B)
+$currentSessionYear = "";
+$currentSemester = "";
+$sessionIDs = []; // Array to hold IDs for both Course A and B
 
-$sqlSession = "SELECT fs.FYP_Session, fs.Semester, c.Course_Code 
-               FROM fyp_session fs
-               JOIN course c ON fs.Course_ID = c.Course_ID
-               ORDER BY fs.FYP_Session DESC, fs.Semester DESC
-               LIMIT 1";
+// First, find the latest session by FYP_Session_ID
+$sqlInfo = "SELECT FYP_Session_ID, FYP_Session, Semester 
+            FROM fyp_session 
+            ORDER BY FYP_Session_ID DESC 
+            LIMIT 1";
 
-$resultSession = $conn->query($sqlSession);
-if ($resultSession && $resultSession->num_rows > 0) {
-    $sessionRow = $resultSession->fetch_assoc();
-    $courseCode = $sessionRow['Course_Code'];
-    $courseSession = $sessionRow['FYP_Session'] . " - " . $sessionRow['Semester'];
+$resInfo = $conn->query($sqlInfo);
+if ($resInfo && $resInfo->num_rows > 0) {
+    $row = $resInfo->fetch_assoc();
+    $latestSessionID = $row['FYP_Session_ID'];
+    $currentSessionYear = $row['FYP_Session'];
+    $currentSemester = $row['Semester'];
+    $courseSession = $currentSessionYear . " - " . $currentSemester;
+
+    // Now, fetch ALL Session IDs for this semester (both A and B courses)
+    $sqlIDs = "SELECT FYP_Session_ID FROM fyp_session 
+               WHERE FYP_Session = '$currentSessionYear' 
+               AND Semester = '$currentSemester'
+               ORDER BY FYP_Session_ID DESC";
+    
+    $resIDs = $conn->query($sqlIDs);
+    while($rowID = $resIDs->fetch_assoc()) {
+        $sessionIDs[] = $rowID['FYP_Session_ID'];
+    }
 }
 
 // A. Get Login ID 
@@ -56,14 +47,27 @@ if (isset($_SESSION['upmId'])) {
     $loginID = 'hazura'; // Fallback
 }
 
+// Check if user has Coordinator role
+$userRole = isset($_SESSION['role']) ? $_SESSION['role'] : '';
+$isCoordinator = ($userRole === 'Coordinator');
+
+// Get lecturer full name
+$lecturerName = $loginID; // Default fallback
+$stmtName = $conn->prepare("SELECT Lecturer_Name FROM lecturer WHERE Lecturer_ID = ?");
+$stmtName->bind_param("s", $loginID);
+$stmtName->execute();
+if ($rowName = $stmtName->get_result()->fetch_assoc()) {
+    $lecturerName = $rowName['Lecturer_Name'];
+}
+$stmtName->close();
+
 // --- 2. DATA FETCHING ---
 $groupedData = [
     'SWE4949A' => [], 
     'SWE4949B' => []
 ];
 
-// A. GET SUPERVISOR ID
-// (Assumes $loginID is the Lecturer_ID, e.g., 'hazura')
+// B. GET SUPERVISOR ID
 $supervisorID = 0;
 $sqlSup = "SELECT Supervisor_ID FROM supervisor WHERE Lecturer_ID = ? LIMIT 1";
 $stmtSup = $conn->prepare($sqlSup);
@@ -76,62 +80,90 @@ if ($rowSup = $resSup->fetch_assoc()) {
 $stmtSup->close();
 
 // B. FETCH STUDENTS & LOGBOOKS
-if ($supervisorID > 0) {
-    // We fetch based on Enrollment so we get the correct Course (A or B) for each entry.
-    // We JOIN on Course_ID to ensure logbooks for Course A don't show up under Course B.
+if ($supervisorID > 0 && !empty($sessionIDs)) {
+    
+    // Create a comma-separated string of IDs for the query: e.g., "10,11"
+    $idsPlaceholder = implode(',', array_fill(0, count($sessionIDs), '?'));
+    $types = "i" . str_repeat('i', count($sessionIDs)); // e.g., "iii"
+    
+    // Fetch all students with ALL their logbooks
+    // Display based on Course_ID: Course 1 = SWE4949A, Course 2 = SWE4949B
     $sql = "SELECT 
                 se.Student_ID,
                 s.Student_Name,
-                fs.Course_ID, 
                 l.Logbook_ID,
                 l.Logbook_Name,
                 l.Logbook_Date,
-                l.Logbook_Status
+                l.Logbook_Status,
+                l.Course_ID as Logbook_Course_ID
             FROM student_enrollment se
-            JOIN student s ON se.Student_ID = s.Student_ID
-            JOIN fyp_session fs ON se.FYP_Session_ID = fs.FYP_Session_ID
-            LEFT JOIN logbook l ON (se.Student_ID = l.Student_ID AND fs.Course_ID = l.Course_ID)
-            WHERE se.Supervisor_ID = ?
+            JOIN student s ON se.Student_ID = s.Student_ID AND se.FYP_Session_ID = s.FYP_Session_ID
+            LEFT JOIN logbook l ON se.Student_ID = l.Student_ID
+            WHERE se.Supervisor_ID = ? 
+            AND se.FYP_Session_ID IN ($idsPlaceholder) 
             ORDER BY se.Student_ID, l.Logbook_Date DESC";
 
     $stmt = $conn->prepare($sql);
-    $stmt->bind_param("i", $supervisorID);
+    
+    // Bind parameters dynamically
+    $params = array_merge([$supervisorID], $sessionIDs);
+    $types = "i" . str_repeat('i', count($sessionIDs));
+    $stmt->bind_param($types, ...$params);
+    
     $stmt->execute();
     $result = $stmt->get_result();
 
+    // First, collect all unique students
+    $allStudents = [];
     while ($row = $result->fetch_assoc()) {
-        // 1. Determine which list this row belongs to (A or B)
-        // Course_ID 1 = SWE4949A, Course_ID 2 = SWE4949B
-        $courseKey = ($row['Course_ID'] == 2) ? 'SWE4949B' : 'SWE4949A';
         $sID = $row['Student_ID'];
-
-        // 2. Create the Student Entry if it doesn't exist yet for this specific Course
-        if (!isset($groupedData[$courseKey][$sID])) {
+        
+        // Store student info
+        if (!isset($allStudents[$sID])) {
+            $allStudents[$sID] = [
+                'name' => $row['Student_Name'],
+                'logbooks' => []
+            ];
+        }
+        
+        // Add logbook if exists
+        if (!empty($row['Logbook_ID'])) {
+            $allStudents[$sID]['logbooks'][] = [
+                'id'     => $row['Logbook_ID'],
+                'name'   => $row['Logbook_Name'],
+                'date'   => $row['Logbook_Date'],
+                'status' => $row['Logbook_Status'],
+                'course_id' => $row['Logbook_Course_ID']
+            ];
+        }
+    }
+    $stmt->close();
+    
+    // Now populate BOTH course sections with all students
+    foreach ($allStudents as $sID => $studentData) {
+        // Add student to BOTH SWE4949A and SWE4949B
+        foreach (['SWE4949A' => 1, 'SWE4949B' => 2] as $courseKey => $courseID) {
             $groupedData[$courseKey][$sID] = [
-                'name'      => $row['Student_Name'],
+                'name'      => $studentData['name'],
                 'id'        => $sID,
                 'logbooks'  => [],
                 'stats'     => ['submitted' => 0, 'approved' => 0]
             ];
-        }
-
-        // 3. Add Logbook Data (if the student has submitted any)
-        if (!empty($row['Logbook_ID'])) {
-            $groupedData[$courseKey][$sID]['logbooks'][] = [
-                'id'     => $row['Logbook_ID'],
-                'name'   => $row['Logbook_Name'],
-                'date'   => $row['Logbook_Date'],
-                'status' => $row['Logbook_Status'] 
-            ];
-
-            // 4. Update Statistics
-            $groupedData[$courseKey][$sID]['stats']['submitted']++;
-            if ($row['Logbook_Status'] === 'Approved') {
-                $groupedData[$courseKey][$sID]['stats']['approved']++;
+            
+            // Filter logbooks based on Course_ID only
+            // Course_ID = 1 → Display under SWE4949A
+            // Course_ID = 2 → Display under SWE4949B
+            foreach ($studentData['logbooks'] as $logbook) {
+                if ($logbook['course_id'] == $courseID) {
+                    $groupedData[$courseKey][$sID]['logbooks'][] = $logbook;
+                    $groupedData[$courseKey][$sID]['stats']['submitted']++;
+                    if ($logbook['status'] === 'Approved') {
+                        $groupedData[$courseKey][$sID]['stats']['approved']++;
+                    }
+                }
             }
         }
     }
-    $stmt->close();
 }
 ?>
 
@@ -148,6 +180,7 @@ if ($supervisorID > 0) {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat&family=Overlock" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 </head>
 <body>
@@ -160,7 +193,7 @@ if ($supervisorID > 0) {
                 Close <span class="x-symbol">x</span>
             </a>
 
-            <span id="nameSide">HI, <?php echo strtoupper($loginID); ?></span>
+            <span id="nameSide">Hi, <?php echo ucwords(strtolower($lecturerName)); ?></span>
 
             <a href="javascript:void(0)"
                 class="role-header <?php echo ($activeRole == 'supervisor') ? 'menu-expanded' : ''; ?>"
@@ -215,7 +248,7 @@ if ($supervisorID > 0) {
             </a>
 
             <div id="assessorMenu" class="menu-items <?php echo ($activeRole == 'assessor') ? 'expanded' : ''; ?>">
-                <a href="../phpAssessor/dashboard.php?role=supervisor" id="Dashboard"
+                <a href="../phpAssessor/dashboard.php?role=assessor" id="Dashboard"
                     class="<?php echo ($activeRole == 'supervisor') ?: ''; ?>"><i
                         class="bi bi-house-fill icon-padding"></i>
                     Dashboard</a>
@@ -227,6 +260,41 @@ if ($supervisorID > 0) {
                     <i class="bi bi-file-earmark-text-fill icon-padding"></i> Evaluation Form
                 </a>
             </div>
+
+                    <?php if ($isCoordinator): ?>
+                <a href="javascript:void(0)"
+                    class="role-header <?php echo ($activeRole == 'coordinator') ? 'menu-expanded' : ''; ?>"
+                    data-target="coordinatorMenu" onclick="toggleMenu('coordinatorMenu', this)">
+                    <span class="role-text">Coordinator</span>
+                    <span class="arrow-container"><i class="bi bi-chevron-right arrow-icon"></i></span>
+                </a>
+
+                <div id="coordinatorMenu"
+                    class="menu-items <?php echo ($activeRole == 'coordinator') ? 'expanded' : ''; ?>">
+                    <a href="../../html/coordinator/dashboard/dashboardCoordinator.php" id="CoordinatorDashboard">
+                        <i class="bi bi-house-fill icon-padding"></i> Dashboard
+                    </a>
+                    <a href="../../html/coordinator/notification/notification.php" id="CoordinatorNotification">
+                        <i class="bi bi-bell-fill icon-padding"></i> Notification
+                    </a>
+                    <a href="../../html/coordinator/studentAssignation/studentAssignation.php" id="StudentAssignation">
+                        <i class="bi bi-people-fill icon-padding"></i> Student Assignation
+                    </a>
+                    <a href="../../html/coordinator/dateTimeAllocation/dateTimeAllocation.php" id="DateTimeAllocation">
+                        <i class="bi bi-calendar-check-fill icon-padding"></i> Date & Time Allocation
+                    </a>
+                    <a href="../../html/coordinator/learningObjective/learningObjective.php" id="LearningObjective">
+                        <i class="bi bi-book-fill icon-padding"></i> Learning Objective
+                    </a>
+                    <a href="../../html/coordinator/markSubmission/markSubmission.php" id="MarkSubmission">
+                        <i class="bi bi-file-earmark-check-fill icon-padding"></i> Mark Submission
+                    </a>
+                    <a href="../../html/coordinator/signatureSubmission/signatureSubmission.php"
+                        id="CoordinatorSignatureSubmission">
+                        <i class="bi bi-pen-fill icon-padding"></i> Signature Submission
+                    </a>
+                </div>
+            <?php endif; ?>
 
             <a href="../login.php" id="logout"><i class="bi bi-box-arrow-left" style="padding-right: 10px;"></i> Logout</a>
         </div>
@@ -252,14 +320,17 @@ if ($supervisorID > 0) {
     <div id="main">
         <div class="logbook-container">
             <h1 class="page-title">Logbook Submission</h1>
+            <p style="margin: 0; color: #666; font-size: 14px;">
+                    <i class="bi bi-info-circle"></i> Student must have at least 6 logbooks approved for each semesters.
+                </p>
 
             <div class="accordion" id="logbookAccordion">
                 
                 <?php foreach ($groupedData as $courseCode => $students): ?>
                     <?php 
                         $collapseID = "collapse" . $courseCode;
-                        // Open 'A' by default
-                        $isShow = ($courseCode === 'SWE4949A') ? 'show' : '';
+                        // Open both A and B by default
+                        $isShow = 'show';
                     ?>
                     
                     <div class="course-section">
@@ -268,7 +339,7 @@ if ($supervisorID > 0) {
                             <span><?php echo $courseCode; ?></span>
                         </div>
 
-                        <div id="<?php echo $collapseID; ?>" class="collapse <?php echo $isShow; ?>" data-bs-parent="#logbookAccordion">
+                        <div id="<?php echo $collapseID; ?>" class="collapse <?php echo $isShow; ?>">
                             <div class="logbook-table-wrapper">
                                 <div class="logbook-grid-container">
 
@@ -288,7 +359,7 @@ if ($supervisorID > 0) {
                                                 $rowSpan = ($count > 0) ? $count : 1;
                                             ?>
                                             
-                                            <div class="student-group-wrapper">
+                                            <div class="student-group-wrapper" style="display: contents;">
                                                 
                                                 <div class="grid-cell student-col spanned-cell" style="grid-row: span <?php echo $rowSpan; ?>;">
                                                     <strong><?php echo htmlspecialchars($data['name']); ?></strong>
@@ -311,7 +382,7 @@ if ($supervisorID > 0) {
                                                     ?>
                                                         <?php if ($isFirst): ?>
                                                             <div class="grid-cell meeting-col">
-                                                                <a href="view_logbook_pdf.php?id=<?php echo $lb['id']; ?>" target="_blank" class="pdf-link">
+                                                                <a href="javascript:void(0)" onclick="viewLogbookPDF(<?php echo $lb['id']; ?>)" class="pdf-link">
                                                                     <i class="bi bi-file-earmark-pdf"></i>
                                                                     <?php echo htmlspecialchars($lb['name']); ?>
                                                                 </a>
@@ -321,10 +392,11 @@ if ($supervisorID > 0) {
                                                             <div class="grid-cell status-col">
                                                                 <select class="form-select form-select-sm status-select" 
                                                                         onchange="updateStatus(<?php echo $lb['id']; ?>, this)"
-                                                                        data-status="<?php echo $lb['status']; ?>">
-                                                                    <option value="Waiting for Approval" <?php echo ($lb['status'] == 'Waiting for Approval') ? 'selected' : ''; ?>>Pending</option>
+                                                                        data-status="<?php echo $lb['status']; ?>"
+                                                                        data-previous-status="<?php echo $lb['status']; ?>">
+                                                                    <option value="Waiting for Approval" <?php echo ($lb['status'] == 'Waiting for Approval') ? 'selected' : ''; ?>>Waiting for Approval</option>
                                                                     <option value="Approved" <?php echo ($lb['status'] == 'Approved') ? 'selected' : ''; ?>>Approved</option>
-                                                                    <option value="Declined" <?php echo ($lb['status'] == 'Declined') ? 'selected' : ''; ?>>Declined</option>
+                                                                    <option value="Rejected" <?php echo ($lb['status'] == 'Rejected') ? 'selected' : ''; ?>>Rejected</option>
                                                                 </select>
                                                             </div>
                                                             
@@ -337,7 +409,7 @@ if ($supervisorID > 0) {
                                                             <?php $isFirst = false; ?>
                                                         <?php else: ?>
                                                             <div class="grid-cell meeting-col">
-                                                                <a href="view_logbook_pdf.php?id=<?php echo $lb['id']; ?>" target="_blank" class="pdf-link">
+                                                                <a href="javascript:void(0)" onclick="viewLogbookPDF(<?php echo $lb['id']; ?>)" class="pdf-link">
                                                                     <i class="bi bi-file-earmark-pdf"></i>
                                                                     <?php echo htmlspecialchars($lb['name']); ?>
                                                                 </a>
@@ -347,10 +419,11 @@ if ($supervisorID > 0) {
                                                             <div class="grid-cell status-col">
                                                                 <select class="form-select form-select-sm status-select" 
                                                                         onchange="updateStatus(<?php echo $lb['id']; ?>, this)"
-                                                                        data-status="<?php echo $lb['status']; ?>">
-                                                                    <option value="Waiting for Approval" <?php echo ($lb['status'] == 'Waiting for Approval') ? 'selected' : ''; ?>>Pending</option>
+                                                                        data-status="<?php echo $lb['status']; ?>"
+                                                                        data-previous-status="<?php echo $lb['status']; ?>">
+                                                                    <option value="Waiting for Approval" <?php echo ($lb['status'] == 'Waiting for Approval') ? 'selected' : ''; ?>>Waiting for Approval</option>
                                                                     <option value="Approved" <?php echo ($lb['status'] == 'Approved') ? 'selected' : ''; ?>>Approved</option>
-                                                                    <option value="Declined" <?php echo ($lb['status'] == 'Declined') ? 'selected' : ''; ?>>Declined</option>
+                                                                    <option value="Rejected" <?php echo ($lb['status'] == 'Rejected') ? 'selected' : ''; ?>>Rejected</option>
                                                                 </select>
                                                             </div>
                                                         <?php endif; ?>
@@ -545,6 +618,7 @@ if ($supervisorID > 0) {
 
         // AJAX Update
         function updateStatus(id, el) {
+            const previousStatus = el.getAttribute('data-previous-status') || '';
             const status = el.value;
             updateSelectColor(el);
             el.disabled = true;
@@ -557,12 +631,180 @@ if ($supervisorID > 0) {
             .then(r => r.json())
             .then(data => {
                 el.disabled = false;
-                if(!data.success) alert('Failed: ' + data.message);
+                if(data.success) {
+                    // Update the approved count in real-time
+                    const studentWrapper = el.closest('.student-group-wrapper');
+                    if (studentWrapper) {
+                        const approvedCell = studentWrapper.querySelector('.approved-col');
+                        if (approvedCell) {
+                            let currentCount = parseInt(approvedCell.textContent.trim()) || 0;
+                            
+                            // If changing FROM approved TO something else: decrement
+                            if (previousStatus === 'Approved' && status !== 'Approved') {
+                                currentCount = Math.max(0, currentCount - 1);
+                            }
+                            // If changing FROM non-approved TO approved: increment
+                            else if (previousStatus !== 'Approved' && status === 'Approved') {
+                                currentCount++;
+                            }
+                            
+                            approvedCell.textContent = currentCount;
+                        }
+                    }
+
+                    // Update the data attribute to track the new status
+                    el.setAttribute('data-previous-status', status);
+                } else {
+                    alert('Failed: ' + data.message);
+                }
             })
             .catch(e => {
                 el.disabled = false;
                 alert('Connection error');
             });
+        }
+
+        // View Logbook PDF Function
+        function viewLogbookPDF(logbookID) {
+            // Fetch logbook data
+            fetch('get_logbook_data.php?id=' + logbookID)
+                .then(r => r.json())
+                .then(data => {
+                    if (!data.success) {
+                        alert('Failed to load logbook data: ' + data.message);
+                        return;
+                    }
+                    
+                    const logbook = data.logbook;
+                    const agendas = data.agendas;
+                    
+                    // Generate PDF
+                    const { jsPDF } = window.jspdf;
+                    const doc = new jsPDF('p', 'mm', 'a4');
+                    
+                    const pageWidth = doc.internal.pageSize.getWidth();
+                    const pageHeight = doc.internal.pageSize.getHeight();
+                    const margin = 20;
+                    let yPosition = 20;
+                    
+                    // Add UPM Logo centered
+                    const logoWidth = 50;
+                    const logoHeight = 30;
+                    const logoX = (pageWidth - logoWidth) / 2;
+                    doc.addImage('../../assets/UPMLogo.png', 'PNG', logoX, yPosition, logoWidth, logoHeight);
+                    yPosition += logoHeight + 10;
+                    
+                    // Title
+                    doc.setFontSize(14);
+                    doc.setFont('helvetica', 'bold');
+                    doc.setTextColor(51, 51, 51);
+                    const title = 'FINAL YEAR PROJECT LOGBOOK';
+                    const titleWidth = doc.getTextWidth(title);
+                    doc.text(title, (pageWidth - titleWidth) / 2, yPosition);
+                    yPosition += 10;
+                    
+                    // Logbook Name
+                    doc.setFontSize(12);
+                    doc.setFont('helvetica', 'normal');
+                    const logbookName = logbook.Logbook_Name;
+                    const nameWidth = doc.getTextWidth(logbookName);
+                    doc.text(logbookName, (pageWidth - nameWidth) / 2, yPosition);
+                    yPosition += 8;
+                    
+                    // Divider line
+                    doc.setDrawColor(0, 0, 0);
+                    doc.setLineWidth(0.5);
+                    doc.line(margin, yPosition, pageWidth - margin, yPosition);
+                    yPosition += 10;
+                    
+                    // Student Details
+                    doc.setFontSize(10);
+                    
+                    // Student Name (with text wrapping)
+                    doc.setFont('helvetica', 'bold');
+                    doc.text('Student Name:', margin, yPosition);
+                    doc.setFont('helvetica', 'normal');
+                    const maxNameWidth = pageWidth / 2 - margin - 50; // Leave space before Student ID
+                    const nameLines = doc.splitTextToSize(logbook.Student_Name, maxNameWidth);
+                    doc.text(nameLines, margin + 40, yPosition);
+                    
+                    // Student ID (aligned to right side)
+                    doc.setFont('helvetica', 'bold');
+                    doc.text('Student ID:', pageWidth / 2 + 10, yPosition);
+                    doc.setFont('helvetica', 'normal');
+                    doc.text(logbook.Student_ID, pageWidth / 2 + 40, yPosition);
+                    
+                    // Adjust yPosition based on name lines
+                    const nameHeight = nameLines.length * 5;
+                    yPosition += Math.max(7, nameHeight);
+                    
+                    // Date
+                    doc.setFont('helvetica', 'bold');
+                    doc.text('Date:', margin, yPosition);
+                    doc.setFont('helvetica', 'normal');
+                    doc.text(logbook.Logbook_Date, margin + 40, yPosition);
+                    
+                    // Status
+                    doc.setFont('helvetica', 'bold');
+                    doc.text('Status:', pageWidth / 2 + 10, yPosition);
+                    doc.setFont('helvetica', 'normal');
+                    doc.text(logbook.Logbook_Status, pageWidth / 2 + 40, yPosition);
+                    yPosition += 15;
+                    
+                    // Agenda Section Title
+                    doc.setFontSize(12);
+                    doc.setFont('helvetica', 'bold');
+                    doc.text('Agenda & Progress', margin, yPosition);
+                    yPosition += 5;
+                    
+                    // Divider line
+                    doc.setDrawColor(0, 0, 0);
+                    doc.line(margin, yPosition, pageWidth - margin, yPosition);
+                    yPosition += 10;
+                    
+                    // Agenda Items
+                    doc.setFontSize(10);
+                    if (agendas.length > 0) {
+                        agendas.forEach((agenda, index) => {
+                            // Check if we need a new page
+                            if (yPosition > pageHeight - 40) {
+                                doc.addPage();
+                                yPosition = 20;
+                            }
+                            
+                            // Agenda Title
+                            doc.setFont('helvetica', 'bold');
+                            doc.text('Item: ' + agenda.Agenda_Title, margin, yPosition);
+                            yPosition += 7;
+                            
+                            // Agenda Content
+                            doc.setFont('helvetica', 'normal');
+                            const content = agenda.Agenda_Content || '';
+                            const lines = doc.splitTextToSize(content, pageWidth - 2 * margin - 10);
+                            
+                            lines.forEach(line => {
+                                if (yPosition > pageHeight - 20) {
+                                    doc.addPage();
+                                    yPosition = 20;
+                                }
+                                doc.text(line, margin + 5, yPosition);
+                                yPosition += 5;
+                            });
+                            
+                            yPosition += 5;
+                        });
+                    } else {
+                        doc.setFont('helvetica', 'italic');
+                        doc.text('No details recorded for this meeting.', margin, yPosition);
+                    }
+                    
+                    // Save PDF
+                    const fileName = 'Logbook_' + logbook.Logbook_Name.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_-]/g, '') + '.pdf';
+                    doc.save(fileName);
+                })
+                .catch(e => {
+                    alert('Error loading logbook: ' + e.message);
+                });
         }
     </script>
 </body>

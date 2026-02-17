@@ -14,33 +14,36 @@ $activeRole = isset($_GET['role']) ? $_GET['role'] : 'supervisor';
 // 2. PREPARE MODULE TITLE
 $moduleTitle = ucfirst($activeRole) . " Module";
 
-// 3. FETCH COURSE INFO
-$courseCode = "SWE4949A";
-$courseSession = "2024/2025 - 2";
+// 3. FETCH COURSE INFO AND SESSION ID
+// HARDCODED: Using FYP_Session_ID 1 and 2 for current academic sessions
+$courseCode = "SWE4949";
+$courseSession = "2024/2025 - 1";
+$latestSessionID = 1; // Hardcoded to session 1 for now
 
-$sqlSession = "SELECT fs.FYP_Session, fs.Semester, c.Course_Code 
-               FROM fyp_session fs
-               JOIN course c ON fs.Course_ID = c.Course_ID
-               ORDER BY fs.FYP_Session DESC, fs.Semester DESC
-               LIMIT 1";
-
-$resultSession = $conn->query($sqlSession);
-if ($resultSession && $resultSession->num_rows > 0) {
-    $sessionRow = $resultSession->fetch_assoc();
-    $courseCode = $sessionRow['Course_Code'];
-    $courseSession = $sessionRow['FYP_Session'] . " - " . $sessionRow['Semester'];
-}
+error_log("DEBUG [Dashboard]: Using hardcoded Session ID: " . $latestSessionID);
 
 // A. Get Login ID and Role
 if (isset($_SESSION['upmId'])) {
     $loginID = $_SESSION['upmId'];
+    error_log("DEBUG [Dashboard]: Using upmId from session: " . $loginID);
 } else {
     $loginID = 'hazura'; // Fallback
+    error_log("WARNING [Dashboard]: Session upmId not set, using fallback: " . $loginID);
 }
 
 // Check if user has Coordinator role
 $userRole = isset($_SESSION['role']) ? $_SESSION['role'] : '';
 $isCoordinator = ($userRole === 'Coordinator');
+
+// Get lecturer full name
+$lecturerName = $loginID; // Default fallback
+$stmtName = $conn->prepare("SELECT Lecturer_Name FROM lecturer WHERE Lecturer_ID = ?");
+$stmtName->bind_param("s", $loginID);
+$stmtName->execute();
+if ($rowName = $stmtName->get_result()->fetch_assoc()) {
+    $lecturerName = $rowName['Lecturer_Name'];
+}
+$stmtName->close();
 
 // B. Lookup Numeric ID
 $currentUserID = null;
@@ -48,19 +51,40 @@ if ($activeRole === 'supervisor') {
     $stmt = $conn->prepare("SELECT Supervisor_ID FROM supervisor WHERE Lecturer_ID = ?");
     $stmt->bind_param("s", $loginID);
     $stmt->execute();
-    if ($row = $stmt->get_result()->fetch_assoc())
+    $result = $stmt->get_result();
+    if ($row = $result->fetch_assoc()) {
         $currentUserID = $row['Supervisor_ID'];
+        error_log("DEBUG [Dashboard]: Found Supervisor_ID: " . $currentUserID . " for Lecturer_ID: " . $loginID);
+    } else {
+        error_log("ERROR [Dashboard]: No Supervisor_ID found for Lecturer_ID: " . $loginID);
+    }
+    $stmt->close();
 } elseif ($activeRole === 'assessor') {
     $stmt = $conn->prepare("SELECT Assessor_ID FROM assessor WHERE Lecturer_ID = ?");
     $stmt->bind_param("s", $loginID);
     $stmt->execute();
-    if ($row = $stmt->get_result()->fetch_assoc())
+    $result = $stmt->get_result();
+    if ($row = $result->fetch_assoc()) {
         $currentUserID = $row['Assessor_ID'];
+        error_log("DEBUG [Dashboard]: Found Assessor_ID: " . $currentUserID . " for Lecturer_ID: " . $loginID);
+    } else {
+        error_log("ERROR [Dashboard]: No Assessor_ID found for Lecturer_ID: " . $loginID);
+    }
+    $stmt->close();
 }
 
-// Fetch distinct FYP Sessions for the Sidebar Filter
-$session_sql = "SELECT DISTINCT FYP_Session FROM fyp_session ORDER BY FYP_Session DESC";
-$session_result = $conn->query($session_sql);
+// ========== DEBUG: LOG CRITICAL VALUES ==========
+error_log("DEBUG [Dashboard]: Active Role: " . $activeRole);
+error_log("DEBUG [Dashboard]: Login ID: " . $loginID);
+error_log("DEBUG [Dashboard]: Current User ID: " . ($currentUserID ?? 'NULL'));
+error_log("DEBUG [Dashboard]: Latest Session ID: " . ($latestSessionID ?? 'NULL'));
+
+if (!$currentUserID) {
+    error_log("CRITICAL [Dashboard]: currentUserID is NULL - No data will be fetched!");
+}
+if (!$latestSessionID) {
+    error_log("CRITICAL [Dashboard]: latestSessionID is NULL - No data will be fetched!");
+}
 
 // ========== FETCH DASHBOARD DATA ==========
 
@@ -70,20 +94,24 @@ $inProgressCount = 0;
 $approvalRequestCount = 0;
 $nearestDueDays = 0;
 
-// 1. COUNT SUPERVISEES (from student_enrollment table)
+// 1. COUNT SUPERVISEES (from student_enrollment table - sessions 1 and 2)
 if ($currentUserID) {
-    $stmt = $conn->prepare("SELECT COUNT(DISTINCT Student_ID) as count FROM student_enrollment WHERE Supervisor_ID = ?");
+    $stmt = $conn->prepare("SELECT COUNT(DISTINCT Student_ID) as count FROM student_enrollment WHERE Supervisor_ID = ? AND FYP_Session_ID IN (1, 2)");
     $stmt->bind_param("i", $currentUserID);
     $stmt->execute();
     $result = $stmt->get_result();
     if ($row = $result->fetch_assoc()) {
         $superviseeCount = $row['count'];
+        error_log("DEBUG [Dashboard]: Supervisee count: " . $superviseeCount);
     }
     $stmt->close();
+} else {
+    error_log("WARNING [Dashboard]: Skipping supervisee count - currentUserID is NULL");
+}
 
-    // 2. COUNT IN-PROGRESS TASKS (evaluations not submitted by supervisor)
-    // Assessment IDs: 1 for Course 1, and 4,5 for Course 2
-    $stmt = $conn->prepare("
+// 2. COUNT IN-PROGRESS TASKS (evaluations not submitted by supervisor - sessions 1 and 2)
+// Assessment IDs: 1 for Course 1, and 4,5 for Course 2
+$stmt = $conn->prepare("
         SELECT COUNT(DISTINCT se.Student_ID, a.Assessment_ID) as count 
         FROM student_enrollment se
         JOIN student s ON se.Student_ID = s.Student_ID
@@ -93,88 +121,168 @@ if ($currentUserID) {
             AND e.Supervisor_ID = ? 
             AND e.Assessment_ID = a.Assessment_ID
         WHERE se.Supervisor_ID = ?
+        AND se.FYP_Session_ID IN (1, 2)
         AND (
             (c.Course_ID = 1 AND a.Assessment_ID = 1) OR
             (c.Course_ID = 2 AND a.Assessment_ID IN (4, 5))
         )
         AND e.Evaluation_ID IS NULL
     ");
-    $stmt->bind_param("ii", $currentUserID, $currentUserID);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    if ($row = $result->fetch_assoc()) {
-        $inProgressCount = $row['count'];
-    }
-    $stmt->close();
+$stmt->bind_param("ii", $currentUserID, $currentUserID);
+$stmt->execute();
+$result = $stmt->get_result();
+if ($row = $result->fetch_assoc()) {
+    $inProgressCount = $row['count'];
+}
+$stmt->close();
 
-    // 3. COUNT APPROVAL REQUESTS (logbook + project title not approved)
-    // Logbook with status 'Waiting for Approval'
-    $stmt = $conn->prepare("
+// 3. COUNT APPROVAL REQUESTS (logbook + project title not approved - sessions 1 and 2)
+// Logbook with status 'Waiting for Approval'
+$stmt = $conn->prepare("
         SELECT COUNT(*) as count 
         FROM logbook l
         JOIN student_enrollment se ON l.Student_ID = se.Student_ID
         WHERE se.Supervisor_ID = ? 
+        AND se.FYP_Session_ID IN (1, 2)
         AND l.Logbook_Status = 'Waiting for Approval'
     ");
-    $stmt->bind_param("i", $currentUserID);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    if ($row = $result->fetch_assoc()) {
-        $approvalRequestCount += $row['count'];
-    }
-    $stmt->close();
+$stmt->bind_param("i", $currentUserID);
+$stmt->execute();
+$result = $stmt->get_result();
+if ($row = $result->fetch_assoc()) {
+    $approvalRequestCount += $row['count'];
+}
+$stmt->close();
 
-    // Project title not approved
-    $stmt = $conn->prepare("
+// Project title not approved
+$stmt = $conn->prepare("
         SELECT COUNT(*) as count 
         FROM fyp_project pt
         JOIN student_enrollment se ON pt.Student_ID = se.Student_ID
         WHERE se.Supervisor_ID = ? 
+        AND se.FYP_Session_ID IN (1, 2)
         AND (pt.Title_Status = 'Waiting For Approval')
     ");
-    $stmt->bind_param("i", $currentUserID);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    if ($row = $result->fetch_assoc()) {
-        $approvalRequestCount += $row['count'];
-    }
-    $stmt->close();
+$stmt->bind_param("i", $currentUserID);
+$stmt->execute();
+$result = $stmt->get_result();
+if ($row = $result->fetch_assoc()) {
+    $approvalRequestCount += $row['count'];
+}
+$stmt->close();
 
-    // 4. GET NEAREST EVALUATION DUE DATE
-    $stmt = $conn->prepare("
-        SELECT DATEDIFF(End_Date, CURDATE()) as days_left
-        FROM due_date
-        WHERE Role = 'Supervisor' 
-        AND End_Date >= CURDATE()
-        ORDER BY End_Date ASC
+// 4. GET NEAREST EVALUATION DUE DATE
+$stmt = $conn->prepare("
+        SELECT DATEDIFF(dd.End_Date, CURDATE()) as days_left
+        FROM due_date dd
+        WHERE dd.Role = 'Supervisor' 
+        AND dd.End_Date >= CURDATE()
+        AND dd.FYP_Session_ID IN (1, 2)
+        ORDER BY dd.End_Date ASC
         LIMIT 1
     ");
-    $stmt->execute();
-    $result = $stmt->get_result();
-    if ($row = $result->fetch_assoc()) {
-        $nearestDueDays = $row['days_left'] . ' days';
+$stmt->execute();
+$stmt->execute();
+$result = $stmt->get_result();
+if ($row = $result->fetch_assoc()) {
+    $nearestDueDays = $row['days_left'] . ' days';
+}
+$stmt->close();
+
+
+// 5. FETCH REMINDER DATA - Evaluation deadlines from due_date, custom messages from reminder table
+$reminderItems = [];
+// Fetch due dates for supervisor assessments grouped by date (like coordinator)
+$stmt = $conn->prepare("
+    SELECT 
+        dd.Start_Date,
+        dd.End_Date,
+        dd.Start_Time,
+        dd.End_Time,
+        dd.Role,
+        a.Assessment_Name,
+        c.Course_Code
+    FROM due_date dd
+    JOIN assessment a ON dd.Assessment_ID = a.Assessment_ID
+    JOIN course c ON a.Course_ID = c.Course_ID
+    WHERE dd.Role = 'Supervisor'
+    AND dd.End_Date >= CURDATE()
+    AND dd.FYP_Session_ID IN (1, 2)
+    ORDER BY dd.Start_Date ASC, dd.Start_Time ASC
+");
+$stmt->execute();
+$stmt->execute();
+$result = $stmt->get_result();
+
+// Group reminders by date
+$groupedByDate = [];
+while ($row = $result->fetch_assoc()) {
+    $dateKey = $row['End_Date'];
+    if (!isset($groupedByDate[$dateKey])) {
+        $groupedByDate[$dateKey] = [];
     }
-    $stmt->close();
+    $groupedByDate[$dateKey][] = [
+        'assessment_name' => $row['Assessment_Name'],
+        'course_code' => $row['Course_Code'],
+        'start_time' => $row['Start_Time'],
+        'end_time' => $row['End_Time'],
+        'end_date' => $row['End_Date'],
+        'role' => $row['Role']
+    ];
+}
+$stmt->close();
+
+// Convert grouped data to reminder items format
+foreach ($groupedByDate as $date => $assessments) {
+    $dateObj = DateTime::createFromFormat('Y-m-d', $date);
+    $formattedDate = $dateObj ? $dateObj->format('d F Y') : $date;
+
+    $reminderItems[] = [
+        'type' => 'due_date',
+        'date' => $formattedDate,
+        'assessments' => $assessments
+    ];
 }
 
-// 5. FETCH CHART DATA - Supervisee's Marks
+// Fetch custom reminder messages from reminder table (filtered by role)
+$stmt = $conn->prepare("SELECT Message, Date FROM reminder WHERE Role = 'Supervisor' OR Role IS NULL ORDER BY Date DESC LIMIT 10");
+$stmt->execute();
+$result = $stmt->get_result();
+while ($row = $result->fetch_assoc()) {
+    if (!empty($row['Message'])) {
+        $reminderItems[] = [
+            'type' => 'custom',
+            'message' => $row['Message'],
+            'date' => $row['Date'] ? date('d F Y', strtotime($row['Date'])) : null
+        ];
+    }
+}
+$stmt->close();
+
+
+
+// 6. FETCH CHART DATA - Supervisee's Marks (sessions 1 and 2)
 $marksData = [];
 if ($currentUserID) {
     $stmt = $conn->prepare("
         SELECT 
-            s.Student_ID,
-            s.Student_Name,
+            se.Student_ID,
+            (SELECT Student_Name FROM student WHERE Student_ID = se.Student_ID LIMIT 1) as Student_Name,
             c.Course_Code,
-            COALESCE(SUM(e.Evaluation_Percentage), 0) as total_marks
+            COALESCE(SUM(CASE WHEN a.Course_ID = c.Course_ID THEN e.Evaluation_Percentage ELSE 0 END), 0) as total_marks
         FROM student_enrollment se
-        JOIN student s ON se.Student_ID = s.Student_ID
-        JOIN course c ON s.Course_ID = c.Course_ID
-        LEFT JOIN evaluation e ON s.Student_ID = e.Student_ID AND e.Supervisor_ID = ?
+        JOIN course c ON c.Course_ID = (CASE 
+            WHEN se.FYP_Session_ID = 1 THEN 1 
+            WHEN se.FYP_Session_ID = 2 THEN 2 
+        END)
+        LEFT JOIN evaluation e ON se.Student_ID = e.Student_ID
+        LEFT JOIN assessment a ON e.Assessment_ID = a.Assessment_ID
         WHERE se.Supervisor_ID = ?
-        GROUP BY s.Student_ID, s.Student_Name, c.Course_Code
-        ORDER BY s.Student_Name
+        AND se.FYP_Session_ID IN (1, 2)
+        GROUP BY se.Student_ID, se.FYP_Session_ID, c.Course_Code
+        ORDER BY Student_Name
     ");
-    $stmt->bind_param("ii", $currentUserID, $currentUserID);
+    $stmt->bind_param("i", $currentUserID);
     $stmt->execute();
     $result = $stmt->get_result();
     while ($row = $result->fetch_assoc()) {
@@ -183,23 +291,22 @@ if ($currentUserID) {
     $stmt->close();
 }
 
-// 6. FETCH CHART DATA - Logbook Submissions
+// 7. FETCH CHART DATA - Logbook Submissions (sessions 1 and 2)
 $logbookData = [];
 if ($currentUserID) {
     $stmt = $conn->prepare("
         SELECT 
             s.Student_ID,
             s.Student_Name,
-            c.Course_Code,
-            COUNT(CASE WHEN l.Course_ID = 1 THEN 1 END) as submitted_A,
-            COUNT(CASE WHEN l.Course_ID = 2 THEN 1 END) as submitted_B,
+            COUNT(CASE WHEN l.Course_ID = 1 AND l.FYP_Session_ID = 2 AND l.Logbook_Status = 'Approved' THEN 1 END) as submitted_A,
+            COUNT(CASE WHEN l.Course_ID = 2 AND l.FYP_Session_ID = 1 AND l.Logbook_Status = 'Approved' THEN 1 END) as submitted_B,
             6 as required
         FROM student_enrollment se
         JOIN student s ON se.Student_ID = s.Student_ID
-        JOIN course c ON s.Course_ID = c.Course_ID
         LEFT JOIN logbook l ON s.Student_ID = l.Student_ID
         WHERE se.Supervisor_ID = ?
-        GROUP BY s.Student_ID, s.Student_Name, c.Course_Code
+        AND se.FYP_Session_ID IN (1, 2)
+        GROUP BY s.Student_ID, s.Student_Name
         ORDER BY s.Student_Name
     ");
     $stmt->bind_param("i", $currentUserID);
@@ -211,7 +318,7 @@ if ($currentUserID) {
     $stmt->close();
 }
 
-// 7. FETCH IN-PROGRESS EVALUATION TASKS
+// 8. FETCH IN-PROGRESS EVALUATION TASKS (sessions 1 and 2)
 // Assessments that supervisor needs to evaluate (Assessment 1 for Course 1, Assessment 4,5 for Course 2)
 $inProgressTasks = [];
 if ($currentUserID) {
@@ -229,11 +336,12 @@ if ($currentUserID) {
         JOIN course c ON s.Course_ID = c.Course_ID
         JOIN assessment a ON c.Course_ID = a.Course_ID
         LEFT JOIN fyp_project pt ON s.Student_ID = pt.Student_ID
-        LEFT JOIN due_date dd ON a.Due_ID = dd.Due_ID
+        LEFT JOIN due_date dd ON a.Assessment_ID = dd.Assessment_ID AND dd.FYP_Session_ID = se.FYP_Session_ID AND dd.Role = 'Supervisor'
         LEFT JOIN evaluation e ON s.Student_ID = e.Student_ID 
             AND a.Assessment_ID = e.Assessment_ID 
             AND e.Supervisor_ID = ?
         WHERE se.Supervisor_ID = ?
+        AND se.FYP_Session_ID IN (1, 2)
         AND (
             (c.Course_ID = 1 AND a.Assessment_ID = 1) OR
             (c.Course_ID = 2 AND a.Assessment_ID IN (4, 5))
@@ -250,11 +358,11 @@ if ($currentUserID) {
     $stmt->close();
 }
 
-// 8. FETCH UPCOMING TASKS (Assessor evaluations - Assessment 2 for Course 1, Assessment 3 for Course 2)
+// 9. FETCH UPCOMING TASKS (Assessor evaluations - Assessment 2 for Course 1, Assessment 3 for Course 2 - sessions 1 and 2)
 $upcomingTasks = [];
 if ($currentUserID) {
     $stmt = $conn->prepare("
-        SELECT 
+        SELECT DISTINCT
             s.Student_ID,
             s.Student_Name,
             pt.Project_Title,
@@ -263,53 +371,80 @@ if ($currentUserID) {
             asess.Date,
             asess.Time,
             asess.Venue,
-            asess.Session_ID
+            asess.Session_ID,
+            GROUP_CONCAT(DISTINCT CONCAT(l.Lecturer_Name, '|', IFNULL(l.Lecturer_PhoneNo, 'N/A')) ORDER BY l.Lecturer_Name SEPARATOR '||') as Assessor_Info
         FROM student_enrollment se
-        JOIN student s ON se.Student_ID = s.Student_ID
+        JOIN student s ON se.Student_ID = s.Student_ID AND se.FYP_Session_ID = s.FYP_Session_ID
         JOIN course c ON s.Course_ID = c.Course_ID
         JOIN assessment a ON c.Course_ID = a.Course_ID
         LEFT JOIN fyp_project pt ON s.Student_ID = pt.Student_ID
-        LEFT JOIN student_session ss ON s.Student_ID = ss.Student_ID
-        LEFT JOIN assessment_session asess ON ss.Session_ID = asess.Session_ID
+        LEFT JOIN student_session ss ON s.Student_ID = ss.Student_ID AND se.FYP_Session_ID = ss.FYP_Session_ID
+        LEFT JOIN assessment_session asess ON ss.Session_ID = asess.Session_ID AND asess.Assessment_ID = a.Assessment_ID
+        LEFT JOIN assessor_session ases ON asess.Session_ID = ases.Session_ID
+        LEFT JOIN assessor ase ON ases.Assessor_ID = ase.Assessor_ID
+        LEFT JOIN lecturer l ON ase.Lecturer_ID = l.Lecturer_ID
         WHERE se.Supervisor_ID = ?
+        AND se.FYP_Session_ID IN (1, 2)
         AND (
             (c.Course_ID = 1 AND a.Assessment_ID = 2) OR
             (c.Course_ID = 2 AND a.Assessment_ID = 3)
         )
+        AND asess.Date IS NOT NULL
         AND asess.Date >= CURDATE()
+        GROUP BY s.Student_ID, s.Student_Name, pt.Project_Title, a.Assessment_Name, a.Assessment_ID, asess.Date, asess.Time, asess.Venue, asess.Session_ID
         ORDER BY asess.Date, asess.Time
     ");
     $stmt->bind_param("i", $currentUserID);
     $stmt->execute();
     $result = $stmt->get_result();
+    error_log("DEBUG [Seminar Schedule]: Query returned " . $result->num_rows . " rows for Supervisor ID: " . $currentUserID);
     while ($row = $result->fetch_assoc()) {
+        error_log("DEBUG [Seminar Schedule]: Found student " . $row['Student_ID'] . " with session " . $row['Session_ID'] . ", Date: " . $row['Date']);
+
+        // Parse assessor info to separate names and phones
+        $assessorNames = [];
+        $assessorTooltips = [];
+        if (!empty($row['Assessor_Info'])) {
+            $assessors = explode('||', $row['Assessor_Info']);
+            foreach ($assessors as $assessor) {
+                $parts = explode('|', $assessor);
+                if (count($parts) == 2) {
+                    $assessorNames[] = $parts[0];
+                    $assessorTooltips[] = $parts[1];
+                }
+            }
+        }
+        $row['Assessor_Names'] = implode(', ', $assessorNames);
+        $row['Assessor_Phones'] = $assessorTooltips;
+
         $upcomingTasks[] = $row;
     }
     $stmt->close();
 }
+error_log("DEBUG [Seminar Schedule]: Total upcoming tasks found: " . count($upcomingTasks));
 
-// 9. FETCH COMPLETED TASKS (Supervisor evaluations already submitted)
+// 10. FETCH COMPLETED TASKS (Supervisor evaluations already submitted - sessions 1 and 2)
 $completedTasks = [];
 if ($currentUserID) {
     $stmt = $conn->prepare("
         SELECT 
-            s.Student_ID,
-            s.Student_Name,
+            se.Student_ID,
+            (SELECT Student_Name FROM student WHERE Student_ID = se.Student_ID LIMIT 1) as Student_Name,
             pt.Project_Title,
             a.Assessment_Name,
             SUM(e.Evaluation_Percentage) as Total_Marks,
             MAX(e.Evaluation_ID) as latest_eval
-        FROM evaluation e
-        JOIN student s ON e.Student_ID = s.Student_ID
+        FROM student_enrollment se
+        JOIN evaluation e ON se.Student_ID = e.Student_ID
         JOIN assessment a ON e.Assessment_ID = a.Assessment_ID
-        JOIN course c ON a.Course_ID = c.Course_ID
-        LEFT JOIN fyp_project pt ON s.Student_ID = pt.Student_ID
-        WHERE e.Supervisor_ID = ?
+        LEFT JOIN fyp_project pt ON se.Student_ID = pt.Student_ID
+        WHERE se.Supervisor_ID = ?
+        AND se.FYP_Session_ID IN (1, 2)
         AND (
-            (c.Course_ID = 1 AND a.Assessment_ID = 1) OR
-            (c.Course_ID = 2 AND a.Assessment_ID IN (4, 5))
+            (se.FYP_Session_ID = 1 AND a.Assessment_ID = 1) OR
+            (se.FYP_Session_ID = 2 AND a.Assessment_ID IN (4, 5))
         )
-        GROUP BY s.Student_ID, s.Student_Name, pt.Project_Title, a.Assessment_Name
+        GROUP BY se.Student_ID, se.FYP_Session_ID, pt.Project_Title, a.Assessment_Name
         ORDER BY latest_eval DESC
     ");
     $stmt->bind_param("i", $currentUserID);
@@ -350,7 +485,7 @@ if ($currentUserID) {
                 Close <span class="x-symbol">x</span>
             </a>
 
-            <span id="nameSide">HI, <?php echo strtoupper($loginID); ?></span>
+            <span id="nameSide">Hi, <?php echo ucwords(strtolower($lecturerName)); ?></span>
 
             <a href="javascript:void(0)"
                 class="role-header <?php echo ($activeRole == 'supervisor') ? 'menu-expanded' : ''; ?>"
@@ -406,11 +541,11 @@ if ($currentUserID) {
             </a>
 
             <div id="assessorMenu" class="menu-items <?php echo ($activeRole == 'assessor') ? 'expanded' : ''; ?>">
-                <a href="../phpAssessor/dashboard.php?role=supervisor" id="Dashboard"
+                <a href="../phpAssessor/dashboard.php?role=assessor" id="Dashboard"
                     class="<?php echo ($activeRole == 'supervisor') ?: ''; ?>"><i
                         class="bi bi-house-fill icon-padding"></i>
                     Dashboard</a>
-                <a href="../phpAssessor/notification.php?role=supervisor" id="Notification"
+                <a href="../phpAssessor/notification.php?role=assessor" id="Notification"
                     class="<?php echo ($activeRole == 'supervisor') ?: ''; ?>"><i
                         class="bi bi-bell-fill icon-padding"></i> Notification</a>
                 <a href="../phpAssessor_Supervisor/evaluation_form.php?role=assessor" id="AssessorEvaluationForm"
@@ -514,7 +649,7 @@ if ($currentUserID) {
 
                 <div class="overview-charts-grid">
                     <div class="chart-container">
-                        <h3>Supervisee's marks</h3>
+                        <h3>Supervisee's Marks</h3>
                         <div class="custom-legend">
                             <span><span class="legend-dot" style="background-color: #F8C9D4;"></span> SWE4949A</span>
                             <span><span class="legend-dot" style="background-color: #2E86C1;"></span> SWE4949B</span>
@@ -524,7 +659,7 @@ if ($currentUserID) {
                         </div>
                     </div>
                     <div class="chart-container">
-                        <h3>Logbook submission</h3>
+                        <h3>Approved Logbook </h3>
                         <div class="custom-legend">
                             <span><span class="legend-dot" style="background-color: #F8C9D4;"></span> SWE4949A</span>
                             <span><span class="legend-dot" style="background-color: #2E86C1;"></span> SWE4949B</span>
@@ -540,19 +675,54 @@ if ($currentUserID) {
                 <h1 class="card-title">Reminder</h1>
                 <div class="reminder-card">
                     <div class="reminder-card-content">
-                        <div class="reminder-item">
-                            <p class="reminder-date">28 October 2025</p>
-                            <ul>
-                                <li>Assessment rubric for Seminar Demonstration (Assessor) has been updated</li>
-                            </ul>
-                        </div>
-                        <hr class="reminder-separator">
-                        <div class="reminder-item">
-                            <p class="reminder-date">29 October 2025</p>
-                            <ul>
-                                <li>Supervisor may modify submitted marks before 12 November 2025</li>
-                            </ul>
-                        </div>
+                        <?php if (!empty($reminderItems)): ?>
+                            <?php foreach ($reminderItems as $index => $reminder): ?>
+                                <?php if ($index > 0): ?>
+                                    <hr class="reminder-separator">
+                                <?php endif; ?>
+                                <div class="reminder-item">
+                                    <?php if ($reminder['type'] === 'custom'): ?>
+                                        <?php if (!empty($reminder['date'])): ?>
+                                            <p class="reminder-date"><?php echo htmlspecialchars($reminder['date']); ?></p>
+                                        <?php endif; ?>
+                                        <ul>
+                                            <li><?php echo htmlspecialchars($reminder['message']); ?></li>
+                                        </ul>
+                                    <?php elseif ($reminder['type'] === 'due_date'): ?>
+                                        <p class="reminder-date"><?php echo htmlspecialchars($reminder['date']); ?></p>
+                                        <ul>
+                                            <?php foreach ($reminder['assessments'] as $assessment): ?>
+                                                <?php
+                                                // Format time
+                                                $startTime = $assessment['start_time'] ? date('H:i', strtotime($assessment['start_time'])) : '';
+                                                $endTime = $assessment['end_time'] ? date('H:i', strtotime($assessment['end_time'])) : '';
+                                                $timeStr = $startTime && $endTime ? "$startTime - $endTime" : ($startTime ? $startTime : '');
+                                                ?>
+                                                <li style="list-style-type: disc; margin-bottom: 8px;">
+                                                    <strong>Assessment:</strong>
+                                                    <?php echo htmlspecialchars($assessment['assessment_name']); ?><br>
+                                                    <?php if ($assessment['course_code']): ?>
+                                                        <strong>Course Code:</strong>
+                                                        <?php echo htmlspecialchars($assessment['course_code']); ?><br>
+                                                    <?php endif; ?>
+                                                    <?php if ($assessment['role']): ?>
+                                                        <strong>Role:</strong> <?php echo htmlspecialchars($assessment['role']); ?><br>
+                                                    <?php endif; ?>
+                                                    <?php if ($timeStr): ?>
+                                                        <strong>Time:</strong> <?php echo htmlspecialchars($timeStr); ?>
+                                                    <?php endif; ?>
+                                                </li>
+                                            <?php endforeach; ?>
+                                        </ul>
+                                    <?php endif; ?>
+                                </div>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <div class="reminder-item">
+                                <p class="reminder-date" style="text-align: center; color: #999; font-style: italic;">No
+                                    reminder for now</p>
+                            </div>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>
@@ -564,8 +734,8 @@ if ($currentUserID) {
             <div class="evaluation-task-card">
                 <div class="tab-buttons">
                     <button class="task-tab active-tab" data-tab="inprogress">In-progress</button>
-                    <button class="task-tab" data-tab="upcoming">Upcoming</button>
                     <button class="task-tab" data-tab="completed">Completed</button>
+                    <button class="task-tab" data-tab="upcoming">Seminar Schedule</button>
                 </div>
                 <div class="task-list-area">
 
@@ -590,10 +760,19 @@ if ($currentUserID) {
                                     'assessments' => []
                                 ];
                             }
-                            $groupedInProgress[$studentId]['assessments'][] = [
-                                'name' => $task['Assessment_Name'],
-                                'due' => $task['End_Date'] ? date('d M Y', strtotime($task['End_Date'])) : 'TBA'
-                            ];
+                            // Use Assessment_ID as key to prevent duplicates
+                            $assessmentKey = $task['Assessment_ID'];
+                            if (!isset($groupedInProgress[$studentId]['assessments'][$assessmentKey])) {
+                                $groupedInProgress[$studentId]['assessments'][$assessmentKey] = [
+                                    'name' => $task['Assessment_Name'],
+                                    'due' => $task['End_Date'] ? date('d M Y', strtotime($task['End_Date'])) : 'TBA'
+                                ];
+                            } else {
+                                // If assessment already exists but current row has a valid date and stored one is TBA, update it
+                                if ($task['End_Date'] && $groupedInProgress[$studentId]['assessments'][$assessmentKey]['due'] === 'TBA') {
+                                    $groupedInProgress[$studentId]['assessments'][$assessmentKey]['due'] = date('d M Y', strtotime($task['End_Date']));
+                                }
+                            }
                         }
 
                         if (empty($groupedInProgress)): ?>
@@ -667,6 +846,21 @@ if ($currentUserID) {
                                     </div>
                                     <?php foreach ($dateGroup['tasks'] as $task):
                                         $timeFormatted = $task['Time'] ? date('g.i a', strtotime($task['Time'])) : 'TBA';
+
+                                        // Build assessor display with tooltips
+                                        $assessorDisplay = '';
+                                        if (!empty($task['Assessor_Names'])) {
+                                            $names = explode(', ', $task['Assessor_Names']);
+                                            $phones = $task['Assessor_Phones'] ?? [];
+                                            $assessorParts = [];
+                                            foreach ($names as $index => $name) {
+                                                $phone = isset($phones[$index]) ? $phones[$index] : 'N/A';
+                                                $assessorParts[] = '<span class="assessor-name" data-phone="' . htmlspecialchars($phone) . '">' . htmlspecialchars($name) . '</span>';
+                                            }
+                                            $assessorDisplay = implode(', ', $assessorParts);
+                                        } else {
+                                            $assessorDisplay = 'TBA';
+                                        }
                                         ?>
                                         <div class="task-row data-row five-col-grid">
                                             <span
@@ -676,7 +870,7 @@ if ($currentUserID) {
                                                 class="col-project-title"><?php echo htmlspecialchars($task['Project_Title'] ?: 'No title submitted'); ?></span>
                                             <span
                                                 class="col-assessment-type"><?php echo htmlspecialchars($task['Assessment_Name']); ?></span>
-                                            <span class="col-assessor"><i class="fas fa-user-tie"></i></span>
+                                            <span class="col-assessor"><?php echo $assessorDisplay; ?></span>
                                         </div>
                                     <?php endforeach; ?>
                                 </div>
@@ -692,7 +886,7 @@ if ($currentUserID) {
                             <span class="col-student">Student</span>
                             <span class="col-project-title">Project title</span>
                             <span class="col-assessment-type">Assessment type</span>
-                            <span class="col-marks">Marks</span>
+                            <span class="col-marks">Total Marks (%)</span>
                         </div>
                         <?php if (empty($completedTasks)): ?>
                             <div class="task-row data-row four-col-grid">
@@ -709,7 +903,8 @@ if ($currentUserID) {
                                         class="col-project-title"><?php echo htmlspecialchars($task['Project_Title'] ?: 'No title submitted'); ?></span>
                                     <span
                                         class="col-assessment-type"><?php echo htmlspecialchars($task['Assessment_Name']); ?></span>
-                                    <span class="col-marks"><?php echo htmlspecialchars($task['Total_Marks']); ?></span>
+                                    <span
+                                        class="col-marks"><?php echo htmlspecialchars(number_format($task['Total_Marks'], 2)); ?></span>
                                 </div>
                                 <?php
                             endforeach;
@@ -954,9 +1149,9 @@ if ($currentUserID) {
                 }
 
                 if (strpos($mark['Course_Code'], 'A') !== false) {
-                    $marksCourseA[$labelKey] = $mark['total_marks'];
+                    $marksCourseA[$labelKey] = round($mark['total_marks'], 2);
                 } else if (strpos($mark['Course_Code'], 'B') !== false) {
-                    $marksCourseB[$labelKey] = $mark['total_marks'];
+                    $marksCourseB[$labelKey] = round($mark['total_marks'], 2);
                 }
             }
 

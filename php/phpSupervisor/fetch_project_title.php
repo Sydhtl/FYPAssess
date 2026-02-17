@@ -11,18 +11,18 @@ $searchQuery = isset($input['search']) ? trim($input['search']) : '';
 $selectedSessions = isset($input['sessions']) && is_array($input['sessions']) ? $input['sessions'] : [];
 
 // 2. Build Query
-// Joins: Project -> Enrollment -> Session -> Supervisor -> Lecturer -> Student
-$sql = "SELECT 
+// Joins: Project -> Student -> Enrollment -> Session -> Supervisor -> Lecturer
+$sql = "SELECT DISTINCT
             p.Project_Title,
             s.Student_Name,
             l.Lecturer_Name AS Supervisor_Name,
             fs.FYP_Session
         FROM fyp_project p
-        JOIN student_enrollment se ON p.Student_ID = se.Student_ID
+        JOIN student s ON p.Student_ID = s.Student_ID
+        JOIN student_enrollment se ON p.Student_ID = se.Student_ID AND s.FYP_Session_ID = se.FYP_Session_ID
         JOIN fyp_session fs ON se.FYP_Session_ID = fs.FYP_Session_ID
         LEFT JOIN supervisor sv ON se.Supervisor_ID = sv.Supervisor_ID
         LEFT JOIN lecturer l ON sv.Lecturer_ID = l.Lecturer_ID
-        LEFT JOIN student s ON p.Student_ID = s.Student_ID
         WHERE 1=1";
 
 $params = [];
@@ -33,25 +33,27 @@ $types = "";
 if (!empty($searchQuery)) {
     $sql .= " AND (p.Project_Title LIKE ? OR s.Student_Name LIKE ? OR l.Lecturer_Name LIKE ?)";
     $searchTerm = "%" . $searchQuery . "%";
-    
+
     // Bind 3 times
     $params[] = $searchTerm;
     $params[] = $searchTerm;
-    $params[] = $searchTerm; 
-    $types .= "sss"; 
+    $params[] = $searchTerm;
+    $types .= "sss";
 }
 
 // --- LOGIC: Filter by Session (Year) ---
-// If this array is empty (no boxes ticked), this block is SKIPPED.
-// This means the search defaults to ALL YEARS.
+// If this array is empty (no boxes ticked), default to Semester 1 only
 if (!empty($selectedSessions)) {
     $placeholders = implode(',', array_fill(0, count($selectedSessions), '?'));
     $sql .= " AND fs.FYP_Session IN ($placeholders)";
-    
+
     foreach ($selectedSessions as $session) {
         $params[] = $session;
         $types .= "s";
     }
+} else {
+    // When no filter selected, show only Semester 2 projects
+    $sql .= " AND fs.Semester = '2'";
 }
 
 // Order by newest session first

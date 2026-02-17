@@ -119,7 +119,7 @@ if ($resultAssessments) {
 
                 // A. Fetch Learning Objectives (Specific to Criteria)
                 $specificLoList = [];
-                $sqlSpecificLO = "SELECT LearningObjective_Code FROM learning_objective_allocation 
+                $sqlSpecificLO = "SELECT DISTINCT LearningObjective_Code FROM learning_objective_allocation 
                                   WHERE Criteria_ID = $critId";
                 $resSpecificLO = $conn->query($sqlSpecificLO);
                 if ($resSpecificLO) {

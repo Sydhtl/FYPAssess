@@ -27,16 +27,31 @@ $sqlSession = "SELECT fs.FYP_Session, fs.Semester, c.Course_Code
 $resultSession = $conn->query($sqlSession);
 if ($resultSession && $resultSession->num_rows > 0) {
     $sessionRow = $resultSession->fetch_assoc();
-    $courseCode = $sessionRow['Course_Code'];
+    // $courseCode = $sessionRow['Course_Code'];
+    $courseCode = "SWE4949"; // Always display base course code without A/B suffix
     $courseSession = $sessionRow['FYP_Session'] . " - " . $sessionRow['Semester'];
 }
 
 // A. Get Login ID 
-if (isset($_SESSION['user_id'])) {
-    $loginID = $_SESSION['user_id'];
+if (isset($_SESSION['upmId'])) {
+    $loginID = $_SESSION['upmId'];
 } else {
     $loginID = 'hazura'; // Fallback
 }
+
+// Check if user has Coordinator role
+$userRole = isset($_SESSION['role']) ? $_SESSION['role'] : '';
+$isCoordinator = ($userRole === 'Coordinator');
+
+// Get lecturer full name
+$lecturerName = $loginID; // Default fallback
+$stmtName = $conn->prepare("SELECT Lecturer_Name FROM lecturer WHERE Lecturer_ID = ?");
+$stmtName->bind_param("s", $loginID);
+$stmtName->execute();
+if ($rowName = $stmtName->get_result()->fetch_assoc()) {
+    $lecturerName = $rowName['Lecturer_Name'];
+}
+$stmtName->close();
 
 // B. Lookup Numeric ID
 $currentUserID = null;
@@ -57,6 +72,78 @@ if ($activeRole === 'supervisor') {
 // Fetch distinct FYP Sessions for the Sidebar Filter
 $session_sql = "SELECT DISTINCT FYP_Session FROM fyp_session ORDER BY FYP_Session DESC";
 $session_result = $conn->query($session_sql);
+
+// C. Fetch Notifications - Project Title Requests
+$titleNotifications = [];
+if ($activeRole === 'supervisor' && $currentUserID) {
+    // Get the latest session ID
+    $sqlLatestSession = "SELECT FYP_Session_ID FROM fyp_session ORDER BY FYP_Session_ID DESC LIMIT 1";
+    $resultLatestSession = $conn->query($sqlLatestSession);
+    $latestSessionID = 1;
+    if ($resultLatestSession && $rowSession = $resultLatestSession->fetch_assoc()) {
+        $latestSessionID = $rowSession['FYP_Session_ID'];
+    }
+
+    $sqlTitleNotif = "
+        SELECT 
+            fp.Project_ID,
+            s.Student_Name,
+            fp.Project_Title,
+            fp.Proposed_Title,
+            fp.Title_Status
+        FROM fyp_project fp
+        JOIN student_enrollment se ON fp.Student_ID = se.Student_ID
+        JOIN student s ON se.Student_ID = s.Student_ID AND se.FYP_Session_ID = s.FYP_Session_ID
+        WHERE se.Supervisor_ID = ?
+            AND se.FYP_Session_ID = ?
+            AND fp.Proposed_Title IS NOT NULL 
+            AND fp.Proposed_Title != ''
+            AND fp.Title_Status = 'Waiting For Approval'
+        ORDER BY fp.Project_ID DESC
+    ";
+
+    $stmtTitle = $conn->prepare($sqlTitleNotif);
+    $stmtTitle->bind_param("ii", $currentUserID, $latestSessionID);
+    $stmtTitle->execute();
+    $resultTitle = $stmtTitle->get_result();
+
+    while ($row = $resultTitle->fetch_assoc()) {
+        $titleNotifications[] = $row;
+    }
+    $stmtTitle->close();
+}
+
+// D. Fetch Notifications - Logbook Submissions
+$logbookNotifications = [];
+if ($activeRole === 'supervisor' && $currentUserID) {
+    $sqlLogbookNotif = "
+        SELECT 
+            l.Logbook_ID,
+            s.Student_Name,
+            l.Logbook_Name,
+            l.Logbook_Date,
+            l.Logbook_Status
+        FROM logbook l
+        JOIN student s ON l.Student_ID = s.Student_ID AND l.FYP_Session_ID = s.FYP_Session_ID
+        WHERE l.Supervisor_ID = ?
+            AND l.Logbook_Status = 'Waiting for Approval'
+        ORDER BY l.Logbook_Date DESC
+    ";
+
+    $stmtLogbook = $conn->prepare($sqlLogbookNotif);
+    $stmtLogbook->bind_param("i", $currentUserID);
+    $stmtLogbook->execute();
+    $resultLogbook = $stmtLogbook->get_result();
+
+    while ($row = $resultLogbook->fetch_assoc()) {
+        $logbookNotifications[] = $row;
+    }
+    $stmtLogbook->close();
+}
+
+// Combine notifications
+$allNotifications = array_merge($titleNotifications, $logbookNotifications);
+$totalNotifications = count($allNotifications);
 ?>
 <!DOCTYPE html>
 <html>
@@ -85,7 +172,7 @@ $session_result = $conn->query($session_sql);
                 Close <span class="x-symbol">x</span>
             </a>
 
-            <span id="nameSide">HI, <?php echo strtoupper($loginID); ?></span>
+            <span id="nameSide">Hi, <?php echo ucwords(strtolower($lecturerName)); ?></span>
 
             <a href="javascript:void(0)"
                 class="role-header <?php echo ($activeRole == 'supervisor') ? 'menu-expanded' : ''; ?>"
@@ -96,16 +183,16 @@ $session_result = $conn->query($session_sql);
 
             <div id="supervisorMenu" class="menu-items <?php echo ($activeRole == 'supervisor') ? 'expanded' : ''; ?>">
                 <a href="dashboard.php?role=supervisor" id="dashboard"
-                    class="<?php echo ($activeRole == 'supervisor') ? : ''; ?>">
+                    class="<?php echo ($activeRole == 'supervisor') ?: ''; ?>">
                     <i class="bi bi-house-fill icon-padding"></i> Dashboard
                 </a>
                 <a href="notification.php?role=supervisor" id="Notification"
                     class="<?php echo ($activeRole == 'supervisor') ? 'active-menu-item active-page' : ''; ?>">
                     <i class="bi bi-bell-fill icon-padding"></i> Notification
                 </a>
-                
+
                 <a href="industry_collaboration.php?role=supervisor" id="industryCollaboration"
-                    class="<?php echo ($activeRole == 'supervisor') ? : ''; ?>">
+                    class="<?php echo ($activeRole == 'supervisor') ?: ''; ?>">
                     <i class="bi bi-calendar-check-fill icon-padding"></i> Industry Collaboration
                 </a>
                 <a href="../phpAssessor_Supervisor/evaluation_form.php?role=supervisor" id="evaluationForm"
@@ -113,20 +200,20 @@ $session_result = $conn->query($session_sql);
                     <i class="bi bi-file-earmark-text-fill icon-padding"></i> Evaluation Form
                 </a>
                 <a href="report.php?role=supervisor" id="superviseesReport"
-                    class="<?php echo ($activeRole == 'supervisor') ? : ''; ?>">
+                    class="<?php echo ($activeRole == 'supervisor') ?: ''; ?>">
                     <i class="bi bi-bar-chart-fill icon-padding"></i> Supervisee's Report
                 </a>
                 <a href="logbook_submission.php?role=supervisor" id="logbookSubmission"
-                    class="<?php echo ($activeRole == 'supervisor') ? : ''; ?>">
+                    class="<?php echo ($activeRole == 'supervisor') ?: ''; ?>">
                     <i class="bi bi-calendar-check-fill icon-padding"></i> Logbook Submission
                 </a>
                 <a href="signature_submission.php?role=supervisor" id="signatureSubmission"
-                    class="<?php echo ($activeRole == 'supervisor') ? : ''; ?>">
+                    class="<?php echo ($activeRole == 'supervisor') ?: ''; ?>">
                     <i class="bi bi-calendar-check-fill icon-padding"></i> Signature Submission
                 </a>
 
                 <a href="project_title.php?role=supervisor" id="projectTitle"
-                    class="<?php echo ($activeRole == 'supervisor') ? : ''; ?>">
+                    class="<?php echo ($activeRole == 'supervisor') ?: ''; ?>">
                     <i class="bi bi-calendar-check-fill icon-padding"></i> Project Title
                 </a>
             </div>
@@ -139,7 +226,7 @@ $session_result = $conn->query($session_sql);
             </a>
 
             <div id="assessorMenu" class="menu-items <?php echo ($activeRole == 'assessor') ? 'expanded' : ''; ?>">
-                <a href="../phpAssessor/dashboard.php?role=supervisor" id="Dashboard"
+                <a href="../phpAssessor/dashboard.php?role=assessor" id="Dashboard"
                     class="<?php echo ($activeRole == 'supervisor') ?: ''; ?>"><i
                         class="bi bi-house-fill icon-padding"></i>
                     Dashboard</a>
@@ -147,12 +234,49 @@ $session_result = $conn->query($session_sql);
                     class="<?php echo ($activeRole == 'supervisor') ?: ''; ?>"><i
                         class="bi bi-bell-fill icon-padding"></i> Notification</a>
                 <a href="../phpAssessor_Supervisor/evaluation_form.php?role=assessor" id="AssessorEvaluationForm"
-                    class="<?php echo ($activeRole == 'assessor') ? : ''; ?>">
+                    class="<?php echo ($activeRole == 'assessor') ?: ''; ?>">
                     <i class="bi bi-file-earmark-text-fill icon-padding"></i> Evaluation Form
                 </a>
             </div>
 
-            <a href="../login.php" id="logout"><i class="bi bi-box-arrow-left" style="padding-right: 10px;"></i> Logout</a>
+            <?php if ($isCoordinator): ?>
+                <a href="javascript:void(0)"
+                    class="role-header <?php echo ($activeRole == 'coordinator') ? 'menu-expanded' : ''; ?>"
+                    data-target="coordinatorMenu" onclick="toggleMenu('coordinatorMenu', this)">
+                    <span class="role-text">Coordinator</span>
+                    <span class="arrow-container"><i class="bi bi-chevron-right arrow-icon"></i></span>
+                </a>
+
+                <div id="coordinatorMenu"
+                    class="menu-items <?php echo ($activeRole == 'coordinator') ? 'expanded' : ''; ?>">
+                    <a href="../../html/coordinator/dashboard/dashboardCoordinator.php" id="CoordinatorDashboard">
+                        <i class="bi bi-house-fill icon-padding"></i> Dashboard
+                    </a>
+                    <a href="../../html/coordinator/notification/notification.php" id="CoordinatorNotification">
+                        <i class="bi bi-bell-fill icon-padding"></i> Notification
+                    </a>
+                    <a href="../../html/coordinator/studentAssignation/studentAssignation.php" id="StudentAssignation">
+                        <i class="bi bi-people-fill icon-padding"></i> Student Assignation
+                    </a>
+                    <a href="../../html/coordinator/dateTimeAllocation/dateTimeAllocation.php" id="DateTimeAllocation">
+                        <i class="bi bi-calendar-check-fill icon-padding"></i> Date & Time Allocation
+                    </a>
+                    <a href="../../html/coordinator/learningObjective/learningObjective.php" id="LearningObjective">
+                        <i class="bi bi-book-fill icon-padding"></i> Learning Objective
+                    </a>
+                    <a href="../../html/coordinator/markSubmission/markSubmission.php" id="MarkSubmission">
+                        <i class="bi bi-file-earmark-check-fill icon-padding"></i> Mark Submission
+                    </a>
+                    <a href="../../html/coordinator/signatureSubmission/signatureSubmission.php"
+                        id="CoordinatorSignatureSubmission">
+                        <i class="bi bi-pen-fill icon-padding"></i> Signature Submission
+                    </a>
+                </div>
+            <?php endif; ?>
+
+            <a href="../login.php" id="logout" style="display: none;"><i class="bi bi-box-arrow-left"
+                    style="padding-right: 10px;"></i>
+                Logout</a>
         </div>
     </div>
 
@@ -177,50 +301,91 @@ $session_result = $conn->query($session_sql);
         <div class="notification-container">
             <h1 class="page-title">Notification</h1>
 
-            <!-- Notification Item 1 -->
-            <div class="notification-item">
-                <div class="notification-description">
-                    <span class="notif-number">1.</span>You have been assigned to a new evaluation task. Please review
-                    the details and accept the task.
+            <?php if ($totalNotifications == 0): ?>
+                <div class="notification-item" style="text-align: center; padding: 40px;">
+                    <p style="color: #666; font-size: 16px;">No pending notifications at this time.</p>
                 </div>
-                <div class="notif-card">
-                    <div class="notif-details">
-                        <p><strong>Date</strong>: 9 Aug 2025, Wed</p>
-                        <p><strong>Time</strong>: 9.00 am</p>
-                        <p><strong>Venue</strong>: Bilik Kuliah A</p>
-                        <p><strong>Student</strong>: Siti Athirah Binti Othman</p>
+            <?php else: ?>
+                <?php
+                $notifNum = 1;
+
+                // Display Project Title Requests
+                foreach ($titleNotifications as $titleNotif):
+                    ?>
+                    <div class="notification-item">
+                        <div class="notification-description">
+                            <span class="notif-number"><?php echo $notifNum++; ?>.</span>
+                            <strong><?php echo htmlspecialchars($titleNotif['Student_Name']); ?></strong> has submitted a new
+                            project title proposal for your review.
+                        </div>
+                        <div class="notif-card">
+                            <div class="notif-details">
+                                <p><strong>Current Title</strong>:
+                                    <?php echo htmlspecialchars($titleNotif['Project_Title'] ?? 'Not set'); ?>
+                                </p>
+                                <p><strong>Proposed Title</strong>:
+                                    <?php echo htmlspecialchars($titleNotif['Proposed_Title']); ?>
+                                </p>
+                                <p><strong>Status</strong>: <?php echo htmlspecialchars($titleNotif['Title_Status']); ?></p>
+                            </div>
+                            <div class="notif-action">
+                                <select class="form-select action-dropdown" data-type="title"
+                                    data-id="<?php echo $titleNotif['Project_ID']; ?>" onchange="updateStatus(this)">
+                                    <option value="Waiting For Approval" selected>Waiting For Approval</option>
+                                    <option value="Approved">Approved</option>
+                                    <option value="Rejected">Rejected</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
-                    <div class="notif-action">
-                        <select class="form-select action-dropdown">
-                            <option value="accept">Accept</option>
-                            <option value="reject">Reject</option>
-                        </select>
+                <?php endforeach; ?>
+
+                <?php
+                // Display Logbook Submissions
+                foreach ($logbookNotifications as $logbookNotif):
+                    ?>
+                    <div class="notification-item">
+                        <div class="notification-description">
+                            <span class="notif-number"><?php echo $notifNum++; ?>.</span>
+                            <strong><?php echo htmlspecialchars($logbookNotif['Student_Name']); ?></strong> has submitted a
+                            logbook for your approval.
+                        </div>
+                        <div class="notif-card">
+                            <div class="notif-details">
+                                <p><strong>Logbook</strong>: <?php echo htmlspecialchars($logbookNotif['Logbook_Name']); ?></p>
+                                <p><strong>Date</strong>: <?php echo date('d M Y', strtotime($logbookNotif['Logbook_Date'])); ?>
+                                </p>
+                                <p><a href="view_logbook_pdf.php?id=<?php echo $logbookNotif['Logbook_ID']; ?>" target="_blank"
+                                        style="color: #007bff; text-decoration: underline;">(See more)</a></p>
+                            </div>
+                            <div class="notif-action">
+                                <select class="form-select action-dropdown" data-type="logbook"
+                                    data-id="<?php echo $logbookNotif['Logbook_ID']; ?>" onchange="updateStatus(this)">
+                                    <option value="Waiting for Approval" selected>Waiting for Approval</option>
+                                    <option value="Approved">Approved</option>
+                                    <option value="Rejected">Rejected</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
+                <?php endforeach; ?>
+            <?php endif; ?>
+
+        </div>
+    </div>
+
+    <!-- Acknowledgement Modal -->
+    <div id="acknowledgementModal" class="custom-modal">
+        <div class="modal-dialog">
+            <div class="modal-content-custom">
+                <span class="close-btn" id="closeAcknowledgementModal">&times;</span>
+                <div class="modal-icon"><i class="bi bi-check-circle-fill"></i></div>
+                <div class="modal-title-custom" id="modalTitle">Logbook is approved!</div>
+                <div class="modal-message" id="modalMessage">The logbook approval is recorded successfully.</div>
+                <div style="display:flex; justify-content:center;">
+                    <button id="okAcknowledgementBtn" class="btn btn-success">OK</button>
                 </div>
             </div>
-
-            <!-- Notification Item 2 -->
-            <div class="notification-item">
-                <div class="notification-description">
-                    <span class="notif-number">2.</span>You have been assigned to a new evaluation task. Please review
-                    the details and accept the task.
-                </div>
-                <div class="notif-card">
-                    <div class="notif-details">
-                        <p><strong>Date</strong>: 10 Aug 2025, Thu</p>
-                        <p><strong>Time</strong>: 9.30 am</p>
-                        <p><strong>Venue</strong>: Bilik Kuliah A</p>
-                        <p><strong>Student</strong>: Atiya Aisya Bin Aiman</p>
-                    </div>
-                    <div class="notif-action">
-                        <select class="form-select action-dropdown">
-                            <option value="accept">Accept</option>
-                            <option value="reject">Reject</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
         </div>
     </div>
 
@@ -309,6 +474,97 @@ $session_result = $conn->query($session_sql);
             links.forEach(l => l.style.display = 'none');
 
             document.querySelector(".menu-icon").style.display = "block";
+        }
+
+        // ==========================================
+        // MODAL FUNCTIONS
+        // ==========================================
+        const acknowledgementModal = document.getElementById('acknowledgementModal');
+        const closeAcknowledgementModalBtn = document.getElementById('closeAcknowledgementModal');
+        const okAcknowledgementBtn = document.getElementById('okAcknowledgementBtn');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalMessage = document.getElementById('modalMessage');
+
+        function openModal(modal) { modal.style.display = 'block'; }
+        function closeModal(modal) { modal.style.display = 'none'; }
+
+        // Close modal event listeners
+        if (closeAcknowledgementModalBtn) {
+            closeAcknowledgementModalBtn.addEventListener('click', () => {
+                closeModal(acknowledgementModal);
+                window.location.reload();
+            });
+        }
+
+        if (okAcknowledgementBtn) {
+            okAcknowledgementBtn.addEventListener('click', () => {
+                closeModal(acknowledgementModal);
+                window.location.reload();
+            });
+        }
+
+        // Close modal on backdrop click
+        acknowledgementModal?.addEventListener('click', (e) => {
+            if (e.target.id === 'acknowledgementModal') {
+                closeModal(acknowledgementModal);
+                window.location.reload();
+            }
+        });
+
+        // ==========================================
+        // UPDATE STATUS LOGIC
+        // ==========================================
+        function updateStatus(selectElement) {
+            const newStatus = selectElement.value;
+            const notifType = selectElement.getAttribute('data-type');
+            const recordId = selectElement.getAttribute('data-id');
+
+            if (newStatus === 'Waiting For Approval' || newStatus === 'Waiting for Approval') {
+                return; // No action needed for default status
+            }
+
+            // Send AJAX request to update status
+            fetch('update_notification_status.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `type=${notifType}&id=${recordId}&status=${encodeURIComponent(newStatus)}`
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Set modal message based on notification type and action
+                        if (notifType === 'logbook') {
+                            if (newStatus === 'Approved') {
+                                modalTitle.textContent = 'Logbook is approved!';
+                                modalMessage.textContent = 'The logbook approval is recorded successfully.';
+                            } else if (newStatus === 'Rejected') {
+                                modalTitle.textContent = 'Logbook is rejected!';
+                                modalMessage.textContent = 'The logbook rejection is recorded successfully.';
+                            }
+                        } else if (notifType === 'title') {
+                            if (newStatus === 'Approved') {
+                                modalTitle.textContent = 'Project title is approved!';
+                                modalMessage.textContent = 'The project title approval is recorded successfully.';
+                            } else if (newStatus === 'Rejected') {
+                                modalTitle.textContent = 'Project title is rejected!';
+                                modalMessage.textContent = 'The project title rejection is recorded successfully.';
+                            }
+                        }
+                        
+                        // Show modal instead of alert
+                        openModal(acknowledgementModal);
+                    } else {
+                        alert('Error: ' + data.message);
+                        selectElement.value = notifType === 'title' ? 'Waiting For Approval' : 'Waiting for Approval';
+                    }
+                })
+                .catch(error => {
+                    alert('Error updating status. Please try again.');
+                    console.error('Error:', error);
+                    selectElement.value = notifType === 'title' ? 'Waiting For Approval' : 'Waiting for Approval';
+                });
         }
 
     </script>

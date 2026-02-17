@@ -15,21 +15,10 @@ $activeRole = isset($_GET['role']) ? $_GET['role'] : 'assessor';
 $moduleTitle = ucfirst($activeRole) . " Module";
 
 // 3. FETCH COURSE INFO
-$courseCode = "SWE4949A";
-$courseSession = "2024/2025 - 2";
-
-$sqlSession = "SELECT fs.FYP_Session, fs.Semester, c.Course_Code 
-               FROM fyp_session fs
-               JOIN course c ON fs.Course_ID = c.Course_ID
-               ORDER BY fs.FYP_Session DESC, fs.Semester DESC
-               LIMIT 1";
-
-$resultSession = $conn->query($sqlSession);
-if ($resultSession && $resultSession->num_rows > 0) {
-    $sessionRow = $resultSession->fetch_assoc();
-    $courseCode = $sessionRow['Course_Code'];
-    $courseSession = $sessionRow['FYP_Session'] . " - " . $sessionRow['Semester'];
-}
+// HARDCODED: Using FYP_Session_ID 1 and 2 for 2024/2025 sessions
+$courseCode = "SWE4949";
+$courseSession = "2024/2025 - 1";
+$latestSessionID = 1; // Hardcoded to session 1
 
 // A. Get Login ID and Role
 if (isset($_SESSION['upmId'])) {
@@ -41,6 +30,16 @@ if (isset($_SESSION['upmId'])) {
 // Check if user has Coordinator role
 $userRole = isset($_SESSION['role']) ? $_SESSION['role'] : '';
 $isCoordinator = ($userRole === 'Coordinator');
+
+// Get lecturer full name
+$lecturerName = $loginID; // Default fallback
+$stmtName = $conn->prepare("SELECT Lecturer_Name FROM lecturer WHERE Lecturer_ID = ?");
+$stmtName->bind_param("s", $loginID);
+$stmtName->execute();
+if ($rowName = $stmtName->get_result()->fetch_assoc()) {
+    $lecturerName = $rowName['Lecturer_Name'];
+}
+$stmtName->close();
 
 // B. Lookup Numeric Assessor ID
 $currentUserID = null;
@@ -72,6 +71,7 @@ if ($currentUserID) {
             AND e.Assessor_ID = ? 
             AND e.Assessment_ID = a.Assessment_ID
         WHERE (se.Assessor_ID_1 = ? OR se.Assessor_ID_2 = ?)
+        AND se.FYP_Session_ID IN (1, 2)
         AND a.Assessment_ID IN (2, 3)
         AND e.Evaluation_ID IS NULL
     ");
@@ -90,6 +90,7 @@ if ($currentUserID) {
         JOIN student_session ss ON se.Student_ID = ss.Student_ID
         JOIN assessment_session asess ON ss.Session_ID = asess.Session_ID
         WHERE (se.Assessor_ID_1 = ? OR se.Assessor_ID_2 = ?)
+        AND se.FYP_Session_ID IN (1, 2)
         AND asess.Date >= CURDATE()
     ");
     $stmt->bind_param("ii", $currentUserID, $currentUserID);
@@ -117,6 +118,74 @@ if ($currentUserID) {
     $stmt->close();
 }
 
+// FETCH REMINDER DATA - Evaluation deadlines from due_date, custom messages from reminder table
+$reminderItems = [];
+// Fetch due dates for assessor assessments grouped by date
+$stmt = $conn->prepare("
+    SELECT 
+        dd.Start_Date,
+        dd.End_Date,
+        dd.Start_Time,
+        dd.End_Time,
+        dd.Role,
+        a.Assessment_Name,
+        c.Course_Code
+    FROM due_date dd
+    JOIN assessment a ON dd.Assessment_ID = a.Assessment_ID
+    JOIN course c ON a.Course_ID = c.Course_ID
+    WHERE dd.Role = 'Assessor'
+    AND dd.End_Date >= CURDATE()
+    AND dd.FYP_Session_ID IN (1, 2)
+    ORDER BY dd.Start_Date ASC, dd.Start_Time ASC
+");
+$stmt->execute();
+$result = $stmt->get_result();
+
+// Group reminders by date
+$groupedByDate = [];
+while ($row = $result->fetch_assoc()) {
+    $dateKey = $row['End_Date'];
+    if (!isset($groupedByDate[$dateKey])) {
+        $groupedByDate[$dateKey] = [];
+    }
+    $groupedByDate[$dateKey][] = [
+        'assessment_name' => $row['Assessment_Name'],
+        'course_code' => $row['Course_Code'],
+        'start_time' => $row['Start_Time'],
+        'end_time' => $row['End_Time'],
+        'end_date' => $row['End_Date'],
+        'role' => $row['Role']
+    ];
+}
+$stmt->close();
+
+// Convert grouped data to reminder items format
+foreach ($groupedByDate as $date => $assessments) {
+    $dateObj = DateTime::createFromFormat('Y-m-d', $date);
+    $formattedDate = $dateObj ? $dateObj->format('d F Y') : $date;
+
+    $reminderItems[] = [
+        'type' => 'due_date',
+        'date' => $formattedDate,
+        'assessments' => $assessments
+    ];
+}
+
+// Fetch custom reminder messages from reminder table (filtered by role)
+$stmt = $conn->prepare("SELECT Message, Date FROM reminder WHERE Role = 'Assessor' OR Role IS NULL ORDER BY Date DESC LIMIT 10");
+$stmt->execute();
+$result = $stmt->get_result();
+while ($row = $result->fetch_assoc()) {
+    if (!empty($row['Message'])) {
+        $reminderItems[] = [
+            'type' => 'custom',
+            'message' => $row['Message'],
+            'date' => $row['Date'] ? date('d F Y', strtotime($row['Date'])) : null
+        ];
+    }
+}
+$stmt->close();
+
 // 4. FETCH IN-PROGRESS EVALUATION TASKS
 // Assessments that assessor needs to evaluate (Assessment 2 for Course 1, Assessment 3 for Course 2)
 $inProgressTasks = [];
@@ -135,11 +204,12 @@ if ($currentUserID) {
         JOIN course c ON s.Course_ID = c.Course_ID
         JOIN assessment a ON c.Course_ID = a.Course_ID
         LEFT JOIN fyp_project pt ON s.Student_ID = pt.Student_ID
-        LEFT JOIN due_date dd ON a.Due_ID = dd.Due_ID
+        LEFT JOIN due_date dd ON a.Assessment_ID = dd.Assessment_ID AND dd.FYP_Session_ID = se.FYP_Session_ID AND dd.Role = 'Assessor'
         LEFT JOIN evaluation e ON s.Student_ID = e.Student_ID 
             AND a.Assessment_ID = e.Assessment_ID 
             AND e.Assessor_ID = ?
         WHERE (se.Assessor_ID_1 = ? OR se.Assessor_ID_2 = ?)
+        AND se.FYP_Session_ID IN (1, 2)
         AND a.Assessment_ID IN (2, 3)
         AND e.Evaluation_ID IS NULL
         ORDER BY s.Student_Name, a.Assessment_ID
@@ -157,7 +227,7 @@ if ($currentUserID) {
 $upcomingTasks = [];
 if ($currentUserID) {
     $stmt = $conn->prepare("
-        SELECT 
+        SELECT DISTINCT
             s.Student_ID,
             s.Student_Name,
             pt.Project_Title,
@@ -166,22 +236,43 @@ if ($currentUserID) {
             asess.Date,
             asess.Time,
             asess.Venue,
-            asess.Session_ID
+            asess.Session_ID,
+            GROUP_CONCAT(DISTINCT CONCAT(l.Lecturer_Name, '|', IFNULL(l.Lecturer_PhoneNo, 'N/A')) ORDER BY l.Lecturer_Name SEPARATOR '||') as Assessor_Info
         FROM student_enrollment se
-        JOIN student s ON se.Student_ID = s.Student_ID
-        JOIN student_session ss ON s.Student_ID = ss.Student_ID
-        JOIN assessment_session asess ON ss.Session_ID = asess.Session_ID
+        JOIN student s ON se.Student_ID = s.Student_ID AND se.FYP_Session_ID = s.FYP_Session_ID
+        JOIN student_session ss ON s.Student_ID = ss.Student_ID AND se.FYP_Session_ID = ss.FYP_Session_ID
+        JOIN assessment_session asess ON ss.Session_ID = asess.Session_ID AND asess.Assessment_ID IN (2, 3)
         JOIN assessment a ON asess.Assessment_ID = a.Assessment_ID
         LEFT JOIN fyp_project pt ON s.Student_ID = pt.Student_ID
+        LEFT JOIN assessor_session ases ON asess.Session_ID = ases.Session_ID
+        LEFT JOIN assessor ase ON ases.Assessor_ID = ase.Assessor_ID
+        LEFT JOIN lecturer l ON ase.Lecturer_ID = l.Lecturer_ID
         WHERE (se.Assessor_ID_1 = ? OR se.Assessor_ID_2 = ?)
+        AND se.FYP_Session_ID IN (1, 2)
         AND a.Assessment_ID IN (2, 3)
         AND asess.Date >= CURDATE()
+        GROUP BY s.Student_ID, s.Student_Name, pt.Project_Title, a.Assessment_Name, a.Assessment_ID, asess.Date, asess.Time, asess.Venue, asess.Session_ID
         ORDER BY asess.Date, asess.Time
     ");
     $stmt->bind_param("ii", $currentUserID, $currentUserID);
     $stmt->execute();
     $result = $stmt->get_result();
     while ($row = $result->fetch_assoc()) {
+        // Parse assessor info to separate names and phones
+        $assessorNames = [];
+        $assessorTooltips = [];
+        if (!empty($row['Assessor_Info'])) {
+            $assessors = explode('||', $row['Assessor_Info']);
+            foreach ($assessors as $assessor) {
+                $parts = explode('|', $assessor);
+                if (count($parts) == 2) {
+                    $assessorNames[] = $parts[0];
+                    $assessorTooltips[] = $parts[1];
+                }
+            }
+        }
+        $row['Assessor_Names'] = implode(', ', $assessorNames);
+        $row['Assessor_Phones'] = $assessorTooltips;
         $upcomingTasks[] = $row;
     }
     $stmt->close();
@@ -243,7 +334,7 @@ if ($currentUserID) {
                 Close <span class="x-symbol">x</span>
             </a>
 
-            <span id="nameSide">HI, <?php echo strtoupper($loginID); ?></span>
+            <span id="nameSide">Hi, <?php echo ucwords(strtolower($lecturerName)); ?></span>
 
             <a href="javascript:void(0)"
                 class="role-header <?php echo ($activeRole == 'supervisor') ? 'menu-expanded' : ''; ?>"
@@ -295,7 +386,7 @@ if ($currentUserID) {
                     class="<?php echo ($activeRole == 'assessor') ? 'active-menu-item active-page' : ''; ?>">
                     <i class="bi bi-house-fill icon-padding"></i> Dashboard
                 </a>
-                <a href="notification.php?role=assessor" id="Notification"
+                <a href="../phpAssessor/notification.php?role=assessor" id="Notification"
                     class="<?php echo ($activeRole == 'assessor') ?: ''; ?>">
                     <i class="bi bi-bell-fill icon-padding"></i> Notification
                 </a>
@@ -396,7 +487,7 @@ if ($currentUserID) {
                 <div class="evaluation-task-card">
                     <div class="tab-buttons">
                         <button class="task-tab active-tab" data-tab="inprogress">In-progress</button>
-                        <button class="task-tab" data-tab="upcoming">Upcoming</button>
+                        <button class="task-tab" data-tab="upcoming">Upcoming task</button>
                         <button class="task-tab" data-tab="completed">Completed</button>
                     </div>
                     <div class="task-list-area">
@@ -421,10 +512,19 @@ if ($currentUserID) {
                                         'assessments' => []
                                     ];
                                 }
-                                $groupedInProgress[$studentId]['assessments'][] = [
-                                    'name' => $task['Assessment_Name'],
-                                    'due' => $task['End_Date'] ? date('d M Y', strtotime($task['End_Date'])) : 'TBA'
-                                ];
+                                // Use Assessment_ID as key to prevent duplicates
+                                $assessmentKey = $task['Assessment_ID'];
+                                if (!isset($groupedInProgress[$studentId]['assessments'][$assessmentKey])) {
+                                    $groupedInProgress[$studentId]['assessments'][$assessmentKey] = [
+                                        'name' => $task['Assessment_Name'],
+                                        'due' => $task['End_Date'] ? date('d M Y', strtotime($task['End_Date'])) : 'TBA'
+                                    ];
+                                } else {
+                                    // If assessment already exists but current row has a valid date and stored one is TBA, update it
+                                    if ($task['End_Date'] && $groupedInProgress[$studentId]['assessments'][$assessmentKey]['due'] === 'TBA') {
+                                        $groupedInProgress[$studentId]['assessments'][$assessmentKey]['due'] = date('d M Y', strtotime($task['End_Date']));
+                                    }
+                                }
                             }
 
                             if (empty($groupedInProgress)): ?>
@@ -497,6 +597,18 @@ if ($currentUserID) {
                                         </div>
                                         <?php foreach ($dateGroup['tasks'] as $task):
                                             $timeFormatted = $task['Time'] ? date('g.i a', strtotime($task['Time'])) : 'TBA';
+                                            // Display assessor names with phone tooltips
+                                            $assessorDisplay = 'TBA';
+                                            if (!empty($task['Assessor_Names'])) {
+                                                $names = explode(', ', $task['Assessor_Names']);
+                                                $phones = $task['Assessor_Phones'];
+                                                $assessorParts = [];
+                                                foreach ($names as $index => $name) {
+                                                    $phone = isset($phones[$index]) ? $phones[$index] : 'N/A';
+                                                    $assessorParts[] = '<span class="assessor-name" data-phone="' . htmlspecialchars($phone) . '">' . htmlspecialchars($name) . '</span>';
+                                                }
+                                                $assessorDisplay = implode(', ', $assessorParts);
+                                            }
                                             ?>
                                             <div class="task-row data-row five-col-grid">
                                                 <span
@@ -506,7 +618,7 @@ if ($currentUserID) {
                                                     class="col-project-title"><?php echo htmlspecialchars($task['Project_Title'] ?: 'No title submitted'); ?></span>
                                                 <span
                                                     class="col-assessment-type"><?php echo htmlspecialchars($task['Assessment_Name']); ?></span>
-                                                <span class="col-assessor"><i class="fas fa-user-tie"></i></span>
+                                                <span class="col-assessor"><?php echo $assessorDisplay; ?></span>
                                             </div>
                                         <?php endforeach; ?>
                                     </div>
@@ -539,7 +651,8 @@ if ($currentUserID) {
                                             class="col-project-title"><?php echo htmlspecialchars($task['Project_Title'] ?: 'No title submitted'); ?></span>
                                         <span
                                             class="col-assessment-type"><?php echo htmlspecialchars($task['Assessment_Name']); ?></span>
-                                        <span class="col-marks"><?php echo htmlspecialchars($task['Total_Marks']); ?></span>
+                                        <span
+                                            class="col-marks"><?php echo htmlspecialchars(number_format($task['Total_Marks'], 2)); ?></span>
                                     </div>
                                     <?php
                                 endforeach;
@@ -556,19 +669,54 @@ if ($currentUserID) {
                 <h1 class="card-title">Reminder</h1>
                 <div class="reminder-card">
                     <div class="reminder-card-content">
-                        <div class="reminder-item">
-                            <p class="reminder-date">28 October 2025</p>
-                            <ul>
-                                <li>Assessment rubric for Seminar Demonstration (Assessor) has been updated</li>
-                            </ul>
-                        </div>
-                        <hr class="reminder-separator">
-                        <div class="reminder-item">
-                            <p class="reminder-date">29 October 2025</p>
-                            <ul>
-                                <li>Supervisor may modify submitted marks before 12 November 2025</li>
-                            </ul>
-                        </div>
+                        <?php if (!empty($reminderItems)): ?>
+                            <?php foreach ($reminderItems as $index => $reminder): ?>
+                                <?php if ($index > 0): ?>
+                                    <hr class="reminder-separator">
+                                <?php endif; ?>
+                                <div class="reminder-item">
+                                    <?php if ($reminder['type'] === 'custom'): ?>
+                                        <?php if (!empty($reminder['date'])): ?>
+                                            <p class="reminder-date"><?php echo htmlspecialchars($reminder['date']); ?></p>
+                                        <?php endif; ?>
+                                        <ul>
+                                            <li><?php echo htmlspecialchars($reminder['message']); ?></li>
+                                        </ul>
+                                    <?php elseif ($reminder['type'] === 'due_date'): ?>
+                                        <p class="reminder-date"><?php echo htmlspecialchars($reminder['date']); ?></p>
+                                        <ul>
+                                            <?php foreach ($reminder['assessments'] as $assessment): ?>
+                                                <?php
+                                                // Format time
+                                                $startTime = $assessment['start_time'] ? date('H:i', strtotime($assessment['start_time'])) : '';
+                                                $endTime = $assessment['end_time'] ? date('H:i', strtotime($assessment['end_time'])) : '';
+                                                $timeStr = $startTime && $endTime ? "$startTime - $endTime" : ($startTime ? $startTime : '');
+                                                ?>
+                                                <li style="list-style-type: disc; margin-bottom: 8px;">
+                                                    <strong>Assessment:</strong>
+                                                    <?php echo htmlspecialchars($assessment['assessment_name']); ?><br>
+                                                    <?php if ($assessment['course_code']): ?>
+                                                        <strong>Course Code:</strong>
+                                                        <?php echo htmlspecialchars($assessment['course_code']); ?><br>
+                                                    <?php endif; ?>
+                                                    <?php if ($assessment['role']): ?>
+                                                        <strong>Role:</strong> <?php echo htmlspecialchars($assessment['role']); ?><br>
+                                                    <?php endif; ?>
+                                                    <?php if ($timeStr): ?>
+                                                        <strong>Time:</strong> <?php echo htmlspecialchars($timeStr); ?>
+                                                    <?php endif; ?>
+                                                </li>
+                                            <?php endforeach; ?>
+                                        </ul>
+                                    <?php endif; ?>
+                                </div>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <div class="reminder-item">
+                                <p class="reminder-date" style="text-align: center; color: #999; font-style: italic;">No
+                                    reminder for now</p>
+                            </div>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>

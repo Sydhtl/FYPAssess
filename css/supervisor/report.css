@@ -280,14 +280,13 @@
 
 /* Main Grid Header Row */
 .grid-cell.header-row {
-  background-color: #f8f9fa;
+  background-color: #780000;
   font-weight: bold;
   padding: 12px 10px;
   border-right: 1px solid #dee2e6;
-  border-bottom: 2px solid #333;
-  color: #3f000d;
-  font-size: 0.9rem;
-
+  /* border-bottom: 2px solid #333; */
+  /* color: #3f000d; */
+  font-size: 16px;
 }
 
 /* General Cell Styling */
@@ -325,7 +324,12 @@
   background-color: #780000;
   color: white;
   font-weight: bold;
-  border-bottom: 1px solid #3f000d;
+  /* border-bottom: 1px solid #3f000d; */
+}
+
+/* Center align Total Mark header */
+.report-header-main[style*="grid-column: 3"] {
+  justify-content: center;
 }
 
 /* Assessment Header (e.g., "Proposal report") */
@@ -334,7 +338,25 @@
   font-weight: bold;
   cursor: pointer;
   border-bottom: 1px solid #e0e0e0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
+
+.assessment-header .assessment-title {
+  flex-grow: 1;
+}
+
+.assessment-header .evaluator-badge {
+  font-size: 0.75rem;
+  font-weight: 400;
+  padding: 4px 10px;
+  border-radius: 4px;
+  /* background-color: white; */
+  color: #555;
+  letter-spacing: 0.3px;
+}
+
 .assessment-header .toggle-icon {
   margin-right: 8px;
   transition: transform 0.2s ease-out;
@@ -353,8 +375,8 @@
 .assessment-total {
   background-color: #fdf0d5;
   font-weight: bold;
-  font-family: monospace;
-  font-size: 1.1rem;
+  font-family: "Montserrat", sans-serif;
+  font-size: 16px;
   justify-content: center;
   border-bottom: 1px solid #e0e0e0;
 }
@@ -368,6 +390,16 @@
   align-items: flex-start; /* Aligns text to top */
 }
 
+.lo-cell,
+.mark-cell {
+  justify-content: center;
+}
+
+.lo-cell,
+.mark-cell {
+  justify-content: center;
+}
+
 /* This hides the criteria rows by default */
 .criteria-row {
   display: contents; /* Still participates in grid */
@@ -379,14 +411,18 @@
 }
 
 /* Bootstrap's 'show' class will un-hide it */
-        .criteria-row.collapse.show {
-            display: contents;
-        }
+.criteria-row.collapse.show {
+  display: contents;
+}
 
-        .criteria-header .grid-cell {
-            font-weight: bold;
-            background-color: #f8f9fa; /* Light grey background */
-            color: #333; /* Dark red text */
-            border-bottom: 2px solid #333;
-            
-        }
+.criteria-header .grid-cell {
+  font-weight: bold;
+  background-color: #780000; /* Light grey background */
+  color: white; /* Dark red text */
+  /* border-bottom: 2px solid #333; */
+}
+
+.criteria-header .grid-cell:nth-child(2),
+.criteria-header .grid-cell:nth-child(3) {
+  justify-content: center;
+}

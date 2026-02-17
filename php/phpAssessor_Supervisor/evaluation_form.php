@@ -9,28 +9,10 @@ $activeRole = isset($_GET['role']) ? $_GET['role'] : 'supervisor';
 $moduleTitle = ucfirst($activeRole) . " Module";
 
 // 3. FETCH COURSE INFO FROM DATABASE
-// =======================================================================
-// Fetch current active FYP session based on current date/semester
-// =======================================================================
-$courseCode = "SWE4949A"; // Default fallback
-$courseSession = "2024/2025 - 2"; // Default fallback
-
-// Query to get the current active FYP session
-// Logic: Get the most recent session (you can modify this to match your business logic)
-// ORDER BY fs.FYP_Session DESC: Sorts sessions in descending order (newest first)
-// fs.Semester DESC: If multiple entries have the same session year, it sorts by semester (2 before 1)
-$sqlSession = "SELECT fs.FYP_Session, fs.Semester, c.Course_Code 
-               FROM fyp_session fs
-               JOIN course c ON fs.Course_ID = c.Course_ID
-               ORDER BY fs.FYP_Session DESC, fs.Semester DESC
-               LIMIT 1";
-
-$resultSession = $conn->query($sqlSession);
-if ($resultSession && $resultSession->num_rows > 0) {
-    $sessionRow = $resultSession->fetch_assoc();
-    $courseCode = $sessionRow['Course_Code'];
-    $courseSession = $sessionRow['FYP_Session'] . " - " . $sessionRow['Semester'];
-}
+// HARDCODED: Using FYP_Session_ID 1 and 2 for 2024/2025 sessions
+$courseCode = "SWE4949";
+$courseSession = "2024/2025 - 1";
+$latestSessionID = 1; // Hardcoded to session 1
 
 // =================================================================================
 // 4. FETCH DYNAMIC STUDENT DATA (PHP Logic)
@@ -43,6 +25,20 @@ if (isset($_SESSION['upmId'])) {
 } else {
     $loginID = 'hazura'; // Fallback
 }
+
+// Check if user has Coordinator role
+$userRole = isset($_SESSION['role']) ? $_SESSION['role'] : '';
+$isCoordinator = ($userRole === 'Coordinator');
+
+// Get lecturer full name
+$lecturerName = $loginID; // Default fallback
+$stmtName = $conn->prepare("SELECT Lecturer_Name FROM lecturer WHERE Lecturer_ID = ?");
+$stmtName->bind_param("s", $loginID);
+$stmtName->execute();
+if ($rowName = $stmtName->get_result()->fetch_assoc()) {
+    $lecturerName = $rowName['Lecturer_Name'];
+}
+$stmtName->close();
 
 // B. Lookup Numeric ID
 $currentUserID = null;
@@ -60,7 +56,7 @@ if ($activeRole === 'supervisor') {
         $currentUserID = $row['Assessor_ID'];
 }
 
-// C. Fetch Students
+// C. Fetch Students (latest session only)
 if ($currentUserID) {
     $sql = "SELECT s.Student_ID, s.Student_Name, s.Course_ID, fp.Project_Title, l.Lecturer_Name as Supervisor_Name
             FROM student_enrollment se
@@ -68,7 +64,7 @@ if ($currentUserID) {
             LEFT JOIN fyp_project fp ON s.Student_ID = fp.Student_ID
             JOIN supervisor sup ON se.Supervisor_ID = sup.Supervisor_ID
             JOIN lecturer l ON sup.Lecturer_ID = l.Lecturer_ID
-            WHERE ";
+            WHERE s.FYP_Session_ID IN (1, 2) AND ";
 
     if ($activeRole === 'supervisor') {
         $sql .= "se.Supervisor_ID = ?";
@@ -92,6 +88,7 @@ if ($currentUserID) {
             'projectTitle' => $row['Project_Title'] ?? 'No Title Yet'
         ];
     }
+    $stmtStudents->close();
 }
 ?>
 <!DOCTYPE html>
@@ -119,7 +116,7 @@ if ($currentUserID) {
                 Close <span class="x-symbol">x</span>
             </a>
 
-            <span id="nameSide">HI, <?php echo strtoupper($loginID); ?></span>
+            <span id="nameSide">Hi, <?php echo ucwords(strtolower($lecturerName)); ?></span>
 
             <a href="javascript:void(0)"
                 class="role-header <?php echo ($activeRole == 'supervisor') ? 'menu-expanded' : ''; ?>"
@@ -187,6 +184,40 @@ if ($currentUserID) {
                     <i class="bi bi-file-earmark-text-fill icon-padding"></i> Evaluation Form
                 </a>
             </div>
+            <?php if ($isCoordinator): ?>
+                <a href="javascript:void(0)"
+                    class="role-header <?php echo ($activeRole == 'coordinator') ? 'menu-expanded' : ''; ?>"
+                    data-target="coordinatorMenu" onclick="toggleMenu('coordinatorMenu', this)">
+                    <span class="role-text">Coordinator</span>
+                    <span class="arrow-container"><i class="bi bi-chevron-right arrow-icon"></i></span>
+                </a>
+
+                <div id="coordinatorMenu"
+                    class="menu-items <?php echo ($activeRole == 'coordinator') ? 'expanded' : ''; ?>">
+                    <a href="../../html/coordinator/dashboard/dashboardCoordinator.php" id="CoordinatorDashboard">
+                        <i class="bi bi-house-fill icon-padding"></i> Dashboard
+                    </a>
+                    <a href="../../html/coordinator/notification/notification.php" id="CoordinatorNotification">
+                        <i class="bi bi-bell-fill icon-padding"></i> Notification
+                    </a>
+                    <a href="../../html/coordinator/studentAssignation/studentAssignation.php" id="StudentAssignation">
+                        <i class="bi bi-people-fill icon-padding"></i> Student Assignation
+                    </a>
+                    <a href="../../html/coordinator/dateTimeAllocation/dateTimeAllocation.php" id="DateTimeAllocation">
+                        <i class="bi bi-calendar-check-fill icon-padding"></i> Date & Time Allocation
+                    </a>
+                    <a href="../../html/coordinator/learningObjective/learningObjective.php" id="LearningObjective">
+                        <i class="bi bi-book-fill icon-padding"></i> Learning Objective
+                    </a>
+                    <a href="../../html/coordinator/markSubmission/markSubmission.php" id="MarkSubmission">
+                        <i class="bi bi-file-earmark-check-fill icon-padding"></i> Mark Submission
+                    </a>
+                    <a href="../../html/coordinator/signatureSubmission/signatureSubmission.php"
+                        id="CoordinatorSignatureSubmission">
+                        <i class="bi bi-pen-fill icon-padding"></i> Signature Submission
+                    </a>
+                </div>
+            <?php endif; ?>
 
             <a href="../login.php" id="logout"><i class="bi bi-box-arrow-left" style="padding-right: 10px;"></i>
                 Logout</a>
@@ -251,15 +282,15 @@ if ($currentUserID) {
     </div>
 
     <!-- Acknowledgement Modal -->
-    <div id="acknowledgementModal" class="modal-backdrop-custom d-none">
-        <div class="modal-wrapper">
+    <div id="acknowledgementModal" class="custom-modal">
+        <div class="modal-dialog">
             <div class="modal-content-custom">
-                <button type="button" class="btn-close btn-close-white modal-close-btn" aria-label="Close"></button>
-                <div class="modal-body-custom text-center">
-                    <div class="modal-icon-container">
-                        <i class="bi bi-check-circle-fill text-success" style="font-size: 3rem;"></i>
-                    </div>
-                    <h3 class="modal-title-custom mt-3">Evaluation saved successfully!</h3>
+                <span class="close-btn" id="closeAcknowledgementModal">&times;</span>
+                <div class="modal-icon"><i class="bi bi-check-circle-fill"></i></div>
+                <div class="modal-title-custom">Evaluation is saved!</div>
+                <div class="modal-message">The evaluation marks have been saved successfully.</div>
+                <div style="display:flex; justify-content:center;">
+                    <button id="okAcknowledgementBtn" class="btn btn-success" type="button">OK</button>
                 </div>
             </div>
         </div>
@@ -274,6 +305,7 @@ if ($currentUserID) {
         let assessmentMeta = {};
         let selectedStudentId = null;
         let selectedAssessmentKey = null;
+        let logbookCounts = { SWE4949A: 0, SWE4949B: 0 }; // Store logbook approval counts
 
         // ==========================================
         // SIDEBAR LOGIC START
@@ -407,6 +439,7 @@ if ($currentUserID) {
             select.addEventListener('change', function () {
                 selectedStudentId = this.value;
                 updateStudentDetails(selectedStudentId);
+                fetchLogbookCounts(selectedStudentId); // Fetch logbook counts
                 checkFormVisibility();
                 if (selectedAssessmentKey) {
                     loadExistingMarks(); // Load marks if assessment already selected
@@ -425,6 +458,25 @@ if ($currentUserID) {
                 <p><strong>Supervisor</strong>: ${student.supervisor}</p>
                 <p><strong>Project title</strong>: ${student.projectTitle}</p>
             `;
+        }
+
+        // Fetch logbook approval counts for the selected student
+        async function fetchLogbookCounts(studentId) {
+            try {
+                const response = await fetch(`fetch_logbook_counts.php?student_id=${studentId}`);
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    logbookCounts = data.counts;
+                    // Regenerate table if assessment is already selected to show updated counts
+                    if (selectedAssessmentKey) {
+                        generateEvaluationTable(selectedAssessmentKey);
+                    }
+                }
+            } catch (error) {
+                console.error('Error fetching logbook counts:', error);
+                logbookCounts = { SWE4949A: 0, SWE4949B: 0 };
+            }
         }
 
         function checkFormVisibility() {
@@ -661,7 +713,7 @@ if ($currentUserID) {
 
                     criterion.sub_criteria.forEach((sub) => {
                         const subPoints = sub.description.map(p => `<li>${p}</li>`).join('');
-                        let options = `<option value="" disabled selected>Select...</option>`;
+                        let options = `<option value="" disabled selected>Select the mark...</option>`;
                         if (sub.marks_options && sub.marks_options.length > 0) {
                             sub.marks_options.forEach(opt => {
                                 const val = opt.split(' - ')[0];
@@ -705,7 +757,7 @@ if ($currentUserID) {
                             data-criteria-id="${criterion.id}" 
                             data-type="criteria"
                             data-element-id="${criterion.id}">
-                        <option value="" disabled selected>Select...</option>
+                        <option value="" disabled selected>Select the mark...</option>
                         ${dropdownOptions}
                     </select>
                 </div>
@@ -714,6 +766,20 @@ if ($currentUserID) {
             <div class="grid-cell mark-cell" style="border-top: 1px solid #e9ecef;">
                 <input type="text" class="form-control marks-input" id="display-total-${criterion.id}" disabled readonly value="0.00">
             </div>`;
+
+                    // Add logbook count notice for criteria ID 14
+                    if (criterion.id == 14) {
+                        htmlContent += `
+            <div class="grid-cell" style="grid-column: 1 / -1; background-color: #fff8e1; border: 2px solid #ffc107; border-radius: 8px; padding: 15px; margin: 10px 0;">
+                <div style="color: #856404; font-weight: bold; font-size: 14px; margin-bottom: 8px;">
+                    <i class="bi bi-info-circle-fill" style="margin-right: 5px;"></i>Note for rubric 5. Management:
+                </div>
+                <ol style="margin: 0; padding-left: 20px; color: #856404; font-size: 13px;">
+                    <li>Student has <strong>${logbookCounts.SWE4949A}</strong> approved logbook${logbookCounts.SWE4949A !== 1 ? 's' : ''} for SWE4949A.</li>
+                    <li>Student has <strong>${logbookCounts.SWE4949B}</strong> approved logbook${logbookCounts.SWE4949B !== 1 ? 's' : ''} for SWE4949B.</li>
+                </ol>
+            </div>`;
+                    }
                 }
             });
             // #e9ecef
@@ -792,22 +858,32 @@ if ($currentUserID) {
         });
 
         // Acknowledgement Modal Functions
+        const acknowledgementModal = document.getElementById('acknowledgementModal');
+        const closeAcknowledgementModalBtn = document.getElementById('closeAcknowledgementModal');
+        const okAcknowledgementBtn = document.getElementById('okAcknowledgementBtn');
+
+        function openModal(modal) { modal.style.display = 'block'; }
+        function closeModal(modal) { modal.style.display = 'none'; }
+
         function showAcknowledgementModal() {
-            const modal = document.getElementById('acknowledgementModal');
-            modal.classList.remove('d-none');
+            openModal(acknowledgementModal);
         }
 
-        // Close modal on button click
-        document.querySelector('.modal-close-btn')?.addEventListener('click', () => {
-            document.getElementById('acknowledgementModal').classList.add('d-none');
+        // Close modal on X button click
+        closeAcknowledgementModalBtn?.addEventListener('click', () => {
+            closeModal(acknowledgementModal);
+        });
+
+        // Close modal on OK button click
+        okAcknowledgementBtn?.addEventListener('click', () => {
+            closeModal(acknowledgementModal);
             window.location.reload();
         });
 
         // Close modal on backdrop click
-        document.getElementById('acknowledgementModal')?.addEventListener('click', (e) => {
+        acknowledgementModal?.addEventListener('click', (e) => {
             if (e.target.id === 'acknowledgementModal') {
-                e.target.classList.add('d-none');
-                window.location.reload();
+                closeModal(acknowledgementModal);
             }
         });
     </script>
